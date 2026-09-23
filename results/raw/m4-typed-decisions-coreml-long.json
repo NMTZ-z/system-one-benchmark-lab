@@ -1,0 +1,191 @@
+{
+  "environment": {
+    "created_at": "2026-09-23T13:24:57.503603+00:00",
+    "chip": "Apple M4",
+    "memory_bytes": 25769803776,
+    "os": "macOS-27.0-arm64-arm-64bit",
+    "python": "3.12.14",
+    "packages": {
+      "coremltools": "9.0",
+      "numpy": "2.1.3",
+      "torch": "2.7.0",
+      "tokenizers": "0.23.2",
+      "mlx": "0.32.2",
+      "laya-mlx": "0.2.0"
+    },
+    "source_sha256": "589473f6cee028e3f281893e4ca679b98eff97ae7c1615ebdac6023ae62086db"
+  },
+  "backend": "coreml",
+  "compute_units": "cpu_gpu",
+  "model_dir": "models/typed-decisions-coreml",
+  "load_seconds": 17.665418624994345,
+  "measurement": "predict wall time: prompts, tokenization, arrays, synchronous inference, calibration and formatting; excludes load/warmup",
+  "export": {
+    "format": "laya-coreml",
+    "format_version": 1,
+    "source": "convaiinnovations/laya-typed-decisions",
+    "revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+    "source_weights_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+    "precision": "float16",
+    "attention": "sdpa",
+    "minimum_deployment_target": "macOS15 / iOS18",
+    "shape": {
+      "batch_size": 1,
+      "max_length": 1024,
+      "min_length": 16,
+      "default_length": 128,
+      "max_options": 32,
+      "flexible": true,
+      "mode": "enumerated",
+      "lengths": [
+        16,
+        32,
+        64,
+        96,
+        128,
+        192,
+        256,
+        384,
+        512,
+        768,
+        1024
+      ]
+    },
+    "versions": {
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "numpy": "2.1.3"
+    },
+    "conversion_seconds": 14.574038375001692,
+    "files": {
+      "encoder/config.json": {
+        "bytes": 2084,
+        "sha256": "5268d24ad3b77c8151de5dcb0762ba4391619aad9ab0bda33e36fb083cfeae6d"
+      },
+      "model.mlpackage/Data/com.apple.CoreML/model.mlmodel": {
+        "bytes": 1659058,
+        "sha256": "b9accf64df1bf6176911b731fede8023cac4b5901b1a0738b5def56aa80f01ea"
+      },
+      "model.mlpackage/Data/com.apple.CoreML/weights/weight.bin": {
+        "bytes": 842881984,
+        "sha256": "4c1dbcd09c84813a4101e5db1eda2003be05bfa60c13788ed2864f5f75a2e071"
+      },
+      "model.mlpackage/Manifest.json": {
+        "bytes": 617,
+        "sha256": "393b3f65b7a76a9a72073efdbc90c06a72619efedd8dbe03fbaedeaafa54c24c"
+      },
+      "rl_agent_config.json": {
+        "bytes": 847,
+        "sha256": "ebf0cd524d92342a6be5e48e9fca3d7c2babfb5a56ccd79d2171ef5d8c7f7be8"
+      },
+      "tokenizer/tokenizer.json": {
+        "bytes": 3583228,
+        "sha256": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30"
+      },
+      "tokenizer/tokenizer_config.json": {
+        "bytes": 337,
+        "sha256": "08d4cf3ac4dca381759441b85b91a6d40e688471dcd33d15d6649eb0a9a854d1"
+      }
+    },
+    "source_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+    "repository": "aac6fef/laya-typed-decisions-coreml",
+    "package_sha256": "517a8071290a29c2f1e19b38356fdc5c59dfdc801711a92606de6bba67596c85"
+  },
+  "workloads": [
+    {
+      "questions": 1,
+      "long": true,
+      "unrounded_token_lengths": [
+        1024
+      ],
+      "first_prediction_ms": 2520.961333066225,
+      "warmup_calls": 10,
+      "samples": 50,
+      "mean_ms": 305.063494106289,
+      "p50_ms": 304.92145800963044,
+      "p95_ms": 311.637826875085,
+      "p99_ms": 313.75659497920424,
+      "min_ms": 298.8427500240505,
+      "max_ms": 314.41049999557436,
+      "questions_per_second": 3.278006117807016,
+      "identical_rounded_results": true,
+      "rss_before": 1091354624,
+      "rss_after": 1091649536,
+      "latency_ms": [
+        301.525125047192,
+        306.4552079886198,
+        306.6270829876885,
+        303.2284590881318,
+        310.2865839609876,
+        303.0734999338165,
+        307.29575001168996,
+        305.7434579823166,
+        300.8690410060808,
+        314.41049999557436,
+        305.97049999050796,
+        306.7379581043497,
+        308.8842910947278,
+        300.9445839561522,
+        307.8650840325281,
+        306.51912500616163,
+        301.9210420316085,
+        304.7571249771863,
+        298.8427500240505,
+        309.821542003192,
+        301.7404170241207,
+        302.07466694992036,
+        305.2854159614071,
+        304.6482909703627,
+        307.84174997825176,
+        304.31362497620285,
+        302.03000002074987,
+        310.37862494122237,
+        303.9151659468189,
+        304.94454107247293,
+        308.1639159936458,
+        299.3600000627339,
+        313.07599996216595,
+        301.40650004614145,
+        304.1903330013156,
+        305.8977909386158,
+        299.4396249996498,
+        307.6062499312684,
+        302.6360000949353,
+        304.89837494678795,
+        312.6680830027908,
+        302.5531250750646,
+        302.32545803301036,
+        301.952000008896,
+        300.58908404316753,
+        306.8758330773562,
+        299.7107079718262,
+        308.62575001083314,
+        306.63387500680983,
+        305.6147920433432
+      ],
+      "example_result": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "q0": {
+            "type": "choice",
+            "confidence": 0.2714,
+            "action": {
+              "act_probability": 1.0
+            },
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.662,
+              "technical": 0.1142,
+              "sales": 0.1022,
+              "other": 0.1216
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1024,
+          "output_tokens": 0
+        }
+      }
+    }
+  ]
+}

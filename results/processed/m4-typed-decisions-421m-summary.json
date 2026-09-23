@@ -1,0 +1,124 @@
+{
+  "model": {
+    "name": "Laya Typed Decisions 421M",
+    "coreml_repo": "aac6fef/laya-typed-decisions-coreml",
+    "coreml_revision": "28d24fa8d67a3264556b23391ec6c3fd98573056",
+    "source_repo": "convaiinnovations/laya-typed-decisions",
+    "source_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2"
+  },
+  "validation": {
+    "passed": true,
+    "questions": 63,
+    "argmax_agreements": 63,
+    "max_probability_abs_error": 0.0027266347551877512,
+    "max_action_probability_abs_error": 0.0,
+    "repeat_calls": 100,
+    "repeat_results_identical": true,
+    "repeat_seconds": 239.24983433401212
+  },
+  "short": {
+    "1": {
+      "coreml_cpu_gpu": {
+        "p50_ms": 33.71483297087252,
+        "p95_ms": 35.94822268350981,
+        "mean_ms": 33.93492204602808,
+        "first_prediction_ms": 3329.190207994543,
+        "questions_per_second": 29.46816847386998
+      },
+      "mlx_fp16": {
+        "p50_ms": 36.0553955542855,
+        "p95_ms": 38.12925249221735,
+        "mean_ms": 36.11207999289036,
+        "first_prediction_ms": 120.32674998044968,
+        "questions_per_second": 27.691564711777254
+      },
+      "coreml_over_mlx_p50_speed_ratio": 1.0694223395807736,
+      "mlx_over_coreml_p50_speed_ratio": 0.9350842627731266
+    },
+    "3": {
+      "coreml_cpu_gpu": {
+        "p50_ms": 102.1743334713392,
+        "p95_ms": 106.29017916508019,
+        "mean_ms": 102.31879089260474,
+        "first_prediction_ms": 102.74566698353738,
+        "questions_per_second": 29.320127552609986
+      },
+      "mlx_fp16": {
+        "p50_ms": 84.49218748137355,
+        "p95_ms": 87.85574800567701,
+        "mean_ms": 84.59619257366285,
+        "first_prediction_ms": 87.686917046085,
+        "questions_per_second": 35.46258890301387
+      },
+      "coreml_over_mlx_p50_speed_ratio": 0.8269414109275727,
+      "mlx_over_coreml_p50_speed_ratio": 1.209275514305553
+    },
+    "10": {
+      "coreml_cpu_gpu": {
+        "p50_ms": 350.11414549080655,
+        "p95_ms": 369.0378452127334,
+        "mean_ms": 350.84254629095085,
+        "first_prediction_ms": 342.0002500060946,
+        "questions_per_second": 28.50281445542549
+      },
+      "mlx_fp16": {
+        "p50_ms": 242.30302107753232,
+        "p95_ms": 249.0205381414853,
+        "mean_ms": 242.34340377501212,
+        "first_prediction_ms": 240.31758296769112,
+        "questions_per_second": 41.26375978973971
+      },
+      "coreml_over_mlx_p50_speed_ratio": 0.6920686416078976,
+      "mlx_over_coreml_p50_speed_ratio": 1.4449433768255688
+    }
+  },
+  "long_1024": {
+    "coreml_cpu_gpu": {
+      "p50_ms": 304.92145800963044,
+      "p95_ms": 311.637826875085,
+      "mean_ms": 305.063494106289,
+      "first_prediction_ms": 2520.961333066225
+    },
+    "mlx_fp16": {
+      "p50_ms": 312.20202043186873,
+      "p95_ms": 319.88564373459667,
+      "mean_ms": 313.20429587736726,
+      "first_prediction_ms": 348.5766670200974
+    },
+    "coreml_over_mlx_p50_speed_ratio": 1.0238768451054971,
+    "mlx_over_coreml_p50_speed_ratio": 0.9766799637870149
+  },
+  "load_seconds": {
+    "coreml_cpu_gpu": 19.980572124943137,
+    "mlx_fp16": 1.1447425000369549
+  },
+  "coreml_cpu_ne": {
+    "p50_ms": 1204.4694789801724,
+    "p95_ms": 1265.859272266971,
+    "preferred_operation_counts": {
+      "unknown": 2266,
+      "MLCPUComputeDevice": 1643
+    },
+    "supported_operation_counts": {
+      "MLCPUComputeDevice": 1643,
+      "MLGPUComputeDevice": 1322,
+      "MLNeuralEngineComputeDevice": 1228
+    }
+  },
+  "coreml_cpu_gpu_plan": {
+    "preferred_operation_counts": {
+      "unknown": 2233,
+      "MLGPUComputeDevice": 1676
+    },
+    "supported_operation_counts": {
+      "MLCPUComputeDevice": 1676,
+      "MLGPUComputeDevice": 1676
+    }
+  },
+  "notes": [
+    "Core ML and MLX timings are end-to-end predict wall time with model load and warmup excluded.",
+    "Core ML executes multiple questions sequentially; MLX uses batch_size=16.",
+    "Core ML compute plans are anticipated assignments, not runtime hardware traces.",
+    "The checkpoint emits an upstream temperature-clamp warning for choice:11+; affected confidence should be treated as uncalibrated."
+  ]
+}

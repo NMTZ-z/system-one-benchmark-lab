@@ -197,3 +197,117 @@ Not yet verified:
    factor.
 3. Ordinary Core ML CPU/GPU baseline behavior under the same workload.
 4. 421M Typed Decisions ANE feasibility.
+
+## 2026-09-23 — Phase 2: Typed Decisions 421M runtime baseline
+
+### Pinned artifacts
+
+- Core ML bundle: `aac6fef/laya-typed-decisions-coreml`
+- Core ML Hub revision:
+  `28d24fa8d67a3264556b23391ec6c3fd98573056`
+- Source checkpoint: `convaiinnovations/laya-typed-decisions`
+- Source revision:
+  `f9ab0b228f0fc0f14d873dbc99038f135c2da1b2`
+- Core ML package: B1, enumerated L16–L1024, K32, FP16 SDPA
+- Published package SHA-256:
+  `517a8071290a29c2f1e19b38356fdc5c59dfdc801711a92606de6bba67596c85`
+
+### Independent M4 conversion-fidelity validation
+
+The pinned Hub bundle was tested against the upstream frozen FP32 reference on
+the M4, not merely trusted from its bundled release report.
+
+- selected-answer agreement: **63/63**
+- maximum calibrated probability drift: **0.0027266348**
+- maximum action-probability drift: **0**
+- repeat stability: **100/100 identical rounded public results**
+- repeat phase elapsed: 239.250 s
+- gate: **PASS**
+
+The upstream temperature-safety logic emits a warning for the `choice:11+`
+temperature bucket and clamps it into the accepted range. Confidence involving
+that bucket is therefore not treated as broadly calibrated.
+
+Primary raw file:
+`results/raw/m4-typed-decisions-coreml-validation.json`.
+
+### Primary short runtime comparison
+
+Boundary: complete synchronous `predict`; load/warmup excluded. Ten warmup
+calls, then 100 measured calls per workload.
+
+| Questions | Core ML CPU+GPU P50 / P95 | MLX FP16 P50 / P95 | P50 relation |
+|---:|---:|---:|---:|
+| 1 | **33.715 / 35.948 ms** | 36.055 / 38.129 ms | Core ML 1.069× faster |
+| 3 | 102.174 / 106.290 ms | **84.492 / 87.856 ms** | MLX 1.209× faster |
+| 10 | 350.114 / 369.038 ms | **242.303 / 249.021 ms** | MLX 1.445× faster |
+
+The multi-question rows are shipped-API comparisons rather than equal tensor
+batching. The ordinary Core ML path executes questions sequentially; MLX uses
+batch size 16.
+
+Primary raw files:
+
+- `results/raw/m4-typed-decisions-coreml-perf.json`
+- `results/raw/m4-typed-decisions-mlx-perf.json`
+
+Earlier screening/probe runs are retained as raw exploratory data rather
+than deleted:
+
+- `results/raw/m4-typed-decisions-coreml-short.json`
+- `results/raw/m4-typed-decisions-mlx-short.json`
+- `results/raw/m4-typed-decisions-coreml-plan.json` (single-sample compute-plan probe)
+
+### Full-length L1024 single question
+
+50 measured calls after 10 warmups:
+
+- Core ML CPU+GPU: **304.921 ms P50**, 311.638 ms P95
+- MLX FP16: **312.202 ms P50**, 319.886 ms P95
+
+The two routes are near parity for this workload in this desktop run.
+
+### Startup observations
+
+Primary short runs:
+
+- Core ML load: 19.981 s
+- MLX load: 1.145 s
+- first Core ML short prediction: 3329.190 ms
+- first MLX short prediction: 120.327 ms
+
+These are observed cache-state values, not controlled cold-boot results.
+
+### Ordinary CPU+NE control
+
+To test whether compute-unit selection alone could unlock the Neural Engine,
+the same ordinary SDPA package was run with `cpu_ne`:
+
+- 1-question P50: **1204.469 ms**
+- P95: 1265.859 ms
+- roughly 35.7× slower than CPU+GPU P50
+
+Anticipated compute plan:
+
+- preferred CPU operations: 1,643
+- preferred Neural Engine operations: **0**
+- ANE-supported operations: 1,228
+
+Therefore ANE support in the operator set is not equivalent to ANE placement.
+The ordinary 421M export requires a graph rewrite to become a meaningful ANE
+candidate.
+
+### Phase 2 status
+
+**PASS.**
+
+The 421M CPU+GPU and MLX runtime baseline is frozen. Phase 3 proceeds to the
+unified decision-quality benchmark; 421M ANE engineering remains gated behind
+that quality evaluation and a dedicated structural feasibility review.
+
+Processed summary:
+`results/processed/m4-typed-decisions-421m-summary.json`.
+
+Human-readable report:
+`results/reports/M4-Typed-Decisions-421M-Baseline-v0.1.md`.
+
