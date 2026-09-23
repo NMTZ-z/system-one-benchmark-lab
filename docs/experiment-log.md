@@ -311,3 +311,52 @@ Processed summary:
 Human-readable report:
 `results/reports/M4-Typed-Decisions-421M-Baseline-v0.1.md`.
 
+
+
+## 2026-09-23 — Phase 3A: public typed-decisions quality baseline
+
+The public `LocalLLaMA/typed-decisions` test split was pinned at
+`c76749ec58bd8c3d2ea706b31c333a9059c38f90` and evaluated with Laya Typed
+Decisions 421M through the MLX FP16 public API.
+
+All 400 cases / 2,000 decisions completed with 100% coverage.
+
+Primary metrics:
+
+- accuracy: **0.7660**
+- soft accuracy: **0.470636**
+- KL from gold: **0.117043**
+- total variation: **0.174059**
+- Brier vs soft gold: **0.061473**
+- ECE (15 bins): **0.213283**
+- score MAE: **0.242418**
+- within one score level: **0.995**
+
+The result reproduces the published Laya specialist benchmark row to rounding
+precision, providing an external sanity check on the local scorer.
+
+End-to-end case latency on the M4:
+
+- P50: 513.672 ms
+- P95: 2838.582 ms
+- P99: 5337.657 ms
+- mean: 830.019 ms
+- total measured run: 415.962 s
+
+The benchmark uses one public `predict` call per case with all five questions
+present. The checkpoint consumed 582,370 input tokens and generated zero output
+tokens.
+
+Important interpretation boundary: Laya Typed Decisions 421M is treated as a
+specialist for this benchmark task family. Jev 1.13.0 is evaluated as a
+zero-shot generalist. Their scores may be reported side by side only with this
+training-regime distinction made explicit.
+
+Raw:
+`results/raw/m4-typed-decisions-quality-mlx.json`
+
+Processed:
+`results/processed/m4-typed-decisions-quality-mlx-summary.json`
+
+Report:
+`results/reports/M4-Typed-Decisions-Quality-Laya-v0.1.md`

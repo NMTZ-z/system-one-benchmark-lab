@@ -6,7 +6,7 @@ Apple Silicon 上 System One / typed-decision 模型的可复现实验仓。
 
 ## Current status
 
-Phase 1 and Phase 2 are complete on the M4 Mac mini.
+Phase 1, Phase 2, and the Phase 3A Laya quality baseline are complete on the M4 Mac mini.
 
 Published 322M ANE short-decision baseline:
 
@@ -25,12 +25,24 @@ Typed Decisions 421M runtime baseline:
 - L1024 P50: Core ML 304.921 ms vs MLX 312.202 ms
 - ordinary Core ML CPU+NE: 1204.469 ms P50; compute plan prefers CPU, not ANE
 
+Typed Decisions public quality baseline (400 cases / 2,000 decisions):
+
+- Laya Typed Decisions 421M MLX coverage: 100%
+- accuracy: 0.7660
+- soft accuracy: 0.47064
+- KL from gold: 0.11704
+- Brier vs soft gold: 0.06147
+- ECE (15 bins): 0.21328
+- score MAE: 0.24242
+- end-to-end case P50 / P95: 513.7 / 2838.6 ms
+
 Frozen reports:
 
 - `results/reports/M4-Laya-ANE-Baseline-v0.1.md`
 - `results/reports/M4-Typed-Decisions-421M-Baseline-v0.1.md`
+- `results/reports/M4-Typed-Decisions-Quality-Laya-v0.1.md`
 
-Next: Phase 3 unified decision-quality benchmark for Jev / Laya / published ANE path.
+Next: Phase 3B Jev 1.13.0 zero-shot measurement, followed by the separately labelled published-ANE capacity/quality subset.
 
 ## 当前目标
 
