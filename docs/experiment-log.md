@@ -418,3 +418,60 @@ Processed:
 Report:
 `results/reports/M4-Laya-ANE-W8-Typed-Decisions-Capacity-v0.1.md`
 
+
+
+## 2026-09-23 — Phase 3D: 421M Core ML vs MLX full-quality parity
+
+The full 400-case / 2,000-decision public Typed Decisions test split was run
+through the ordinary 421M Core ML CPU+GPU export and compared decision by
+decision with the Phase 3A MLX FP16 run.
+
+Parity:
+
+- decisions compared: **2,000**
+- selected-answer mismatches: **0**
+- mismatch cases: **0**
+- max probability absolute delta: 0.0030
+- max Score-value delta: 0.0039
+- max Noul delta: 0.0049
+- max confidence delta: 0.0049
+- max action-probability delta: 0
+
+Aggregate quality:
+
+- accuracy: 0.766000 on both backends
+- soft-accuracy delta (Core ML − MLX): +0.00000485
+- KL delta: +0.00000272
+- total-variation delta: +0.00000277
+- Brier delta: −0.00000022
+- ECE delta: −0.00001153
+- Score MAE delta: −0.00002704
+- within-one-level delta: 0
+
+This establishes full-task quality parity for the same 421M checkpoint. The
+small numeric deltas do not change any selected decision.
+
+End-to-end five-question case latency:
+
+- Core ML CPU+GPU P50: 887.877 ms
+- MLX FP16 P50: 513.672 ms
+- Core ML / MLX P50: 1.728×
+- Core ML mean: 1938.453 ms
+- MLX mean: 830.019 ms
+- Core ML / MLX mean: 2.335×
+- Core ML load: 18.945 s
+- MLX load: 1.152 s
+
+These first-pass case latencies include shape-specialization effects after model
+load. The warmed Phase 2 microbenchmark remains the correct source for
+steady-state short-input latency.
+
+Raw Core ML:
+`results/raw/m4-typed-decisions-quality-coreml.json`
+
+Comparison:
+`results/processed/m4-typed-decisions-quality-coreml-vs-mlx.json`
+
+Report:
+`results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md`
+

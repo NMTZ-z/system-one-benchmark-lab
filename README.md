@@ -54,7 +54,20 @@ Frozen capacity report:
 
 - `results/reports/M4-Laya-ANE-W8-Typed-Decisions-Capacity-v0.1.md`
 
-Next: Phase 3B Jev 1.13.0 zero-shot measurement plus 421M Core ML full-quality parity.
+421M full-quality backend parity:
+
+- Core ML vs MLX selected decisions: **2,000 / 2,000 identical**
+- accuracy: 0.766 on both backends
+- max probability delta: 0.0030
+- max Score / Noul delta: 0.0039 / 0.0049
+- end-to-end case P50: Core ML 887.9 ms vs MLX 513.7 ms
+- Core ML / MLX P50 ratio: 1.73×
+
+Frozen parity report:
+
+- `results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md`
+
+Next: Phase 3B Jev 1.13.0 zero-shot measurement. The runner is ready; the current execution environment still needs a TypeSafe API key exposed via `TYPESAFE_API_KEY`.
 
 ## 当前目标
 
