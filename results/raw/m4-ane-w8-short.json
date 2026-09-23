@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "benchmark": "published-laya-ane-short-decision",
+  "measurement": "complete predict wall time including prompt construction, tokenization, input arrays, host embedding lookup, synchronous Core ML inference, CPU action head, calibration and formatting; excludes model load and warmup",
+  "machine": {
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.14 (main, Sep  1 2026, 14:09:38) [Clang 22.1.3 ]"
+  },
+  "model": {
+    "path": "models/ane-w8",
+    "revision": "7503714810747a879b1e310074a9398bc573e739",
+    "coreml_config_sha256": "992f051c6cfed3f2ab6394ce06a3e28bb3b8daa84406da62726752a9c8fef6ce",
+    "manifest": {
+      "format": "laya-coreml-ane",
+      "format_version": 1,
+      "source": "convaiinnovations/laya-multilingual",
+      "source_revision": "052592a15d198d9ad47da779604259b10b47b7aa",
+      "source_weights_sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204",
+      "precision": "float16",
+      "host_action_precision": "float32",
+      "compression": {
+        "mode": "kmeans",
+        "nbits": 8,
+        "granularity": "per_grouped_channel",
+        "group_size": 32,
+        "num_kmeans_workers": 8,
+        "operator_selection": "conv only; threshold >2048; norms/RoPE/attention left unchanged"
+      },
+      "minimum_deployment_target": "macOS15 / iOS18",
+      "shape": {
+        "batch_size": 1,
+        "max_length": 96,
+        "min_length": 96,
+        "max_options": 32,
+        "flexible": false,
+        "lengths": null
+      },
+      "host_tensor_count": 6,
+      "host_tensors_exactly_equal_to_source": true,
+      "versions": {
+        "coremltools": "9.0",
+        "torch": "2.7.0",
+        "numpy": "2.1.3",
+        "kmeans1d": "0.4.0"
+      },
+      "repository": "aac6fef/laya-multilingual-coreml-ane-w8",
+      "package_sha256": "913229de164efd925637853f5e99d23bc91cc1799fab1dde1b910d7ed43d98c6",
+      "files": {
+        "encoder/config.json": {
+          "bytes": 1938,
+          "sha256": "83f6916d13ef0f556ac461f28308dc2bffa7ebeadee8ec9e2db5812020ea5bb4"
+        },
+        "host_weights.safetensors": {
+          "bytes": 393617940,
+          "sha256": "010bb264995c8aa5676dc8a1ec16df3d47107517f3933d1a59a7d27282f7fce8"
+        },
+        "model.mlpackage/Data/com.apple.CoreML/model.mlmodel": {
+          "bytes": 1693085,
+          "sha256": "6c76f6f613cb6b3453389f360927caaebfb008c6c2c7be7045ea040618863359"
+        },
+        "model.mlpackage/Data/com.apple.CoreML/weights/weight.bin": {
+          "bytes": 127595520,
+          "sha256": "b895c9879f734d2ab25cb541de561fb69468f84406c16b783d4ed405475536e8"
+        },
+        "model.mlpackage/Manifest.json": {
+          "bytes": 617,
+          "sha256": "1cf3f58611b851f8b6ea0f5dc7f0b1297094634c89fd1007e9a64cdb2d4adcd9"
+        },
+        "rl_agent_config.json": {
+          "bytes": 472,
+          "sha256": "25061739243b617ad88d1219ba6f8a9c86c5881ca28df024fa2d9b3b2fcc30c6"
+        },
+        "tokenizer/tokenizer.json": {
+          "bytes": 34363188,
+          "sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f"
+        },
+        "tokenizer/tokenizer_config.json": {
+          "bytes": 524,
+          "sha256": "6c6b2d8e3c84ce0e671c129cd6b374b235d6f9863042a5836358d00a89bbb5a1"
+        }
+      }
+    },
+    "compute_units": "cpu_ne"
+  },
+  "input": {
+    "workload": "upstream benchmarks.cases.workload(1)",
+    "questions": 1,
+    "actual_token_lengths": [
+      91
+    ]
+  },
+  "load_seconds": 21.980545667000115,
+  "first_prediction_ms": 10.610083001665771,
+  "warmup_calls": 10,
+  "timing": {
+    "count": 100,
+    "mean_ms": 4.829852540278807,
+    "stdev_ms": 0.7034129198911768,
+    "min_ms": 4.065082990564406,
+    "p50_ms": 4.595520498696715,
+    "p95_ms": 6.031872908351942,
+    "p99_ms": 7.268737507984046,
+    "max_ms": 7.915167021565139,
+    "samples_ms": [
+      6.010749959386885,
+      5.758167011663318,
+      5.5028339847922325,
+      5.512082949280739,
+      5.367000005207956,
+      5.870040971785784,
+      7.218042039312422,
+      7.2622079169377685,
+      7.915167021565139,
+      6.43320893868804,
+      4.956459044478834,
+      5.530750029720366,
+      5.120874964632094,
+      4.5056670205667615,
+      5.597540992312133,
+      5.742709035985172,
+      5.538792000152171,
+      5.700916983187199,
+      4.597500083036721,
+      4.637708072550595,
+      4.824082949198782,
+      4.92904195562005,
+      5.125041934661567,
+      5.29020803514868,
+      4.8849169397726655,
+      4.7051250003278255,
+      4.491083091124892,
+      4.581000073812902,
+      4.573000012896955,
+      4.713916918262839,
+      4.804041935130954,
+      4.81079111341387,
+      4.486083984375,
+      4.667750094085932,
+      4.733209032565355,
+      4.578542080707848,
+      4.568540956825018,
+      4.803500021807849,
+      4.5935409143567085,
+      4.918999969959259,
+      5.403749994002283,
+      7.062916993163526,
+      5.269499961286783,
+      4.535708925686777,
+      4.6865000622347,
+      5.290125031024218,
+      5.336791975423694,
+      4.85395803116262,
+      4.62383299600333,
+      4.476832924410701,
+      4.931292030960321,
+      4.5215829741209745,
+      4.364834050647914,
+      4.316208069212735,
+      4.233666928485036,
+      4.1809999383986,
+      4.309916985221207,
+      4.506792058236897,
+      4.250250058248639,
+      4.350917064584792,
+      4.211166989989579,
+      4.15141589473933,
+      4.134625080041587,
+      4.136999952606857,
+      4.29204199463129,
+      4.436457995325327,
+      4.365250002592802,
+      4.394832998514175,
+      4.726832965388894,
+      4.463208024390042,
+      4.348625079728663,
+      4.065082990564406,
+      4.320249892771244,
+      4.303917055949569,
+      4.346832982264459,
+      4.628208000212908,
+      4.442207980901003,
+      4.8874589847400784,
+      4.682458005845547,
+      4.448332940228283,
+      4.490541992709041,
+      4.479208029806614,
+      4.320541978813708,
+      4.390583955682814,
+      4.820250091142952,
+      4.448082996532321,
+      4.764834069646895,
+      4.712500027380884,
+      4.372666939161718,
+      4.442582954652607,
+      4.1475830366835,
+      4.885417059995234,
+      4.490917082875967,
+      4.354874952696264,
+      4.686166997998953,
+      4.529625060968101,
+      4.488874925300479,
+      4.247999982908368,
+      4.493749933317304,
+      4.264833056367934
+    ]
+  },
+  "decisions_per_second": 207.04565857041138,
+  "stable_rounded_results": true,
+  "rss_before": 716472320,
+  "rss_after": 713998336,
+  "example_result": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "q0": {
+        "type": "choice",
+        "confidence": 1.0,
+        "action": {
+          "act_probability": 1.0
+        },
+        "choice": "billing",
+        "probabilities": {
+          "billing": 1.0,
+          "technical": 0.0,
+          "sales": 0.0,
+          "other": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 91,
+      "output_tokens": 0
+    }
+  }
+}

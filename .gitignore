@@ -1,0 +1,14 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.venv/
+.tools/
+venv/
+.env
+.env.*
+results/**/*.tmp
+results/**/*.log
+models/
+artifacts/

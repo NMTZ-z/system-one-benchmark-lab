@@ -1,0 +1,38 @@
+{
+  "captured_at_utc": "2026-09-23T11:05:07.278842+00:00",
+  "git": {
+    "repo_head": null,
+    "upstream_laya_coreml_head": "4619e0483f07adf39068532e85b42ec2347edb83"
+  },
+  "hardware": {
+    "machine": "arm64",
+    "processor": "arm",
+    "sysctl_brand": "Apple M4",
+    "sysctl_memsize": "25769803776",
+    "system_profiler": {
+      "chip_type": "Apple M4",
+      "machine_model": "Mac16,10",
+      "machine_name": "Mac mini",
+      "number_processors": "proc 10:0:4:6",
+      "physical_memory": "24 GB"
+    }
+  },
+  "packages": {
+    "coremltools": "9.0",
+    "huggingface-hub": "1.32.0",
+    "laya-coreml": "0.1.1",
+    "mlx": "0.32.2",
+    "numpy": "2.1.3",
+    "torch": "2.7.0",
+    "transformers": null
+  },
+  "platform": {
+    "python": "3.12.14 (main, Sep  1 2026, 14:09:38) [Clang 22.1.3 ]",
+    "python_executable": ".tools/python/cpython-3.12.14-macos-aarch64-none/bin/python3.12",
+    "release": "27.0.0",
+    "sw_vers": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428",
+    "system": "Darwin",
+    "version": "Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132",
+    "xcodebuild": null
+  }
+}

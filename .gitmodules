@@ -1,0 +1,3 @@
+[submodule "references/laya-coreml"]
+	path = references/laya-coreml
+	url = https://github.com/mizorewww/laya-coreml.git
