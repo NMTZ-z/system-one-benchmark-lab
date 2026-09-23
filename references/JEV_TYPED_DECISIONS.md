@@ -21,11 +21,20 @@ Source:
 A direct unauthenticated request from the M4 benchmark host on 2026-09-23
 returned HTTP 403 with an authentication error requiring an API key.
 
-The local adapter reads the key only from an environment variable and never
-writes it into benchmark output:
+The local adapter never writes the API key into benchmark output. Credential
+resolution order:
 
-- default environment variable: `TYPESAFE_API_KEY`
+1. environment variable `TYPESAFE_API_KEY`;
+2. macOS Keychain generic-password service `typesafe-systemone`, using the
+   current macOS account by default.
+
+The benchmark records only the non-secret credential source label
+(`env:TYPESAFE_API_KEY` or `keychain:typesafe-systemone/<account>`).
+
+Files:
+
 - adapter: `adapters/jev.py`
+- secure interactive Keychain helper: `scripts/configure_typesafe_keychain.sh`
 
 ## Public Typed Decisions measurement
 
@@ -85,10 +94,19 @@ Latency is also not a controlled comparison:
 
 ## Local independent rerun status
 
-The local Jev runner is implemented and ready:
+The local Jev runner is implemented and ready.
+
+Recommended one-time macOS setup:
 
 ```bash
-TYPESAFE_API_KEY=... \
+./scripts/configure_typesafe_keychain.sh
+```
+
+The script delegates secret entry to the macOS `security` CLI with interactive
+password input, so the key is not echoed and does not appear in the command
+line. After the Keychain item exists, run:
+
+```bash
 PYTHONPATH=references/laya-coreml .venv/bin/python \
   -m benchmarks.quality.run_typed_decisions \
   --backend jev \
@@ -96,5 +114,8 @@ PYTHONPATH=references/laya-coreml .venv/bin/python \
   --output results/raw/typed-decisions-quality-jev-1.13.0.json
 ```
 
-Do not place the API key in shell history, Git, benchmark JSON, or report text.
-Inject it through a secret-aware environment/session when available.
+An explicit `TYPESAFE_API_KEY` environment variable remains supported and
+takes priority over Keychain.
+
+Do not place the API key in shell history, Git, benchmark JSON, report text, or
+chat messages.

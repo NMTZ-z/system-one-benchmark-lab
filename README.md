@@ -72,7 +72,7 @@ Phase 3 interim synthesis:
 - `results/reports/Phase3-Jev-Laya-ANE-Interim-v0.1.md`
 - Jev public-reference provenance: `references/JEV_TYPED_DECISIONS.md`
 
-Next: Phase 3B Jev 1.13.0 zero-shot measurement. The runner is ready; the current execution environment still needs a TypeSafe API key exposed via `TYPESAFE_API_KEY`.
+Next: Phase 3B Jev 1.13.0 zero-shot measurement. The runner is ready. The current machine has no existing TypeSafe/Jev credential; store one securely with `./scripts/configure_typesafe_keychain.sh` (recommended) or expose `TYPESAFE_API_KEY`.
 
 ## 当前目标
 

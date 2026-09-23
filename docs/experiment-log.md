@@ -519,3 +519,39 @@ Reference provenance:
 Phase 3 interim report:
 `results/reports/Phase3-Jev-Laya-ANE-Interim-v0.1.md`
 
+
+
+## 2026-09-23 — Jev credential plumbing hardened
+
+The benchmark host was checked for existing TypeSafe/Jev credentials without
+reading secret values.
+
+Checked sources:
+
+- current AgentDock process environment
+- launchd environment
+- macOS generic and internet-password Keychain metadata
+- common user secret files and their variable names
+- Codex / Hermes environment variable names
+
+No existing TypeSafe/Jev/SystemOne credential was found.
+
+The Jev adapter now resolves credentials in this order:
+
+1. `TYPESAFE_API_KEY` environment variable;
+2. macOS Keychain service `typesafe-systemone`, current macOS account by default.
+
+Only the credential-source label is written to benchmark metadata; the key is
+never serialized.
+
+A secure one-time helper was added:
+
+`scripts/configure_typesafe_keychain.sh`
+
+It uses the macOS `security` CLI with interactive password prompting
+(`-w` as the final option), so the API key is not placed in shell history or
+the command-line argument list.
+
+After the Keychain item is created, the existing Phase 3B runner can execute
+without further code changes.
+

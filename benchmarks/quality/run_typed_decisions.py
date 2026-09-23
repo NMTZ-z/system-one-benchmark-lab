@@ -88,6 +88,7 @@ def make_backend(args: argparse.Namespace):
             "model": args.model,
             "base_url": client.base_url,
             "available_models": models.get("models", []),
+            "credential_source": client.credential_source,
         }
 
     raise ValueError(f"unsupported backend: {args.backend}")

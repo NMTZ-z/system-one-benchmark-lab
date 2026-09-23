@@ -2,11 +2,37 @@
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
+import subprocess
+import sys
 import urllib.error
 import urllib.request
 from typing import Any
+
+
+def _keychain_password(service: str, account: str) -> str | None:
+    if sys.platform != "darwin":
+        return None
+    result = subprocess.run(
+        [
+            "security",
+            "find-generic-password",
+            "-a",
+            account,
+            "-s",
+            service,
+            "-w",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    return value or None
 
 
 class JevClient:
@@ -15,13 +41,29 @@ class JevClient:
         *,
         model: str = "jev-1.13.0",
         api_key_env: str = "TYPESAFE_API_KEY",
+        keychain_service: str = "typesafe-systemone",
+        keychain_account: str | None = None,
         base_url: str | None = None,
         timeout: float = 30.0,
     ) -> None:
         api_key = os.environ.get(api_key_env)
+        credential_source = f"env:{api_key_env}"
         if not api_key:
-            raise RuntimeError(f"missing API key environment variable: {api_key_env}")
+            account = (
+                keychain_account
+                or os.environ.get("TYPESAFE_KEYCHAIN_ACCOUNT")
+                or getpass.getuser()
+            )
+            service = os.environ.get("TYPESAFE_KEYCHAIN_SERVICE") or keychain_service
+            api_key = _keychain_password(service, account)
+            credential_source = f"keychain:{service}/{account}"
+        if not api_key:
+            raise RuntimeError(
+                "missing TypeSafe API key: set TYPESAFE_API_KEY or store it in "
+                "macOS Keychain service 'typesafe-systemone'"
+            )
         self._api_key = api_key
+        self.credential_source = credential_source
         self.model = model
         self.base_url = (
             base_url or os.environ.get("TYPESAFE_BASE_URL") or "https://api.typesafe.ai"
