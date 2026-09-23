@@ -637,3 +637,96 @@ Next gate:
 **Phase 4A — 421M long-context ANE feasibility**, staged at L192 → L384 → L512
 before any L640 full-coverage attempt.
 
+
+
+## 2026-09-24 — Phase 4A: Typed Decisions 421M ANE L192
+
+Phase 4A began with the pinned Laya Typed Decisions 421M checkpoint
+(`f9ab0b228f0fc0f14d873dbc99038f135c2da1b2`).
+
+Architecture comparison showed the 421M checkpoint is substantially heavier in
+the transformer body than the published 322M multilingual ANE checkpoint:
+
+- hidden size: 1024 vs 768
+- encoder layers: 28 vs 22
+- attention heads: 16 vs 12
+- FFN intermediate: 2624 vs 1152
+- non-embedding parameters: ~369.7M vs ~125.3M
+
+The upstream ANE research implementation was first reviewed. Importantly, the
+upstream 322M research tree already contains successful L192 and L1024 fixed-body
+experiments with all attributed operations preferred on ANE, so long-context
+ANE feasibility was not treated as an unexplored principle.
+
+### Single-layer L192 preflight
+
+421M representative layer:
+
+- preferred ANE operations: 368
+- preferred CPU/GPU operations: 0
+- P50: 2.372 ms
+- PyTorch layout max error: 2.67e-5
+- Core ML max abs error: 0.0710
+- Core ML RMSE: 0.00302
+
+The numerical error is no worse than the upstream 322M research layer
+(max abs 0.1496, RMSE 0.00392).
+
+### Full L192 body
+
+- fixed shape: B1 / L192 / K32
+- package size: 741,741,391 bytes (~707 MiB)
+- conversion: 155.35 s
+- first load + AOT compile: 158.41 s
+- preferred ANE operations: **10,594**
+- preferred CPU/GPU operations: **0**
+- attributed estimated cost on ANE: ~100%
+- body P50: **32.14 ms**
+- body P95: 47.74 ms
+
+The original upstream research probe re-loads the compiled model to obtain an
+MLComputePlan, which triggers another expensive AOT path for this large graph.
+This was observed directly and should be avoided when placement evidence is not
+needed.
+
+### L192 golden fidelity
+
+A local validation path was added that reuses the upstream FP32 golden but does
+not recompute the compute plan.
+
+- reference cases evaluated: 15 / 16
+- questions: 60
+- argmax: **60 / 60**
+- max calibrated probability error: **0.00640**
+- max action probability error: **0**
+- repeats: **100 / 100 identical**
+- end-to-end short1 P50: **50.05 ms**
+- gate: **PASS**
+
+The single skipped reference case is L1024.
+
+The checkpoint has extremely saturated FP32 golden action logits (up to about
+±5,000). The host action path emitted numerical matmul warnings and raw action
+logit drift reached 64.1 in one case, but action probabilities remained exactly
+aligned with the golden on all evaluated questions. This is tracked as a
+host-path numerical-stability observation rather than an ANE fidelity failure.
+
+### Capacity and decision
+
+Unmodified public Typed Decisions prompts fitting L192:
+
+- 472 / 2,000 decisions
+- 23.6% coverage
+
+The L192 gate passes structural conversion, ANE placement, golden fidelity and
+repeatability.
+
+Proceed to L384. The L192 short1 latency is not compared directly with the MLX
+short-input result because the fixed ANE graph always computes all 192 tokens.
+
+Processed summary:
+`results/processed/phase4a-typed421-l192-summary.json`
+
+Report:
+`results/reports/Phase4A-Typed421-L192-v0.1.md`
+

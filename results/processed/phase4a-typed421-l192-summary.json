@@ -1,0 +1,87 @@
+{
+  "phase": "4A",
+  "checkpoint": "laya-typed-decisions",
+  "source_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+  "source_weights_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+  "shape": {
+    "batch": 1,
+    "length": 192,
+    "options": 32
+  },
+  "precision": "FP16 Core ML body; original embedding lookup; FP32 CPU action head",
+  "architecture": {
+    "hidden_size": 1024,
+    "layers": 28,
+    "attention_heads": 16,
+    "intermediate_size": 2624,
+    "local_attention": 128
+  },
+  "layer_preflight": {
+    "preferred_operation_counts": {
+      "unknown": 202,
+      "MLNeuralEngineComputeDevice": 368
+    },
+    "estimated_cost_by_device": {
+      "MLNeuralEngineComputeDevice": 1.000000000000001
+    },
+    "p50_ms": 2.3716665455140173,
+    "p95_ms": 2.868972485885024,
+    "pytorch_layout_max_abs_error": [
+      2.6702880859375e-05
+    ],
+    "coreml_max_abs_error": 0.071014404296875,
+    "coreml_rmse": 0.0030150997918099165
+  },
+  "body": {
+    "package_bytes": 741741391,
+    "conversion_seconds": 155.34787612501532,
+    "load_compile_seconds": 158.40612237504683,
+    "preferred_operation_counts": {
+      "unknown": 5941,
+      "MLNeuralEngineComputeDevice": 10594
+    },
+    "supported_operation_counts": {
+      "MLCPUComputeDevice": 10594,
+      "MLNeuralEngineComputeDevice": 10594
+    },
+    "estimated_cost_by_device": {
+      "MLNeuralEngineComputeDevice": 0.9999999999999034
+    },
+    "mean_ms": 32.73584720445797,
+    "p50_ms": 32.13914547814056,
+    "p95_ms": 47.74207676528022,
+    "p99_ms": 48.34600114496425
+  },
+  "validation": {
+    "passed": true,
+    "completed_cases": 15,
+    "skipped_cases": 1,
+    "total_questions": 60,
+    "argmax_agreements": 60,
+    "max_probability_error": 0.006401273736671209,
+    "max_action_probability_error": 0.0,
+    "max_logit_error": 0.07463645935058594,
+    "max_action_logit_error": 64.068359375,
+    "repeat_calls": 100,
+    "repeat_identical": true,
+    "short1_end_to_end": {
+      "mean_ms": 50.06017667707056,
+      "p50_ms": 50.0544790411368,
+      "p95_ms": 52.7387167152483,
+      "p99_ms": 54.58720961934886
+    },
+    "runtime_load_compile_seconds": 162.69018933398183
+  },
+  "typed_decisions_capacity": {
+    "supported": 472,
+    "total": 2000,
+    "coverage": 0.236
+  },
+  "gate": "PASS",
+  "notes": [
+    "All attributed nonconstant operations are preferred on MLNeuralEngineComputeDevice in the anticipated compute plan.",
+    "The short1 end-to-end comparison is not length-matched to the MLX short benchmark because the ANE graph always computes the fixed L192 shape.",
+    "The source checkpoint has very large saturated action logits; host action matmul emitted overflow warnings, but action probabilities matched golden exactly on the validation subset.",
+    "Research .mlpackage artifacts are intentionally ignored by Git; reports and manifests remain versionable."
+  ]
+}

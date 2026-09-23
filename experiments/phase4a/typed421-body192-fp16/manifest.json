@@ -1,0 +1,38 @@
+{
+  "format": "laya-ane-research",
+  "version": 1,
+  "created_at": "2026-09-23T16:27:05.319149+00:00",
+  "kind": "body",
+  "shape": {
+    "batch": 1,
+    "length": 192,
+    "options": 32
+  },
+  "source_directory": "/Users/zhongshengyuan/Projects/system-one-benchmark-lab/models/typed-decisions-source",
+  "source_files_sha256": {
+    "model.safetensors": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+    "encoder/config.json": "5268d24ad3b77c8151de5dcb0762ba4391619aad9ab0bda33e36fb083cfeae6d",
+    "rl_agent_config.json": "ebf0cd524d92342a6be5e48e9fca3d7c2babfb5a56ccd79d2171ef5d8c7f7be8"
+  },
+  "source_tensor_dtype_counts": {
+    "F16": 206
+  },
+  "package_sha256": "a1e8d144455bc53aedb166a53d86f4e5e8fb6cddb029615e70130c75cf515123",
+  "package_bytes": 741741391,
+  "precision": "FP16 Core ML body, original embedding lookup, FP32 CPU action head",
+  "versions": {
+    "coremltools": "9.0",
+    "torch": "2.7.0",
+    "numpy": "2.1.3",
+    "kmeans1d": "0.4.0"
+  },
+  "experiment_python_sha256": {
+    "artifact.py": "2d7ca289f92ea5ac09a55d93c2df8794b774e4312d09710b9ecd1165c8d974a7",
+    "benchmark.py": "c08d5526bf019ad09de64b6754aff037ee3840a16e56b7e4534b72a760998f98",
+    "model.py": "ac577c6635f4fd7767461d36e7e17db45c00311a862a7e5e8c2be58a975c3992",
+    "palettize.py": "db0d28dd98188712f61cfeec8e544a9a1e57549a6c887920eb83794d9fc52fce",
+    "probe.py": "d2c573b96a1c09c425fba7c7bf2bda5ff94838f1ad91cb2ee522de2f24362338",
+    "runtime.py": "a8b5cd68a4ceae9521f1d36a205b6af7dad49d99a0d8346c3c364e1950c948c1",
+    "validate.py": "ee99f6d9525ebda36f6e35a0563038d772778d038f3cdd9f52e0207e32a0ace0"
+  }
+}

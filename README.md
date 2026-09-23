@@ -6,7 +6,7 @@ Apple Silicon 上 System One / typed-decision 模型的可复现实验仓。
 
 ## Current status
 
-Phase 1–3 are complete on the M4 Mac mini. The next engineering gate is Phase 4A: 421M long-context ANE feasibility.
+Phase 1–3 are complete on the M4 Mac mini. Phase 4A is active: the 421M L192 ANE gate has passed; L384 is next.
 
 Published 322M ANE short-decision baseline:
 
@@ -87,7 +87,19 @@ Final Phase 3 reports:
 - `results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md`
 - Jev provenance and public-reference notes: `references/JEV_TYPED_DECISIONS.md`
 
-Next: **Phase 4A — 421M Long-Context ANE Feasibility**, staged at L192 → L384 → L512 before considering L640.
+Phase 4A — 421M long-context ANE feasibility:
+
+- L192 full body: **PASS**
+- 10,594 / 10,594 attributed nonconstant operations preferred on ANE
+- body P50: 32.14 ms
+- end-to-end short1 P50: 50.05 ms (not length-matched to MLX)
+- 60 / 60 golden questions agree
+- max calibrated probability error: 0.00640
+- 100 / 100 repeat stability
+- public Typed Decisions capacity at L192: 472 / 2,000 decisions (23.6%)
+- report: `results/reports/Phase4A-Typed421-L192-v0.1.md`
+
+Next: **L384**, then L512 if the placement/fidelity/runtime gates continue to pass.
 
 ## 当前目标
 

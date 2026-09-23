@@ -13,3 +13,5 @@ results/**/*.log
 models/
 artifacts/
 datasets/
+experiments/phase4a/**/model.mlpackage/
+experiments/phase4a/**/*.mlmodelc/
