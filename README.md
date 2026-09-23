@@ -67,6 +67,11 @@ Frozen parity report:
 
 - `results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md`
 
+Phase 3 interim synthesis:
+
+- `results/reports/Phase3-Jev-Laya-ANE-Interim-v0.1.md`
+- Jev public-reference provenance: `references/JEV_TYPED_DECISIONS.md`
+
 Next: Phase 3B Jev 1.13.0 zero-shot measurement. The runner is ready; the current execution environment still needs a TypeSafe API key exposed via `TYPESAFE_API_KEY`.
 
 ## 当前目标

@@ -475,3 +475,47 @@ Comparison:
 Report:
 `results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md`
 
+
+
+## 2026-09-23 — Phase 3B status: Jev runner ready, credential gate confirmed
+
+The Jev HTTP adapter and full typed-decisions runner are implemented. Current
+official TypeSafe API documentation requires Bearer authentication for the API,
+and a direct unauthenticated `GET /v1/models` from the benchmark host returned
+HTTP 403 with an authentication error.
+
+No TypeSafe API key is exposed to the current benchmark execution environment,
+so a local Jev rerun has not been fabricated from cached or third-party results.
+
+An external reference has instead been pinned separately:
+
+- source: public `LocalLLaMA/typed-decisions` dataset card
+- measurement date reported by source: 2026-09-18
+- model requested: `jev-latest`
+- concrete model reported by response: `jev-1.13.0`
+- mode: general / zero-shot
+- cases / decisions: 400 / 2,000
+- errors: 0
+- accuracy: 0.727
+- soft accuracy: 0.580
+- KL: 1.442
+- TV: 0.251
+- Brier: 0.148
+- ECE: 0.144
+- Score MAE: 0.391
+- within one level: 0.952
+- P50: 710 ms/case
+
+These values remain labelled **external**, not locally measured.
+
+The local Laya Typed Decisions 421M checkpoint is a specialist fine-tuned on
+the benchmark's 1,200-case train split / 6,000 decisions. Jev is reported as a
+zero-shot generalist, so the two rows must not be turned into an overall model
+ranking.
+
+Reference provenance:
+`references/JEV_TYPED_DECISIONS.md`
+
+Phase 3 interim report:
+`results/reports/Phase3-Jev-Laya-ANE-Interim-v0.1.md`
+
