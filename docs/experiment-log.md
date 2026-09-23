@@ -125,6 +125,44 @@ outside this claim. This is conversion fidelity, not broad task accuracy.
 Raw result:
 `results/raw/m4-release-validation.json`.
 
+### PSTR-only system energy run
+
+A dedicated system-power run used the upstream PSTR-only methodology after the
+runtime comparison. All three models stayed resident; loading and warmup were
+excluded. The same 8-item short-decision workload was run in 3 balanced cycles,
+with six 20-second active blocks per backend.
+
+| Backend | Decisions | Mean interval | Mean system power | System J/decision | Gross energy improvement vs MLX |
+|---|---:|---:|---:|---:|---:|
+| compiled MLX FP16 | 10,186 | 11.782 ms | 36.176 W | 0.42625 J | 1× |
+| ANE FP16 | 22,029 | 5.448 ms | 17.866 W | 0.09733 J | **4.380×** |
+| ANE W8 K-means | 30,634 | 3.918 ms | 18.696 W | 0.07324 J | **5.820×** |
+
+Adjacent-idle-subtracted energy improvements were 6.488× for FP16 ANE and
+8.169× for W8 ANE. Gross system energy is retained as the primary published
+metric because it depends on fewer subtraction assumptions.
+
+The upstream `benchmarks.energy_summary` audit was rerun against the raw file
+and passed all structural and integration checks:
+
+- 3 complete balanced cycles;
+- 1,101 PSTR samples;
+- maximum observed system power 48.327 W;
+- maximum sample gap 0.515 s;
+- all system-power samples positive, finite and below the 500 W sanity ceiling;
+- active and adjacent-idle energy integrals recomputed consistently;
+- all active blocks retained stable rounded decisions.
+
+Complete-cycle bootstrap 95% ranges:
+
+- W8 gross system-energy improvement: 5.674–6.010×;
+- FP16 gross system-energy improvement: 4.319–4.478×.
+
+Raw files:
+
+- `results/raw/m4-pstr-energy.json`
+- `results/raw/m4-pstr-energy-audit.json`
+
 ### Result privacy sanitation
 
 Before repository review, local absolute home-directory paths and the local host
@@ -145,13 +183,17 @@ Verified:
 3. W8 is consistently faster than FP16 across all balanced cycles, not only in
    the initial screening run.
 4. Both ANE bundles pass the upstream fidelity gate.
+5. PSTR-only system-power measurement shows materially lower gross system energy
+   per decision for both ANE paths than for compiled MLX on this workload.
+6. The saved energy run passes the upstream structural, telemetry and
+   re-integration audit.
 
 Not yet verified:
 
-1. System energy per decision on this M4.
-2. Runtime hardware-trace evidence that every heavy operation actually executed
+1. Runtime hardware-trace evidence that every heavy operation actually executed
    on ANE on this specific machine.
-3. Whether the unusually large W8-vs-FP16 advantage is caused primarily by
+2. Whether the unusually large W8-vs-FP16 advantage is caused primarily by
    memory bandwidth, ANE generation differences, Core ML scheduling, or another
    factor.
+3. Ordinary Core ML CPU/GPU baseline behavior under the same workload.
 4. 421M Typed Decisions ANE feasibility.

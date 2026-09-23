@@ -100,6 +100,43 @@ were checked as finite, and the official fidelity gate passes.
 We intentionally did not modify the upstream action-head implementation or
 silence warnings globally for this baseline.
 
+## Energy measurement
+
+A full balanced PSTR-only system-power run was completed after the latency baseline.
+All three models remained resident, with load and warmup excluded. The run used
+three balanced cycles and six 20-second active blocks per backend.
+
+| Backend | Decisions | Mean interval | Mean system power | System energy / decision | Energy improvement vs MLX |
+|---|---:|---:|---:|---:|---:|
+| compiled MLX FP16 | 10,186 | 11.782 ms | 36.176 W | 0.42625 J | 1× |
+| ANE FP16 | 22,029 | 5.448 ms | 17.866 W | 0.09733 J | **4.380×** |
+| ANE W8 K-means | 30,634 | 3.918 ms | 18.696 W | 0.07324 J | **5.820×** |
+
+Using adjacent-idle subtraction, the corresponding energy-per-decision
+improvements are 6.488× for FP16 ANE and 8.169× for W8 ANE. These idle-subtracted
+figures are useful diagnostics, but the gross system-energy ratios above are the
+primary result because they make fewer assumptions about baseline subtraction.
+
+The upstream `energy_summary` audit independently recomputed the stored energy
+integrals and passed:
+
+- 3 complete balanced cycles;
+- 1,101 PSTR system-power samples;
+- maximum sample gap: 0.515 s;
+- maximum observed system power: 48.327 W;
+- all samples positive, finite, and below the configured 500 W sanity ceiling;
+- stored and recomputed active/idle energy agree;
+- rounded decisions remained stable in every active block.
+
+A complete-cycle bootstrap gives a 95% interval of 5.674–6.010× for the W8
+gross system-energy improvement and 4.319–4.478× for FP16. This interval only
+describes variation among the three cycles in this desktop session; it is not
+a general hardware-population confidence interval.
+
+Raw data:
+- `results/raw/m4-pstr-energy.json`
+- `results/raw/m4-pstr-energy-audit.json`
+
 ## Phase gate decision
 
 **Phase 1 upstream reproduction: PASS.**

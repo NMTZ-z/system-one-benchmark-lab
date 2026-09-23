@@ -1,0 +1,160 @@
+[
+  {
+    "input": "results/raw/m4-pstr-energy.json",
+    "input_sha256": "52474d6f4419b485fa84ed36095327d70cfa1d2faa6ae1ba8e7eb6dd432dcb0c",
+    "totals": {
+      "ane": {
+        "blocks": 6,
+        "completed_decisions": 30634,
+        "duration_seconds": 120.01265437400434,
+        "mean_ms_per_decision": 3.9176292476987773,
+        "system_mean_watts": 18.695712894508308,
+        "system_joules_per_decision": 0.07324287164210491,
+        "idle_subtracted_mean_watts": 10.141522615615692,
+        "idle_subtracted_joules_per_decision": 0.03973072561513464
+      },
+      "ane_fp16": {
+        "blocks": 6,
+        "completed_decisions": 22029,
+        "duration_seconds": 120.00698966684286,
+        "mean_ms_per_decision": 5.447682131138175,
+        "system_mean_watts": 17.865855635716606,
+        "system_joules_per_decision": 0.0973275025041876,
+        "idle_subtracted_mean_watts": 9.182593657296074,
+        "idle_subtracted_joules_per_decision": 0.05002385138435457
+      },
+      "mlx": {
+        "blocks": 6,
+        "completed_decisions": 10186,
+        "duration_seconds": 120.01643183513079,
+        "mean_ms_per_decision": 11.782488890156174,
+        "system_mean_watts": 36.1764560232024,
+        "system_joules_per_decision": 0.4262486911786057,
+        "idle_subtracted_mean_watts": 27.546215698651505,
+        "idle_subtracted_joules_per_decision": 0.3245629804352069
+      },
+      "ratios_by_candidate": {
+        "ane": {
+          "speed": 3.0075558827005464,
+          "system_power": 1.935013456150629,
+          "system_energy_per_decision": 5.8196611031505405,
+          "idle_subtracted_energy_per_decision": 8.16906752670963
+        },
+        "ane_fp16": {
+          "speed": 2.1628444183277775,
+          "system_power": 2.024893560142738,
+          "system_energy_per_decision": 4.379529734262584,
+          "idle_subtracted_energy_per_decision": 6.488164574563666
+        }
+      }
+    },
+    "telemetry_audit": {
+      "complete_balanced_cycles": 3,
+      "gross_and_adjacent_idle_energy_recomputed": true,
+      "system_power_positive_and_finite": true,
+      "system_power_below_sanity_ceiling_watts": 500,
+      "maximum_system_power_watts": 48.326977,
+      "sample_count": 1101,
+      "maximum_sample_gap_seconds": 0.5145604580175132,
+      "all_cpu_power_zero": null,
+      "all_ane_power_zero": null,
+      "all_blocks_check_rounded_output_stability": true
+    },
+    "latency": {
+      "ane": {
+        "samples": 30634,
+        "mean_ms": 3.9168869404023368,
+        "p50_ms": 3.87616700027138,
+        "p95_ms": 4.072958347387612,
+        "p99_ms": 4.435681764734908,
+        "min_ms": 3.7922499468550086,
+        "max_ms": 29.06758396420628
+      },
+      "ane_fp16": {
+        "samples": 22029,
+        "mean_ms": 5.446845902870238,
+        "p50_ms": 5.398124922066927,
+        "p95_ms": 5.620275158435106,
+        "p99_ms": 6.102934987284244,
+        "min_ms": 5.302333040162921,
+        "max_ms": 59.097457909956574
+      },
+      "mlx": {
+        "samples": 10186,
+        "mean_ms": 11.780007900704915,
+        "p50_ms": 11.1708749900572,
+        "p95_ms": 13.688103965250775,
+        "p99_ms": 14.475708140525963,
+        "min_ms": 10.794542031362653,
+        "max_ms": 48.761083045974374
+      }
+    },
+    "block_ranges": {
+      "ane": {
+        "system_mean_watts": [
+          18.31991911951541,
+          19.295883870384905
+        ],
+        "idle_mean_watts": [
+          8.275309562898535,
+          8.785097892067439
+        ]
+      },
+      "ane_fp16": {
+        "system_mean_watts": [
+          17.564899935371926,
+          18.117877924392488
+        ],
+        "idle_mean_watts": [
+          8.323933812206686,
+          9.0819522331294
+        ]
+      },
+      "mlx": {
+        "system_mean_watts": [
+          32.29830192652246,
+          38.57730483531791
+        ],
+        "idle_mean_watts": [
+          8.355845648701713,
+          9.038862461583129
+        ]
+      }
+    },
+    "uncertainty_note": "95% percentile bootstrap of whole balanced cycles (ABBA or ABCCBA); few cycles and one desktop session do not capture all meter error, background load, or future-run variation",
+    "cycle_bootstrap_95_percent": {
+      "ane.speed": [
+        2.8508280479150776,
+        3.114910132142473
+      ],
+      "ane.system_power": [
+        1.855282762966884,
+        1.9903564840413364
+      ],
+      "ane.system_energy_per_decision": [
+        5.6741640900546795,
+        6.0104323721442325
+      ],
+      "ane.idle_subtracted_energy_per_decision": [
+        7.799732466463674,
+        8.610573497149312
+      ],
+      "ane_fp16.speed": [
+        2.0519696835965,
+        2.2399025112505657
+      ],
+      "ane_fp16.system_power": [
+        1.9283038329567639,
+        2.1155642179961935
+      ],
+      "ane_fp16.system_energy_per_decision": [
+        4.319212597893948,
+        4.4781759248976005
+      ],
+      "ane_fp16.idle_subtracted_energy_per_decision": [
+        6.362717711055765,
+        6.602030955275681
+      ]
+    }
+  }
+]
