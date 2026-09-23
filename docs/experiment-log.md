@@ -360,3 +360,61 @@ Processed:
 
 Report:
 `results/reports/M4-Typed-Decisions-Quality-Laya-v0.1.md`
+
+
+## 2026-09-23 — Phase 3C: published ANE × typed-decisions capacity audit
+
+The published `aac6fef/laya-multilingual-coreml-ane-w8` bundle was audited
+against the same pinned public Typed Decisions test split before attempting any
+quality scoring.
+
+Bundle facts:
+
+- source: `convaiinnovations/laya-multilingual`
+- source revision: `052592a15d198d9ad47da779604259b10b47b7aa`
+- shape: B1 / L96 / K32
+- precision: FP16 graph with selected convolution weights compressed to W8
+
+The audit uses the bundle's own tokenizer, RL config and prompt construction,
+but deliberately does not load the Core ML model.
+
+Result:
+
+- supported at L96: **0 / 2,000 decisions**
+- capacity coverage: **0%**
+- minimum prompt length: 127 tokens
+- median prompt length: 323 tokens
+- P95: 450 tokens
+- P99: 575 tokens
+- maximum: 631 tokens
+- options: 2–5, so K32 is not limiting
+
+Every workflow and every question type is fully over capacity.
+
+Hypothetical fixed-length coverage for the same unmodified prompts:
+
+- L128: 3 / 2,000 (0.15%)
+- L160: 110 / 2,000 (5.50%)
+- L192: 472 / 2,000 (23.60%)
+- L256: 622 / 2,000 (31.10%)
+- L384: 1,597 / 2,000 (79.85%)
+- L512: 1,961 / 2,000 (98.05%)
+- L640: 2,000 / 2,000 (100%)
+
+No ANE quality score is produced. Truncating state, instructions or criteria
+would change the benchmark, so over-capacity inputs are recorded as unsupported
+rather than counted as wrong.
+
+This is not evidence that the published ANE artifact is defective; it is an
+input-shape incompatibility between an L96 short-decision export and this
+longer-context quality benchmark.
+
+Raw:
+`results/raw/m4-laya-ane-w8-typed-decisions-capacity.json`
+
+Processed:
+`results/processed/m4-laya-ane-w8-typed-decisions-capacity-summary.json`
+
+Report:
+`results/reports/M4-Laya-ANE-W8-Typed-Decisions-Capacity-v0.1.md`
+

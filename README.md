@@ -42,7 +42,19 @@ Frozen reports:
 - `results/reports/M4-Typed-Decisions-421M-Baseline-v0.1.md`
 - `results/reports/M4-Typed-Decisions-Quality-Laya-v0.1.md`
 
-Next: Phase 3B Jev 1.13.0 zero-shot measurement, followed by the separately labelled published-ANE capacity/quality subset.
+Published 322M ANE × Typed Decisions capacity audit:
+
+- public ANE W8 bundle: B1 / L96 / K32
+- unmodified benchmark prompt lengths: 127–631 tokens, median 323
+- L96 coverage: **0 / 2,000 decisions**
+- quality score on this benchmark: **not applicable without changing/truncating inputs**
+- hypothetical capacity coverage: L384 79.85%, L512 98.05%, L640 100%
+
+Frozen capacity report:
+
+- `results/reports/M4-Laya-ANE-W8-Typed-Decisions-Capacity-v0.1.md`
+
+Next: Phase 3B Jev 1.13.0 zero-shot measurement plus 421M Core ML full-quality parity.
 
 ## 当前目标
 

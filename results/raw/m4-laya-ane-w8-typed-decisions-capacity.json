@@ -1,0 +1,113 @@
+{
+  "bundle": "models/ane-w8",
+  "source": "convaiinnovations/laya-multilingual",
+  "source_revision": "052592a15d198d9ad47da779604259b10b47b7aa",
+  "repository": "aac6fef/laya-multilingual-coreml-ane-w8",
+  "precision": "float16",
+  "compression": {
+    "mode": "kmeans",
+    "nbits": 8,
+    "granularity": "per_grouped_channel",
+    "group_size": 32,
+    "num_kmeans_workers": 8,
+    "operator_selection": "conv only; threshold >2048; norms/RoPE/attention left unchanged"
+  },
+  "shape": {
+    "batch_size": 1,
+    "max_length": 96,
+    "min_length": 96,
+    "max_options": 32,
+    "flexible": false,
+    "lengths": null
+  },
+  "dataset": {
+    "repo": "LocalLLaMA/typed-decisions",
+    "revision": "c76749ec58bd8c3d2ea706b31c333a9059c38f90",
+    "split": "all/test",
+    "cases": 400,
+    "decisions": 2000
+  },
+  "capacity": {
+    "supported": 0,
+    "over_capacity": 2000,
+    "coverage": 0.0,
+    "token_length": {
+      "min": 127,
+      "max": 631,
+      "mean": 305.4875,
+      "p01": 133.0,
+      "p05": 155.0,
+      "p10": 171.0,
+      "p25": 198.75,
+      "p50": 323.0,
+      "p75": 375.0,
+      "p90": 410.0,
+      "p95": 450.0,
+      "p99": 575.01
+    },
+    "option_count": {
+      "min": 2,
+      "max": 5
+    },
+    "candidate_lengths": {
+      "96": {
+        "supported": 0,
+        "coverage": 0.0
+      },
+      "128": {
+        "supported": 3,
+        "coverage": 0.0015
+      },
+      "160": {
+        "supported": 110,
+        "coverage": 0.055
+      },
+      "192": {
+        "supported": 472,
+        "coverage": 0.236
+      },
+      "256": {
+        "supported": 622,
+        "coverage": 0.311
+      },
+      "384": {
+        "supported": 1597,
+        "coverage": 0.7985
+      },
+      "512": {
+        "supported": 1961,
+        "coverage": 0.9805
+      },
+      "640": {
+        "supported": 2000,
+        "coverage": 1.0
+      }
+    },
+    "by_workflow": {
+      "agent_trace_observability": {
+        "over_capacity": 500
+      },
+      "customer_service": {
+        "over_capacity": 500
+      },
+      "invoice_processing": {
+        "over_capacity": 500
+      },
+      "security_incidents": {
+        "over_capacity": 500
+      }
+    },
+    "by_question_type": {
+      "choice": {
+        "over_capacity": 600
+      },
+      "noul": {
+        "over_capacity": 600
+      },
+      "score": {
+        "over_capacity": 800
+      }
+    }
+  },
+  "interpretation": "Capacity only. A decision is supported when the unmodified prompt fits the bundle max_length and max_options. Over-capacity decisions are not scored as wrong."
+}

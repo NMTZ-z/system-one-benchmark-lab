@@ -58,10 +58,18 @@ def make_backend(args: argparse.Namespace):
         }
 
     if args.backend == "coreml":
-        from laya_coreml import Agent
+        from laya_coreml import load
 
-        agent = Agent(Path(args.model), compute_units=args.compute_units)
-        return agent.predict, {"model": args.model, "compute_units": args.compute_units}
+        agent = load(
+            Path(args.model),
+            compute_units=args.compute_units,
+            local_files_only=True,
+        )
+        return agent.predict, {
+            "model": args.model,
+            "compute_units": args.compute_units,
+            "format": agent.manifest.get("format"),
+        }
 
     if args.backend == "jev":
         client = JevClient(
