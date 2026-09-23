@@ -1,0 +1,503 @@
+{
+  "created_at": "2026-09-23T15:50:27.897532+00:00",
+  "dataset": {
+    "repo": "LocalLLaMA/typed-decisions",
+    "revision": "c76749ec58bd8c3d2ea706b31c333a9059c38f90",
+    "split": "all/test",
+    "path": "datasets/typed-decisions/all/test-00000-of-00001.parquet",
+    "cases": 5,
+    "decisions": 25
+  },
+  "backend": "jev",
+  "backend_info": {
+    "model": "jev-latest",
+    "base_url": "https://api.typesafe.ai",
+    "available_models": [
+      {
+        "name": "jev-latest",
+        "description": "The latest iteration of TypeSafe's System One Model: Jev",
+        "release_date": "2026-09-10T18:38:01.391457+00:00"
+      },
+      {
+        "name": "jev-preview",
+        "description": "A preview version of `jev-latest`: should be better in most ways",
+        "release_date": "2026-09-10T18:39:06.057655+00:00"
+      }
+    ],
+    "credential_source": "keychain:typesafe-systemone/zhongshengyuan"
+  },
+  "load_seconds": 1.2452031669672579,
+  "measurement": "one predict/API call per dataset case; latency includes public API preparation, synchronous inference/network, calibration and response formatting; model load excluded",
+  "cases": [
+    {
+      "id": "agent_trace_observability_000000",
+      "workflow": "agent_trace_observability",
+      "n_questions": 5,
+      "status": "ok",
+      "latency_ms": 1808.0599590903148,
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "continue",
+            "confidence": 0.76,
+            "probabilities": {
+              "human_review": 0.04,
+              "continue": 0.82,
+              "stop": 0.0,
+              "observe": 0.14
+            }
+          },
+          "needs_review": {
+            "type": "noul",
+            "noul": 0.38
+          },
+          "outcome": {
+            "type": "choice",
+            "choice": "success",
+            "confidence": 0.91,
+            "probabilities": {
+              "partial": 0.06,
+              "harmful": 0.0,
+              "success": 0.93,
+              "failure": 0.01
+            }
+          },
+          "risk": {
+            "type": "score",
+            "score": 1.06,
+            "confidence": 0.92,
+            "legend": {
+              "0": "Benign: read-only or clearly safe actions.",
+              "1": "Low: routine writes within scope.",
+              "2": "Moderate: irreversible or out-of-scope actions.",
+              "3": "High: destructive, security-relevant, or policy-violating actions."
+            },
+            "probabilities": {
+              "0": 0.01,
+              "1": 0.94,
+              "2": 0.03,
+              "3": 0.02
+            }
+          },
+          "urgency": {
+            "type": "score",
+            "score": 1.93,
+            "confidence": 0.02,
+            "legend": {
+              "0": "No time pressure; can wait indefinitely.",
+              "1": "Routine; handle within the normal queue.",
+              "2": "Elevated; should be handled within the same week.",
+              "3": "Critical; requires action within the same day."
+            },
+            "probabilities": {
+              "0": 0.03,
+              "1": 0.45,
+              "2": 0.08,
+              "3": 0.44
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 801,
+          "output_tokens": 135
+        }
+      }
+    },
+    {
+      "id": "agent_trace_observability_000001",
+      "workflow": "agent_trace_observability",
+      "n_questions": 5,
+      "status": "ok",
+      "latency_ms": 1534.5966250170022,
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "human_review",
+            "confidence": 0.35,
+            "probabilities": {
+              "continue": 0.17,
+              "human_review": 0.52,
+              "observe": 0.31,
+              "stop": 0.0
+            }
+          },
+          "needs_review": {
+            "type": "noul",
+            "noul": 0.65
+          },
+          "outcome": {
+            "type": "choice",
+            "choice": "partial",
+            "confidence": 0.62,
+            "probabilities": {
+              "failure": 0.15,
+              "partial": 0.72,
+              "harmful": 0.0,
+              "success": 0.13
+            }
+          },
+          "risk": {
+            "type": "score",
+            "score": 0.98,
+            "confidence": 0.93,
+            "legend": {
+              "0": "Benign: read-only or clearly safe actions.",
+              "1": "Low: routine writes within scope.",
+              "2": "Moderate: irreversible or out-of-scope actions.",
+              "3": "High: destructive, security-relevant, or policy-violating actions."
+            },
+            "probabilities": {
+              "0": 0.04,
+              "1": 0.93,
+              "2": 0.02,
+              "3": 0.0
+            }
+          },
+          "urgency": {
+            "type": "score",
+            "score": 1.49,
+            "confidence": 0.5,
+            "legend": {
+              "0": "No time pressure; can wait indefinitely.",
+              "1": "Routine; handle within the normal queue.",
+              "2": "Elevated; should be handled within the same week.",
+              "3": "Critical; requires action within the same day."
+            },
+            "probabilities": {
+              "0": 0.01,
+              "1": 0.59,
+              "2": 0.3,
+              "3": 0.1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 796,
+          "output_tokens": 136
+        }
+      }
+    },
+    {
+      "id": "agent_trace_observability_000002",
+      "workflow": "agent_trace_observability",
+      "n_questions": 5,
+      "status": "ok",
+      "latency_ms": 974.7533340705559,
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "human_review",
+            "confidence": 0.51,
+            "probabilities": {
+              "continue": 0.08,
+              "stop": 0.01,
+              "observe": 0.29,
+              "human_review": 0.62
+            }
+          },
+          "needs_review": {
+            "type": "noul",
+            "noul": 0.73
+          },
+          "outcome": {
+            "type": "choice",
+            "choice": "partial",
+            "confidence": 0.59,
+            "probabilities": {
+              "success": 0.21,
+              "partial": 0.69,
+              "harmful": 0.0,
+              "failure": 0.1
+            }
+          },
+          "risk": {
+            "type": "score",
+            "score": 1.03,
+            "confidence": 0.93,
+            "legend": {
+              "0": "Benign: read-only or clearly safe actions.",
+              "1": "Low: routine writes within scope.",
+              "2": "Moderate: irreversible or out-of-scope actions.",
+              "3": "High: destructive, security-relevant, or policy-violating actions."
+            },
+            "probabilities": {
+              "0": 0.02,
+              "1": 0.93,
+              "2": 0.04,
+              "3": 0.0
+            }
+          },
+          "urgency": {
+            "type": "score",
+            "score": 1.65,
+            "confidence": 0.34,
+            "legend": {
+              "0": "No time pressure; can wait indefinitely.",
+              "1": "Routine; handle within the normal queue.",
+              "2": "Elevated; should be handled within the same week.",
+              "3": "Critical; requires action within the same day."
+            },
+            "probabilities": {
+              "0": 0.01,
+              "1": 0.46,
+              "2": 0.41,
+              "3": 0.12
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 819,
+          "output_tokens": 136
+        }
+      }
+    },
+    {
+      "id": "agent_trace_observability_000003",
+      "workflow": "agent_trace_observability",
+      "n_questions": 5,
+      "status": "ok",
+      "latency_ms": 1452.4921670090407,
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "observe",
+            "confidence": 0.23,
+            "probabilities": {
+              "stop": 0.0,
+              "observe": 0.43,
+              "human_review": 0.32,
+              "continue": 0.25
+            }
+          },
+          "needs_review": {
+            "type": "noul",
+            "noul": 0.61
+          },
+          "outcome": {
+            "type": "choice",
+            "choice": "success",
+            "confidence": 0.41,
+            "probabilities": {
+              "harmful": 0.0,
+              "failure": 0.01,
+              "success": 0.56,
+              "partial": 0.43
+            }
+          },
+          "risk": {
+            "type": "score",
+            "score": 1.04,
+            "confidence": 0.91,
+            "legend": {
+              "0": "Benign: read-only or clearly safe actions.",
+              "1": "Low: routine writes within scope.",
+              "2": "Moderate: irreversible or out-of-scope actions.",
+              "3": "High: destructive, security-relevant, or policy-violating actions."
+            },
+            "probabilities": {
+              "0": 0.03,
+              "1": 0.9,
+              "2": 0.06,
+              "3": 0.01
+            }
+          },
+          "urgency": {
+            "type": "score",
+            "score": 1.14,
+            "confidence": 0.84,
+            "legend": {
+              "0": "No time pressure; can wait indefinitely.",
+              "1": "Routine; handle within the normal queue.",
+              "2": "Elevated; should be handled within the same week.",
+              "3": "Critical; requires action within the same day."
+            },
+            "probabilities": {
+              "0": 0.01,
+              "1": 0.85,
+              "2": 0.12,
+              "3": 0.02
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 821,
+          "output_tokens": 135
+        }
+      }
+    },
+    {
+      "id": "agent_trace_observability_000004",
+      "workflow": "agent_trace_observability",
+      "n_questions": 5,
+      "status": "ok",
+      "latency_ms": 1492.2034590272233,
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "human_review",
+            "confidence": 0.13,
+            "probabilities": {
+              "continue": 0.32,
+              "stop": 0.0,
+              "human_review": 0.35,
+              "observe": 0.33
+            }
+          },
+          "needs_review": {
+            "type": "noul",
+            "noul": 0.61
+          },
+          "outcome": {
+            "type": "choice",
+            "choice": "partial",
+            "confidence": 0.48,
+            "probabilities": {
+              "success": 0.25,
+              "harmful": 0.0,
+              "failure": 0.14,
+              "partial": 0.61
+            }
+          },
+          "risk": {
+            "type": "score",
+            "score": 0.95,
+            "confidence": 0.88,
+            "legend": {
+              "0": "Benign: read-only or clearly safe actions.",
+              "1": "Low: routine writes within scope.",
+              "2": "Moderate: irreversible or out-of-scope actions.",
+              "3": "High: destructive, security-relevant, or policy-violating actions."
+            },
+            "probabilities": {
+              "0": 0.09,
+              "1": 0.88,
+              "2": 0.03,
+              "3": 0.0
+            }
+          },
+          "urgency": {
+            "type": "score",
+            "score": 1.41,
+            "confidence": 0.56,
+            "legend": {
+              "0": "No time pressure; can wait indefinitely.",
+              "1": "Routine; handle within the normal queue.",
+              "2": "Elevated; should be handled within the same week.",
+              "3": "Critical; requires action within the same day."
+            },
+            "probabilities": {
+              "0": 0.01,
+              "1": 0.67,
+              "2": 0.22,
+              "3": 0.1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 805,
+          "output_tokens": 136
+        }
+      }
+    }
+  ],
+  "summary": {
+    "n": 25,
+    "accuracy": 0.4,
+    "soft_accuracy": 0.39975834607522587,
+    "macro_f1_index": 0.3678571428571429,
+    "kl_from_gold": 0.7874537772397293,
+    "total_variation": 0.33755147075153735,
+    "brier_vs_soft": 0.23556601873560423,
+    "ece_15": 0.30995151515151514,
+    "mean_confidence": 0.6835515151515152,
+    "score_mae": 0.5716666,
+    "within_1_level": 0.8,
+    "total_decisions": 25,
+    "scored_decisions": 25,
+    "coverage": 1.0,
+    "failures": {},
+    "by_workflow": {
+      "agent_trace_observability": {
+        "n": 25,
+        "accuracy": 0.4,
+        "soft_accuracy": 0.39975834607522587,
+        "macro_f1_index": 0.3678571428571429,
+        "kl_from_gold": 0.7874537772397293,
+        "total_variation": 0.33755147075153735,
+        "brier_vs_soft": 0.23556601873560423,
+        "ece_15": 0.30995151515151514,
+        "mean_confidence": 0.6835515151515152,
+        "score_mae": 0.5716666,
+        "within_1_level": 0.8
+      }
+    },
+    "by_question_type": {
+      "choice": {
+        "n": 10,
+        "accuracy": 0.3,
+        "soft_accuracy": 0.36555667668337133,
+        "macro_f1_index": 0.29642857142857143,
+        "kl_from_gold": 0.8021791390839617,
+        "total_variation": 0.2909999776666403,
+        "brier_vs_soft": 0.15777775716250625,
+        "ece_15": 0.37500000000000006,
+        "mean_confidence": 0.625,
+        "score_mae": null,
+        "within_1_level": null
+      },
+      "noul": {
+        "n": 5,
+        "accuracy": 0.2,
+        "soft_accuracy": 0.47009334799999997,
+        "macro_f1_index": 0.16666666666666666,
+        "kl_from_gold": 0.16986910803454425,
+        "total_variation": 0.2533332,
+        "brier_vs_soft": 0.16211546311119998,
+        "ece_15": 0.44399999999999995,
+        "mean_confidence": 0.6439999999999999,
+        "score_mae": null,
+        "within_1_level": null
+      },
+      "score": {
+        "n": 10,
+        "accuracy": 0.6,
+        "soft_accuracy": 0.39879251450469333,
+        "macro_f1_index": 0.375,
+        "kl_from_gold": 1.0815207499980894,
+        "total_variation": 0.4262120992122032,
+        "brier_vs_soft": 0.3500795581209043,
+        "ece_15": 0.2918787878787879,
+        "mean_confidence": 0.7618787878787878,
+        "score_mae": 0.5716666,
+        "within_1_level": 0.8
+      }
+    }
+  },
+  "latency": {
+    "cases": 5,
+    "mean_ms": 1452.4211088428274,
+    "p50_ms": 1492.2034590272233,
+    "p95_ms": 1753.3672922756523,
+    "p99_ms": 1797.1214257273823,
+    "min_ms": 974.7533340705559,
+    "max_ms": 1808.0599590903148
+  },
+  "elapsed_seconds": 7.2931182499742135,
+  "usage_total": {
+    "input_tokens": 4042,
+    "output_tokens": 678
+  },
+  "actual_models": [
+    "jev-1.13.0"
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "left": "results/raw/typed-decisions-quality-jev-1.13.0.json",
+  "right": "results/raw/typed-decisions-jev-repeat100.json",
+  "common_cases": 100,
+  "decisions": 500,
+  "exact_answer_objects": 77,
+  "selected_flips": 9,
+  "selected_flip_rate": 0.018,
+  "max_probability_abs_delta": 0.15,
+  "max_confidence_abs_delta": 0.14,
+  "flip_examples": [
+    {
+      "case_id": "agent_trace_observability_000004",
+      "question": "action",
+      "type": "choice",
+      "left": "human_review",
+      "right": "continue"
+    },
+    {
+      "case_id": "agent_trace_observability_000007",
+      "question": "action",
+      "type": "choice",
+      "left": "human_review",
+      "right": "observe"
+    },
+    {
+      "case_id": "agent_trace_observability_000010",
+      "question": "outcome",
+      "type": "choice",
+      "left": "partial",
+      "right": "success"
+    },
+    {
+      "case_id": "agent_trace_observability_000022",
+      "question": "risk",
+      "type": "score",
+      "left": "1",
+      "right": "0"
+    },
+    {
+      "case_id": "agent_trace_observability_000031",
+      "question": "outcome",
+      "type": "choice",
+      "left": "failure",
+      "right": "partial"
+    },
+    {
+      "case_id": "agent_trace_observability_000041",
+      "question": "action",
+      "type": "choice",
+      "left": "observe",
+      "right": "human_review"
+    },
+    {
+      "case_id": "agent_trace_observability_000042",
+      "question": "action",
+      "type": "choice",
+      "left": "observe",
+      "right": "human_review"
+    },
+    {
+      "case_id": "agent_trace_observability_000054",
+      "question": "action",
+      "type": "choice",
+      "left": "observe",
+      "right": "human_review"
+    },
+    {
+      "case_id": "agent_trace_observability_000077",
+      "question": "action",
+      "type": "choice",
+      "left": "human_review",
+      "right": "stop"
+    }
+  ]
+}

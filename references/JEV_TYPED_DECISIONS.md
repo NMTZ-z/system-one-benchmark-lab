@@ -110,7 +110,7 @@ line. After the Keychain item exists, run:
 PYTHONPATH=references/laya-coreml .venv/bin/python \
   -m benchmarks.quality.run_typed_decisions \
   --backend jev \
-  --model jev-1.13.0 \
+  --model jev-latest \
   --output results/raw/typed-decisions-quality-jev-1.13.0.json
 ```
 
@@ -119,3 +119,30 @@ takes priority over Keychain.
 
 Do not place the API key in shell history, Git, benchmark JSON, report text, or
 chat messages.
+
+## Local independent rerun completed
+
+A full local rerun was completed on 2026-09-23/24 (+08:00):
+
+- request alias: `jev-latest`
+- concrete model returned by all completed responses: `jev-1.13.0`
+- 400 / 400 cases
+- 2,000 / 2,000 decisions
+- zero API errors
+- accuracy: 0.737
+- Brier vs soft gold: 0.14774
+- KL from gold: 1.50336
+- Score MAE: 0.38757
+- P50 end-to-end latency from this client: 960.1 ms/case
+
+The test parquet at the public Sep 18 measurement commit and at the locally
+pinned revision has the same SHA-256:
+`4f294f218ea1da27f3efef936359389c62ea4d3973a41457732990f1d31b647c`.
+
+A 100-case immediate repeat changed 9 / 500 selected labels (1.8%), so the live
+endpoint is not bitwise deterministic under the observed conditions. This is
+recorded in the local report rather than treating any single run as an immutable
+score.
+
+Local report:
+`results/reports/M4-Jev-1.13.0-Typed-Decisions-v0.1.md`

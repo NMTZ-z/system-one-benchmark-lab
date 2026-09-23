@@ -6,7 +6,7 @@ Apple Silicon 上 System One / typed-decision 模型的可复现实验仓。
 
 ## Current status
 
-Phase 1, Phase 2, and the Phase 3A Laya quality baseline are complete on the M4 Mac mini.
+Phase 1–3 are complete on the M4 Mac mini. The next engineering gate is Phase 4A: 421M long-context ANE feasibility.
 
 Published 322M ANE short-decision baseline:
 
@@ -67,12 +67,27 @@ Frozen parity report:
 
 - `results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md`
 
-Phase 3 interim synthesis:
+Jev 1.13.0 local independent rerun:
 
-- `results/reports/Phase3-Jev-Laya-ANE-Interim-v0.1.md`
-- Jev public-reference provenance: `references/JEV_TYPED_DECISIONS.md`
+- request alias: `jev-latest`
+- concrete model: `jev-1.13.0`
+- 400 / 400 cases, 2,000 / 2,000 decisions, zero errors
+- accuracy: 0.7370
+- soft accuracy: 0.53836
+- KL: 1.50336
+- Brier: 0.14774
+- ECE: 0.04218
+- Score MAE: 0.38757
+- P50 end-to-end latency from this client: 960.1 ms/case
+- 100-case repeat: 9 / 500 selected labels changed (1.8%)
 
-Next: Phase 3B Jev 1.13.0 zero-shot measurement. The runner is ready. The current machine has no existing TypeSafe/Jev credential; store one securely with `./scripts/configure_typesafe_keychain.sh` (recommended) or expose `TYPESAFE_API_KEY`.
+Final Phase 3 reports:
+
+- `results/reports/M4-Jev-1.13.0-Typed-Decisions-v0.1.md`
+- `results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md`
+- Jev provenance and public-reference notes: `references/JEV_TYPED_DECISIONS.md`
+
+Next: **Phase 4A — 421M Long-Context ANE Feasibility**, staged at L192 → L384 → L512 before considering L640.
 
 ## 当前目标
 
@@ -98,7 +113,11 @@ Next: Phase 3B Jev 1.13.0 zero-shot measurement. The runner is ready. The curren
 Phase 1 已完成公开 322M ANE 复现与 M4 能耗基线；Phase 2 已完成 421M
 Typed Decisions 的 Core ML / MLX runtime baseline。
 
-Phase 3 开始统一 decision-quality benchmark。模型质量与运行后端性能必须分开
-报告；在质量评测和结构可行性分析完成前，不提前承诺 421M ANE 重写。
+Phase 3 已完成统一 decision-quality benchmark，并将 Jev generalist、Laya
+specialist、421M backend parity 与公开 ANE 固定形状能力分开报告。
+
+Phase 4 只做有明确 stop gate 的长上下文 421M ANE 可行性研究；先验证
+L192/L384/L512 的图转换、ANE placement、延迟、能耗和保真度，再决定是否值得做
+L640 全覆盖版本。
 
 上游基线与固定提交见 `references/UPSTREAM.md`。

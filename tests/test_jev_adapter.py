@@ -30,3 +30,12 @@ def test_missing_credentials(monkeypatch):
     monkeypatch.setattr(jev, "_keychain_password", lambda service, account: None)
     with pytest.raises(RuntimeError, match="missing TypeSafe API key"):
         jev.JevClient()
+
+
+def test_default_keychain_account_uses_real_uid(monkeypatch):
+    class User:
+        pw_name = "real-user"
+
+    monkeypatch.setattr(jev.pwd, "getpwuid", lambda uid: User())
+    monkeypatch.setattr(jev.os, "getuid", lambda: 501)
+    assert jev._default_keychain_account() == "real-user"

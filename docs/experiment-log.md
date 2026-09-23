@@ -555,3 +555,85 @@ the command-line argument list.
 After the Keychain item is created, the existing Phase 3B runner can execute
 without further code changes.
 
+
+
+## 2026-09-23/24 — Phase 3B complete: local Jev 1.13.0 replay
+
+The TypeSafe credential was stored in macOS Keychain and the local Jev adapter
+was hardened for the benchmark host:
+
+- Keychain account resolution uses the real process UID rather than
+  `getpass.getuser()`, because AgentDock's child environment reported
+  `getpass=root` while the host UID belongs to `zhongshengyuan`.
+- API requests retry bounded transient failures (SSL/URL/timeouts and HTTP
+  408/429/5xx) with exponential backoff.
+- the secret value is never serialized; only the non-secret credential-source
+  label is saved.
+
+Model discovery returned `jev-latest` and `jev-preview`. The benchmark
+therefore requests `jev-latest`; every completed response in the full run
+reported concrete model `jev-1.13.0`.
+
+### Full local Jev run
+
+Public Typed Decisions test split:
+
+- 400 / 400 cases
+- 2,000 / 2,000 decisions
+- zero API errors
+- accuracy: **0.7370**
+- soft accuracy: 0.53836
+- KL from gold: 1.50336
+- total variation: 0.25002
+- Brier vs soft gold: 0.14774
+- hard-label ECE (15 bins): 0.04218
+- Score MAE: 0.38757
+- within one score level: 0.95125
+- end-to-end P50: 960.09 ms/case
+- P95: 1833.32 ms/case
+- total elapsed: 534.43 s
+- API usage: 378,236 input tokens / 54,064 output tokens
+
+### Public Sep 18 comparison
+
+The public Jev benchmark measurement commit and the locally pinned dataset
+revision contain byte-identical test parquet data:
+
+SHA-256:
+`4f294f218ea1da27f3efef936359389c62ea4d3973a41457732990f1d31b647c`
+
+Therefore dataset drift is not the reason the public accuracy (0.727) differs
+from the local rerun (0.737).
+
+### Repeatability probe
+
+The first 100 cases were immediately requested again.
+
+Compared over 500 decisions:
+
+- exact answer objects: 77 / 500
+- selected-label flips: **9 / 500 (1.8%)**
+- maximum probability delta: 0.15
+- maximum confidence delta: 0.14
+- flip correctness transitions:
+  - 4 wrong → right
+  - 3 right → wrong
+  - 2 wrong → different wrong
+
+Aggregate accuracy on those same 100 cases changed only 0.632 → 0.634.
+
+This establishes observable live-endpoint nondeterminism. It can plausibly
+contribute to historical/local metric differences; unversioned serving-stack
+changes cannot be ruled out.
+
+### Phase 3 close
+
+Phase 3 is complete. Final report:
+
+`results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md`
+
+Next gate:
+
+**Phase 4A — 421M long-context ANE feasibility**, staged at L192 → L384 → L512
+before any L640 full-coverage attempt.
+
