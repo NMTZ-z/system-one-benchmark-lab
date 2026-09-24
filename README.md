@@ -6,7 +6,7 @@ Apple Silicon 上 System One / typed-decision 模型的可复现实验仓。
 
 ## Current status
 
-Phase 1–3 are complete on the M4 Mac mini. Phase 4A is active: the 421M L192 ANE gate has passed; L384 is next.
+Phase 1–4 are complete on the M4 Mac mini. The research phase is frozen; Phase 5 now turns the validated 421M MLX + L512 ANE hybrid into a usable Local System One service.
 
 Published 322M ANE short-decision baseline:
 
@@ -87,27 +87,52 @@ Final Phase 3 reports:
 - `results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md`
 - Jev provenance and public-reference notes: `references/JEV_TYPED_DECISIONS.md`
 
-Phase 4A — 421M long-context ANE feasibility:
+Phase 4 — 421M long-context ANE engineering:
 
-- L192 full body: **PASS**
-- 10,594 / 10,594 attributed nonconstant operations preferred on ANE
-- body P50: 32.14 ms
-- end-to-end short1 P50: 50.05 ms (not length-matched to MLX)
-- 60 / 60 golden questions agree
-- max calibrated probability error: 0.00640
-- 100 / 100 repeat stability
-- public Typed Decisions capacity at L192: 472 / 2,000 decisions (23.6%)
-- report: `results/reports/Phase4A-Typed421-L192-v0.1.md`
+- full 28-layer L192 / L384 / L512 / L640 bodies: **PASS**
+- 10,594 / 10,594 attributed nonconstant operations preferred on ANE at every tested shape
+- 421M-tokenizer capacity: L512 **1,966 / 2,000 (98.3%)**; L608/L640 100%
+- L512 vs same-subset MLX selected agreement: **99.8%**
+- representative real-workload gross system energy / decision: **2.074× improvement vs MLX**
+- L640 reaches 100% coverage but loses median single-decision latency to MLX
+- practical conclusion: route short/fallback traffic to MLX and suitable medium/long traffic to L512 ANE
+- production readiness remains conditional on ANE runtime health gating
+- final report: `results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md`
 
-Next: **L384**, then L512 if the placement/fidelity/runtime gates continue to pass.
+Next: **Phase 5 — Local System One MVP**.
+
+### Local System One MVP quick start
+
+MLX-only development mode:
+
+~~~bash
+PYTHONPATH=. .venv/bin/python -m local_system_one \
+  --source models/typed-decisions-source \
+  --host 127.0.0.1 \
+  --port 8788
+~~~
+
+With the validated research L512 ANE package:
+
+~~~bash
+PYTHONPATH=. .venv/bin/python -m local_system_one \
+  --source models/typed-decisions-source \
+  --ane-package experiments/phase4a/typed421-body512-fp16/model.mlpackage
+~~~
+
+Endpoints: POST /v1/choice, POST /v1/score, POST /v1/noul, GET /health, GET /metrics.
+The service binds to loopback by default and does not log raw request payloads.
+
+Product specification: `docs/LOCAL_SYSTEM_ONE_MVP.md`.
 
 ## 当前目标
 
-1. 在 M4 Mac mini 上复现公开 `laya-coreml` 的 ANE 结果。
-2. 用统一边界比较 MLX、Core ML CPU/GPU 与 Core ML ANE。
-3. 分开衡量转换保真度、真实任务质量、延迟、能耗、内存与启动成本。
-4. 评估 421M Typed Decisions checkpoint 是否值得继续做 ANE 工程化。
-5. 后续把 Jev 纳入同一评测框架，但不混淆“模型质量”和“运行后端性能”。
+1. 将已经验证的 421M MLX + L512 ANE 能力做成常驻 Local System One 服务。
+2. 提供 Choice / Score / Noul 三种稳定的 typed-decision API。
+3. 用 Router + ANE Health Gate 自动选择 MLX 或 L512 ANE，而不是追求“全 ANE”。
+4. 先接入 Search Gate、Model Tier Gate、Notification Gate 三个真实 Agent 工作流。
+5. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
+6. MVP 稳定后拆出公开 GitHub 项目，面向其他 Apple Silicon 用户发布。
 
 ## 仓库布局
 
@@ -128,8 +153,12 @@ Typed Decisions 的 Core ML / MLX runtime baseline。
 Phase 3 已完成统一 decision-quality benchmark，并将 Jev generalist、Laya
 specialist、421M backend parity 与公开 ANE 固定形状能力分开报告。
 
-Phase 4 只做有明确 stop gate 的长上下文 421M ANE 可行性研究；先验证
-L192/L384/L512 的图转换、ANE placement、延迟、能耗和保真度，再决定是否值得做
-L640 全覆盖版本。
+Phase 4 已完成 421M 长上下文 ANE 工程验证，并证明最大固定 shape 并非默认最优解。
+研究阶段到此冻结。
+
+Phase 5 转入产品化：构建本地 Decision Service、动态 Router、ANE Health Gate 和 Agent
+集成。进一步 ANE 研究只在真实产品需求暴露具体 blocker 时启动。
+
+产品规格见 `docs/LOCAL_SYSTEM_ONE_MVP.md`。
 
 上游基线与固定提交见 `references/UPSTREAM.md`。

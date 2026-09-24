@@ -752,3 +752,27 @@ Stop expanding fixed shapes for their own sake. Proceed to Phase 5 Local System 
 
 Canonical report:
 results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md
+
+## 2026-09-24 — Phase 5 started: Local System One MVP
+
+Product code now exists in local_system_one/ with:
+
+- normalized Choice / Score / Noul schemas;
+- MLX and L512 ANE runtime adapters;
+- configurable token-length routing;
+- ANE startup/runtime health gate;
+- transparent MLX fallback;
+- privacy-safe in-memory metrics;
+- loopback-first standard-library HTTP service and CLI.
+
+Validation:
+
+- unit suite: 12/12 pass;
+- MLX-only real HTTP smoke passed on the 421M checkpoint;
+- a 93-token request routed short_input -> MLX and returned a valid Choice response;
+- real L512 service startup completed, but the startup probe observed 166.5 ms P50 against the initial 125 ms health envelope;
+- ANE was therefore marked degraded;
+- a subsequent 444-token request transparently routed ane_unhealthy -> MLX and completed successfully;
+- no raw request payload is stored by the service metrics path.
+
+This confirms that the Phase 4 runtime-state sensitivity is now handled as a product health/fallback concern instead of being ignored.
