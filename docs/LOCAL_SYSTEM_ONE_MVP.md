@@ -42,7 +42,7 @@ This is the intended safety behavior and confirms that the runtime-state sensiti
 Not yet completed:
 
 - production health-envelope tuning and re-probe policy;
-- Model Tier Gate / Notification Gate integrations;
+- Notification Gate integration;
 - MCP / AgentDock / Hermes integration;
 - persistent launchd deployment;
 - public repository extraction.

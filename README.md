@@ -120,13 +120,14 @@ PYTHONPATH=. .venv/bin/python -m local_system_one \
   --ane-package experiments/phase4a/typed421-body512-fp16/model.mlpackage
 ~~~
 
-Endpoints: POST /v1/choice, POST /v1/score, POST /v1/noul, POST /v1/workflows/search-gate, GET /health, GET /metrics.
+Endpoints: POST /v1/choice, POST /v1/score, POST /v1/noul, POST /v1/workflows/search-gate, POST /v1/workflows/model-tier-gate, GET /health, GET /metrics.
 The service binds to loopback by default and does not log raw request payloads.
 
 First real workflow: **Search Gate v0.1** is functional. It combines hard safety/freshness rules with a conservative System One Noul fallback and has a dependency-free Python client.
 
 - product specification: `docs/LOCAL_SYSTEM_ONE_MVP.md`
 - Search Gate design and real smoke findings: `docs/SEARCH_GATE.md`
+- Model Tier Gate design and real smoke findings: `docs/MODEL_TIER_GATE.md`
 
 ## 当前目标
 
