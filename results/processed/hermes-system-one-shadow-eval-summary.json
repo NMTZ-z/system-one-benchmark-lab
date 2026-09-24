@@ -1,0 +1,164 @@
+{
+  "generated_at": 1790278397.153358,
+  "hermes": {
+    "version": "0.21.4",
+    "upstream_commit": "6fa6df75",
+    "eval_profile": "systemoneeval",
+    "eval_model": "gemini-3.8-flash-high",
+    "channels_cloned": false
+  },
+  "plugin": {
+    "name": "local-system-one-hermes",
+    "version": "0.1.0",
+    "supported_modes": [
+      "off",
+      "shadow"
+    ],
+    "active_mode_implemented": false,
+    "integration_point": "pre_llm_call observer hook",
+    "explicit_local_system_one_mcp_enabled_in_eval": false
+  },
+  "integration_findings": {
+    "initial_llm_request_extraction_problem": {
+      "observed_task_chars": 4000,
+      "effect": "runtime-injected context polluted routing and produced false current-language search",
+      "fix": "use pre_llm_call user_message before context injection",
+      "fixed_task_chars_for_sentinel": 15
+    },
+    "off_mode": {
+      "hermes_response": "BASELINE_OK",
+      "local_system_one_request_delta": 0,
+      "plugin_state_created": false
+    },
+    "shadow_mode": {
+      "hermes_response": "BASELINE_OK",
+      "local_system_one_request_delta": 2,
+      "task_chars": 15,
+      "search_decision": "no_search",
+      "probability_search": 0.2414,
+      "model_tier": "fast",
+      "difficulty_score": 1.0259,
+      "shadow_latency_ms": 125.134
+    },
+    "dead_service_fault": {
+      "hermes_response": "FAILOPEN_OK",
+      "local_system_one_request_delta": 0,
+      "plugin_recorded_error": "URLError",
+      "shadow_latency_ms": 2.343,
+      "hermes_failed": false
+    },
+    "disable_rollback": {
+      "hermes_response": "DISABLE_OK",
+      "local_system_one_request_delta": 0,
+      "hermes_failed": false
+    },
+    "remove_rollback": {
+      "hermes_response": "REMOVE_OK",
+      "local_system_one_request_delta": 0,
+      "plugin_directory_removed": true,
+      "hermes_failed": false
+    }
+  },
+  "profile_integrity": [
+    {
+      "path": "/Users/zhongshengyuan/.hermes/config.yaml",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/lili/config.yaml",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/sisi/config.yaml",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/susu/config.yaml",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/vivi/config.yaml",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/xixi/config.yaml",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/yaoyao/config.yaml",
+      "unchanged": true
+    }
+  ],
+  "shadow_suite": {
+    "architecture": {
+      "task_chars": 64,
+      "shadow_latency_ms": 278.016,
+      "search": {
+        "decision": "search",
+        "reason": "model_requires_external_information",
+        "probability_search": 0.6546,
+        "backend": "mlx"
+      },
+      "model_tier": {
+        "tier": "strong",
+        "reason": "model_complexity_requires_strong",
+        "difficulty_score": 2.1297,
+        "probability_strong": 0.4057,
+        "backend": "ane"
+      },
+      "hermes_usage": {
+        "api_calls": 1,
+        "total_tokens": 33952,
+        "completed": true,
+        "model": "gemini-3.8-flash-high"
+      }
+    },
+    "weather": {
+      "task_chars": 16,
+      "shadow_latency_ms": 88.78,
+      "search": {
+        "decision": "search",
+        "reason": "current_language",
+        "probability_search": 1.0,
+        "backend": "rule"
+      },
+      "model_tier": {
+        "tier": "fast",
+        "reason": "model_complexity_fast_sufficient",
+        "difficulty_score": 0.7563,
+        "probability_strong": 0.0463,
+        "backend": "mlx"
+      },
+      "hermes_usage": {
+        "api_calls": 3,
+        "total_tokens": 89018,
+        "completed": true,
+        "model": "gemini-3.8-flash-high"
+      }
+    },
+    "rewrite": {
+      "task_chars": 29,
+      "shadow_latency_ms": 252.782,
+      "search": {
+        "decision": "search",
+        "reason": "model_uncertain_conservative_search",
+        "probability_search": 0.4018,
+        "backend": "mlx"
+      },
+      "model_tier": {
+        "tier": "fast",
+        "reason": "model_complexity_fast_sufficient",
+        "difficulty_score": 1.2268,
+        "probability_strong": 0.1253,
+        "backend": "mlx"
+      },
+      "hermes_usage": {
+        "api_calls": 1,
+        "total_tokens": 30073,
+        "completed": true,
+        "model": "gemini-3.8-flash-high"
+      }
+    }
+  },
+  "gate_status": "SHADOW_FEASIBILITY_PASS_ACTIVE_NOT_AUTHORIZED_YET"
+}

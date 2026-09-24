@@ -145,14 +145,16 @@ scripts/run_local_system_one_mcp.sh
 - Model Tier Gate design and real smoke findings: `docs/MODEL_TIER_GATE.md`
 - Notification Gate design and real smoke findings: `docs/NOTIFICATION_GATE.md`
 - MCP / launchd deployment: `docs/MCP_DEPLOYMENT.md`
+- Hermes Shadow feasibility / rollback report: `docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md`
+- Hermes plugin source: `integrations/hermes/local-system-one-hermes/`
 
 ## 当前目标
 
 1. 将已经验证的 421M MLX + L512 ANE 能力做成常驻 Local System One 服务。
 2. 提供 Choice / Score / Noul 三种稳定的 typed-decision API。
 3. 用 Router + ANE Health Gate 自动选择 MLX 或 L512 ANE，而不是追求“全 ANE”。
-4. 将已完成的 Search Gate、Model Tier Gate、Notification Gate 接入真实 Agent 流量。
-5. 通过 MCP 注册进 AgentDock / Hermes，并保持 Local System One 服务单实例常驻。
+4. Hermes 原生插件已完成 off/shadow 可逆集成；下一步用真实 Hermes 历史任务回放和 Shadow 流量校准 Gate，再决定是否进入 Canary Active。
+5. MCP 继续保留为显式通用工具接口；Hermes 自动融合走 native hook/middleware，不要求用户手动调用。
 6. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
 7. MVP 稳定后拆出公开 GitHub 项目，面向其他 Apple Silicon 用户发布。
 

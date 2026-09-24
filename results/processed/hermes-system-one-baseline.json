@@ -1,0 +1,41 @@
+{
+  "captured_at": 1790277482.0313978,
+  "hermes_version": "Hermes Agent v0.21.4 (2026.9.21) · upstream 6fa6df75",
+  "config_fingerprints": [
+    {
+      "path": "/Users/zhongshengyuan/.hermes/config.yaml",
+      "sha256": "5252c3aa9901112bc60ffc3d3e47954c3f6c5e8a6d581ba908230d93aabb89cc",
+      "bytes": 16554
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/lili/config.yaml",
+      "sha256": "d0b101a1359e6618d821ae169a755c30b8eb1b34cfb4e78fbbe7522f82fa4e73",
+      "bytes": 16972
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/sisi/config.yaml",
+      "sha256": "2242b98db9b39cbb1b55e3c62244aeddd32eef2fe8e98641213814b73b206d5a",
+      "bytes": 17625
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/susu/config.yaml",
+      "sha256": "4bde9af7c094d35a6851458150e158b36130a8fd57f58520f48722271f9b4664",
+      "bytes": 18967
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/vivi/config.yaml",
+      "sha256": "f60ea75c607d43f168987fec3a05feb9a004e9447b8862a9b3966092cf85db29",
+      "bytes": 18300
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/xixi/config.yaml",
+      "sha256": "afde4833dfb62e0b3a64bbb4cbb73249fb4e7d9c6352f603a8b4a8cecb4e77e9",
+      "bytes": 19623
+    },
+    {
+      "path": "/Users/zhongshengyuan/.hermes/profiles/yaoyao/config.yaml",
+      "sha256": "76c8e60592a967fed5daae5fc832688df2a28865a81eeb9106adddd835fc918a",
+      "bytes": 17472
+    }
+  ]
+}

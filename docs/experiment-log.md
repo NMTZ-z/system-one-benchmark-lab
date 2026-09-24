@@ -804,3 +804,53 @@ Verified MCP end-to-end path using the official MCP v2 Client:
 - result: strong model tier.
 
 An earlier manual service startup measured 166.5 ms and was marked degraded, demonstrating that HealthGate correctly distinguishes runtime states and preserves MLX fallback.
+
+## 2026-09-25 — Hermes native System One shadow integration
+
+A native Hermes plugin prototype (`local-system-one-hermes` v0.1.0) was built and validated against the currently installed Hermes Agent v0.21.4.
+
+Safety boundary:
+
+- v0.1 supports only `off` and `shadow` modes;
+- active request/tool mutation is intentionally not implemented;
+- unknown requested modes fail closed to `off`;
+- shadow uses the `pre_llm_call` observer hook and returns no context;
+- no Hermes core or agent SOUL files were modified.
+
+An isolated `systemoneeval` profile was cloned from the default profile without messaging channels. The explicit Local System One MCP server was disabled inside that profile so native-hook testing was isolated from the generic MCP tool path.
+
+Important integration finding:
+
+- an initial `llm_request` implementation recovered a 4,000-character provider message that already contained Hermes-injected runtime context;
+- this polluted Search / Model Tier decisions;
+- source inspection showed `pre_llm_call.user_message` is the original user message before sidecar injection;
+- the plugin was moved to `pre_llm_call`, after which a 15-character sentinel was observed as exactly 15 characters.
+
+Rollback / fault results:
+
+- off mode: Hermes returned `BASELINE_OK`, Local System One request delta 0;
+- corrected shadow mode: Hermes still returned `BASELINE_OK`; exactly two decision calls occurred;
+- dead service fault: Hermes returned `FAILOPEN_OK`; plugin recorded `URLError` without surfacing failure;
+- plugin disable: Hermes returned `DISABLE_OK`; decision-call delta 0;
+- full plugin removal: Hermes returned `REMOVE_OK`; decision-call delta 0; plugin directory removed;
+- plugin reinstall into shadow mode succeeded;
+- SHA-256 fingerprints for all seven existing profile config files remained unchanged.
+
+Three real shadow tasks were also sampled:
+
+- current weather: search + fast (expected);
+- bounded local rewrite: fast, but Search Gate returned search at P(search)=0.4018 (false-positive candidate);
+- complex multi-agent architecture: strong, with search P(search)=0.6546 (search is debatable unless current docs are required).
+
+Decision:
+
+- native automatic integration feasibility: PASS;
+- rollback/reversibility: PASS;
+- Active Search Gate / model downgrade: NOT APPROVED YET;
+- proceed to real Hermes-history replay and continued shadow calibration before any Canary Active mode.
+
+Canonical report:
+`docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md`
+
+Processed summary:
+`results/processed/hermes-system-one-shadow-eval-summary.json`

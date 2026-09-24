@@ -65,8 +65,22 @@ MCP v2 end-to-end validation also passed:
 Not yet completed:
 
 - production health-envelope tuning and automatic re-probe/recovery policy;
-- actual AgentDock / Hermes host registration;
+- Hermes Active Canary routing; current native integration is deliberately limited to reversible off/shadow modes;
+- real Hermes history replay and a privacy-safe Agent Decision Blind Set;
 - public repository extraction.
+
+Hermes native integration status:
+
+- isolated `systemoneeval` profile created without messaging channels;
+- `local-system-one-hermes` v0.1.0 passes Hermes' native plugin validator;
+- off mode makes zero Local System One calls;
+- shadow mode observes `pre_llm_call.user_message`, injects no context and rewrites no request;
+- dead-service fault injection is fail-open;
+- plugin disable and full removal both leave Hermes working;
+- all seven existing profile config hashes remained unchanged;
+- active routing is intentionally NOT implemented until shadow/replay quality gates pass.
+
+See `docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md`.
 
 The first three functional product workflows are now present:
 
