@@ -16,6 +16,12 @@ Implemented in the private research repository:
 - privacy-safe in-memory metrics;
 - loopback-first standard-library HTTP service;
 - optional bearer authentication for non-loopback binding;
+- Search Gate v0.1;
+- Model Tier Gate v0.1;
+- Notification Gate v0.1;
+- dependency-free Python client;
+- optional MCP v2 proxy exposing the three workflows plus health;
+- current-user launchd deployment scripts;
 - CLI entry point;
 - unit tests using fake runtimes.
 
@@ -39,14 +45,36 @@ Real service-mode L512 ANE smoke:
 
 This is the intended safety behavior and confirms that the runtime-state sensitivity discovered in Phase 4 is now handled by the product layer.
 
+Persistent launchd deployment was then installed on the Mac mini. On that startup:
+
+- the same L512 package passed the startup gate;
+- startup probe P50 was 53.95 ms;
+- ANE state was healthy;
+- after a real MCP-routed decision, rolling P50 remained about 54.5 ms.
+
+The two startup modes (166.5 ms degraded vs 53.95 ms healthy) reinforce the need for health-aware routing rather than weakening the gate.
+
+MCP v2 end-to-end validation also passed:
+
+- official MCP v2 Client discovered search_gate, model_tier_gate, notification_gate and system_one_health;
+- a 342-token planning task flowed MCP -> persistent service -> Router -> L512 ANE;
+- backend was ane, route reason was ane_suitable;
+- decision latency was 103.8 ms;
+- the workflow selected the strong model tier.
+
 Not yet completed:
 
-- production health-envelope tuning and re-probe policy;
-- MCP / AgentDock / Hermes integration;
-- persistent launchd deployment;
+- production health-envelope tuning and automatic re-probe/recovery policy;
+- actual AgentDock / Hermes host registration;
 - public repository extraction.
 
-Search Gate v0.1 is now the first functional product workflow. Design notes and the real model-only failure that led to the volatile-fact hard gate are recorded in `docs/SEARCH_GATE.md`.
+The first three functional product workflows are now present:
+
+- Search Gate: `docs/SEARCH_GATE.md`
+- Model Tier Gate: `docs/MODEL_TIER_GATE.md`
+- Notification Gate: `docs/NOTIFICATION_GATE.md`
+
+Deployment and MCP notes: `docs/MCP_DEPLOYMENT.md`.
 
 ## Product goal
 

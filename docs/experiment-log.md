@@ -776,3 +776,31 @@ Validation:
 - no raw request payload is stored by the service metrics path.
 
 This confirms that the Phase 4 runtime-state sensitivity is now handled as a product health/fallback concern instead of being ignored.
+
+## 2026-09-24 — Phase 5 local deployment and MCP integration
+
+The Local System One service is now installed as the current-user launchd job `ai.localsystemone.service`.
+
+Deployment behavior:
+
+- model service runs once and owns MLX + optional L512 ANE;
+- loopback HTTP remains the internal service boundary;
+- optional MCP v2 server is a thin proxy and does not load another model copy;
+- MCP dependency is isolated through uv rather than added to the benchmark venv.
+
+Verified startup:
+
+- launchd state: running;
+- L512 startup probe: healthy;
+- startup probe P50: 53.95 ms against 125 ms threshold;
+- rolling P50 after a real routed decision: about 54.5 ms.
+
+Verified MCP end-to-end path using the official MCP v2 Client:
+
+- tools discovered: search_gate, model_tier_gate, notification_gate, system_one_health;
+- a 342-token planning task routed through MCP to L512 ANE;
+- route reason: ane_suitable;
+- decision latency: 103.8 ms;
+- result: strong model tier.
+
+An earlier manual service startup measured 166.5 ms and was marked degraded, demonstrating that HealthGate correctly distinguishes runtime states and preserves MLX fallback.

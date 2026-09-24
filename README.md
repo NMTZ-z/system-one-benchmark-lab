@@ -123,21 +123,38 @@ PYTHONPATH=. .venv/bin/python -m local_system_one \
 Endpoints: POST /v1/choice, POST /v1/score, POST /v1/noul, POST /v1/workflows/search-gate, POST /v1/workflows/model-tier-gate, POST /v1/workflows/notification-gate, GET /health, GET /metrics.
 The service binds to loopback by default and does not log raw request payloads.
 
-First real workflow: **Search Gate v0.1** is functional. It combines hard safety/freshness rules with a conservative System One Noul fallback and has a dependency-free Python client.
+Phase 5 now has three functional real workflows:
+
+- **Search Gate v0.1** — rule hard gates + conservative System One fallback for deciding whether external/current information is needed.
+- **Model Tier Gate v0.1** — chooses fast vs strong generative-model tier.
+- **Notification Gate v0.1** — chooses silent / digest / notify_now for 24/7 agent events.
+
+A dependency-free Python client is included. The model service is now installed as a current-user launchd service on the Mac mini, and an optional MCP v2 proxy exposes the three workflows plus health without loading a second model copy.
+
+Operational commands:
+
+~~~bash
+scripts/local_system_one_status.sh
+scripts/install_local_system_one_launchd.sh
+scripts/uninstall_local_system_one_launchd.sh
+scripts/run_local_system_one_mcp.sh
+~~~
 
 - product specification: `docs/LOCAL_SYSTEM_ONE_MVP.md`
 - Search Gate design and real smoke findings: `docs/SEARCH_GATE.md`
 - Model Tier Gate design and real smoke findings: `docs/MODEL_TIER_GATE.md`
 - Notification Gate design and real smoke findings: `docs/NOTIFICATION_GATE.md`
+- MCP / launchd deployment: `docs/MCP_DEPLOYMENT.md`
 
 ## 当前目标
 
 1. 将已经验证的 421M MLX + L512 ANE 能力做成常驻 Local System One 服务。
 2. 提供 Choice / Score / Noul 三种稳定的 typed-decision API。
 3. 用 Router + ANE Health Gate 自动选择 MLX 或 L512 ANE，而不是追求“全 ANE”。
-4. 先接入 Search Gate、Model Tier Gate、Notification Gate 三个真实 Agent 工作流。
-5. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
-6. MVP 稳定后拆出公开 GitHub 项目，面向其他 Apple Silicon 用户发布。
+4. 将已完成的 Search Gate、Model Tier Gate、Notification Gate 接入真实 Agent 流量。
+5. 通过 MCP 注册进 AgentDock / Hermes，并保持 Local System One 服务单实例常驻。
+6. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
+7. MVP 稳定后拆出公开 GitHub 项目，面向其他 Apple Silicon 用户发布。
 
 ## 仓库布局
 
