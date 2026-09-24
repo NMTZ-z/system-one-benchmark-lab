@@ -42,10 +42,12 @@ This is the intended safety behavior and confirms that the runtime-state sensiti
 Not yet completed:
 
 - production health-envelope tuning and re-probe policy;
-- Search Gate / Model Tier Gate / Notification Gate integrations;
+- Model Tier Gate / Notification Gate integrations;
 - MCP / AgentDock / Hermes integration;
 - persistent launchd deployment;
 - public repository extraction.
+
+Search Gate v0.1 is now the first functional product workflow. Design notes and the real model-only failure that led to the volatile-fact hard gate are recorded in `docs/SEARCH_GATE.md`.
 
 ## Product goal
 

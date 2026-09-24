@@ -9,6 +9,7 @@ from typing import Any
 
 from .engine import DecisionEngine
 from .schemas import DecisionRequest
+from .workflows import SearchGate, SearchGateRequest
 
 MAX_BODY_BYTES = 1_048_576
 
@@ -20,6 +21,8 @@ def create_server(
     port: int = 8787,
     auth_token: str | None = None,
 ) -> ThreadingHTTPServer:
+    search_gate = SearchGate(engine)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "LocalSystemOne/0.1"
 
@@ -71,6 +74,27 @@ def create_server(
             if not self._authorized():
                 self._json(401, {"error": "unauthorized"})
                 return
+            if self.path == "/v1/workflows/search-gate":
+                try:
+                    payload = self._read_payload()
+                    request = SearchGateRequest.from_payload(payload)
+                    response = search_gate.decide(request)
+                except (ValueError, TypeError) as error:
+                    self._json(400, {"error": "invalid_request", "detail": str(error)})
+                    return
+                except Exception as error:  # noqa: BLE001 - service boundary
+                    engine.metrics.record_error()
+                    self._json(
+                        500,
+                        {
+                            "error": "decision_failed",
+                            "detail": type(error).__name__,
+                        },
+                    )
+                    return
+                self._json(200, response)
+                return
+
             primitive_by_path = {
                 "/v1/choice": "choice",
                 "/v1/score": "score",
