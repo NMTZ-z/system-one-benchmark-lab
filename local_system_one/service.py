@@ -9,7 +9,14 @@ from typing import Any
 
 from .engine import DecisionEngine
 from .schemas import DecisionRequest
-from .workflows import ModelTierGate, ModelTierRequest, SearchGate, SearchGateRequest
+from .workflows import (
+    ModelTierGate,
+    ModelTierRequest,
+    NotificationGate,
+    NotificationGateRequest,
+    SearchGate,
+    SearchGateRequest,
+)
 
 MAX_BODY_BYTES = 1_048_576
 
@@ -23,6 +30,7 @@ def create_server(
 ) -> ThreadingHTTPServer:
     search_gate = SearchGate(engine)
     model_tier_gate = ModelTierGate(engine)
+    notification_gate = NotificationGate(engine)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "LocalSystemOne/0.1"
@@ -101,6 +109,27 @@ def create_server(
                     payload = self._read_payload()
                     request = ModelTierRequest.from_payload(payload)
                     response = model_tier_gate.decide(request)
+                except (ValueError, TypeError) as error:
+                    self._json(400, {"error": "invalid_request", "detail": str(error)})
+                    return
+                except Exception as error:  # noqa: BLE001 - service boundary
+                    engine.metrics.record_error()
+                    self._json(
+                        500,
+                        {
+                            "error": "decision_failed",
+                            "detail": type(error).__name__,
+                        },
+                    )
+                    return
+                self._json(200, response)
+                return
+
+            if self.path == "/v1/workflows/notification-gate":
+                try:
+                    payload = self._read_payload()
+                    request = NotificationGateRequest.from_payload(payload)
+                    response = notification_gate.decide(request)
                 except (ValueError, TypeError) as error:
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return

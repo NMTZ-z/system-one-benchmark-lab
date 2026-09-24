@@ -80,6 +80,33 @@ class LocalSystemOneClient:
             payload["request_id"] = request_id
         return self._request("POST", "/v1/workflows/model-tier-gate", payload)
 
+    def notification_gate(
+        self,
+        event: str,
+        *,
+        context: Any = None,
+        urgency: str = "auto",
+        user_action_required: bool = False,
+        blocking_failure: bool = False,
+        routine_update: bool = False,
+        deadline_minutes: int | None = None,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            "event": event,
+            "urgency": urgency,
+            "user_action_required": user_action_required,
+            "blocking_failure": blocking_failure,
+            "routine_update": routine_update,
+        }
+        if context is not None:
+            payload["context"] = context
+        if deadline_minutes is not None:
+            payload["deadline_minutes"] = deadline_minutes
+        if request_id is not None:
+            payload["request_id"] = request_id
+        return self._request("POST", "/v1/workflows/notification-gate", payload)
+
     def search_gate(
         self,
         task: str,
