@@ -728,5 +728,27 @@ Processed summary:
 `results/processed/phase4a-typed421-l192-summary.json`
 
 Report:
-`results/reports/Phase4A-Typed421-L192-v0.1.md`
+`results/reports/Phase4A-Typed421-L192-v0.1.md`## 2026-09-24 — Phase 4 frozen: 421M long-context ANE engineering
 
+Phase 4 is complete and frozen. The project extended the upstream ANE research path to the 421M Typed Decisions checkpoint and validated fixed full-body L192, L384, L512 and L640 artifacts.
+
+Key conclusions:
+
+- all tested full-body shapes converted successfully;
+- the Core ML anticipated execution plan preferred Neural Engine for all 10,594 attributed nonconstant operations at every tested shape;
+- 60/60 naturally covered golden questions agreed at every validation shape;
+- max calibrated probability error was 0.0064013 and action probability error was zero;
+- 100-call rounded-output repeat stability passed;
+- the 421M tokenizer gives L512 capacity of 1,966/2,000 decisions (98.3%) and full coverage by L608;
+- L512 ANE vs matched-subset MLX selected agreement was 99.8% (4/1,966 boundary flips);
+- balanced representative PSTR measurement showed 2.074x gross system-energy-per-decision improvement for L512 ANE vs MLX, with complete-cycle bootstrap range 1.798x–2.334x;
+- L640 reached 2,000/2,000 coverage but its median single-decision latency lost to MLX;
+- a static short-MLX / medium-L512-ANE / long-MLX router preserved 1,996/2,000 selected decisions;
+- runtime-state sensitivity remains observed for the same L512 package, while thermal throttling is not proven.
+
+Product decision:
+
+Stop expanding fixed shapes for their own sake. Proceed to Phase 5 Local System One MVP with MLX fallback, L512 ANE acceleration, routing, and ANE health gating.
+
+Canonical report:
+results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md

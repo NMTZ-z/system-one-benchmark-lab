@@ -1,0 +1,55 @@
+{
+  "settings": {
+    "source": "models/typed-decisions-source",
+    "package": "experiments/phase4a/typed421-body512-fp16/model.mlpackage",
+    "length": 512,
+    "warmup": 16,
+    "iterations": 100
+  },
+  "ane_load_seconds": 206.34230337501504,
+  "mlx_load_seconds": 0.3257250828901306,
+  "rss": {
+    "after_ane_bytes": 735412224,
+    "both_resident_bytes": 1607417856,
+    "after_mlx_release_bytes": 764887040
+  },
+  "latency": {
+    "ane_alone": {
+      "n": 100,
+      "mean_ms": 123.9588599477429,
+      "p50_ms": 145.914854016155,
+      "p95_ms": 167.75634317309596,
+      "min_ms": 59.83070796355605,
+      "max_ms": 168.06166688911617
+    },
+    "mlx_with_ane_resident": {
+      "n": 100,
+      "mean_ms": 31.164350832113996,
+      "p50_ms": 31.11320798052475,
+      "p95_ms": 31.75768327782862,
+      "min_ms": 29.775916947983205,
+      "max_ms": 32.53741702064872
+    },
+    "ane_with_mlx_resident": {
+      "n": 100,
+      "mean_ms": 119.7265233763028,
+      "p50_ms": 143.33662495482713,
+      "p95_ms": 167.60135279619135,
+      "min_ms": 59.05720801092684,
+      "max_ms": 168.7343749217689
+    },
+    "ane_after_mlx_release": {
+      "n": 100,
+      "mean_ms": 125.00225162017159,
+      "p50_ms": 139.60218749707565,
+      "p95_ms": 167.6759812165983,
+      "min_ms": 58.447416056878865,
+      "max_ms": 171.7332910047844
+    }
+  },
+  "ratios": {
+    "ane_with_mlx_over_alone_p50": 0.9823305921887676,
+    "ane_after_release_over_alone_p50": 0.9567373276583586,
+    "mlx_over_ane_alone_p50": 0.21322851734532827
+  }
+}

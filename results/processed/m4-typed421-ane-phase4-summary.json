@@ -1,0 +1,665 @@
+{
+  "date": "2026-09-24",
+  "source": {
+    "model": "Laya Typed Decisions 421M",
+    "repo": "convaiinnovations/laya-typed-decisions",
+    "revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+    "weights_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e"
+  },
+  "shape_feasibility": {
+    "192": {
+      "package_bytes": 741741391,
+      "package_sha256": "a1e8d144455bc53aedb166a53d86f4e5e8fb6cddb029615e70130c75cf515123",
+      "conversion_seconds": 155.34787612501532,
+      "load_compile_seconds": 158.40612237504683,
+      "preferred_operation_counts": {
+        "unknown": 5941,
+        "MLNeuralEngineComputeDevice": 10594
+      },
+      "estimated_cost_by_device": {
+        "MLNeuralEngineComputeDevice": 0.9999999999999034
+      },
+      "body_timing": {
+        "samples": 30,
+        "mean_ms": 32.73584720445797,
+        "p50_ms": 32.13914547814056,
+        "p95_ms": 47.74207676528022,
+        "p99_ms": 48.34600114496425,
+        "min_ms": 18.074332969263196,
+        "max_ms": 48.54008392430842
+      },
+      "validation": {
+        "passed": true,
+        "questions": 60,
+        "argmax_agreements": 60,
+        "max_probability_error": 0.006401273736671209,
+        "max_action_probability_error": 0.0,
+        "repeat": {
+          "calls": 100,
+          "identical_rounded_results": true
+        },
+        "short1_timing": {
+          "samples": 50,
+          "mean_ms": 38.94738078583032,
+          "p50_ms": 40.000166511163116,
+          "p95_ms": 43.2437609473709,
+          "p99_ms": 44.564821923850104,
+          "min_ms": 31.385291018523276,
+          "max_ms": 45.31049996148795
+        }
+      }
+    },
+    "384": {
+      "package_bytes": 741790543,
+      "package_sha256": "1fb12fd30da571256065b9eedc2dcb9ed2c0d115c80efcfe4517b8d32af9bd01",
+      "conversion_seconds": 144.64164679101668,
+      "load_compile_seconds": 188.68342887505423,
+      "preferred_operation_counts": {
+        "unknown": 5941,
+        "MLNeuralEngineComputeDevice": 10594
+      },
+      "estimated_cost_by_device": {
+        "MLNeuralEngineComputeDevice": 1.0000000000000113
+      },
+      "body_timing": {
+        "samples": 30,
+        "mean_ms": 67.89718469760071,
+        "p50_ms": 67.39747896790504,
+        "p95_ms": 80.98417501314543,
+        "p99_ms": 83.16084784106351,
+        "min_ms": 53.76829206943512,
+        "max_ms": 83.61779095139354
+      },
+      "validation": {
+        "passed": true,
+        "questions": 60,
+        "argmax_agreements": 60,
+        "max_probability_error": 0.006401273736671209,
+        "max_action_probability_error": 0.0,
+        "repeat": {
+          "calls": 100,
+          "identical_rounded_results": true
+        },
+        "short1_timing": {
+          "samples": 50,
+          "mean_ms": 44.301024267915636,
+          "p50_ms": 43.677896028384566,
+          "p95_ms": 46.197574882535264,
+          "p99_ms": 62.293414818122926,
+          "min_ms": 41.31437500473112,
+          "max_ms": 75.29058295767754
+        }
+      }
+    },
+    "512": {
+      "package_bytes": 741823311,
+      "package_sha256": "9893515c88c3930d24c111450198cb2dc028e9b3701652dc5dc9f99db96173e3",
+      "conversion_seconds": 181.0096836249577,
+      "load_compile_seconds": 199.91297683306038,
+      "preferred_operation_counts": {
+        "unknown": 5941,
+        "MLNeuralEngineComputeDevice": 10594
+      },
+      "estimated_cost_by_device": {
+        "MLNeuralEngineComputeDevice": 1.0000000000001343
+      },
+      "body_timing": {
+        "samples": 30,
+        "mean_ms": 95.31647913778822,
+        "p50_ms": 80.02631302224472,
+        "p95_ms": 153.1767857784871,
+        "p99_ms": 153.37370465160348,
+        "min_ms": 52.936292020604014,
+        "max_ms": 153.44887494575232
+      },
+      "validation": {
+        "passed": true,
+        "questions": 60,
+        "argmax_agreements": 60,
+        "max_probability_error": 0.006401273736671209,
+        "max_action_probability_error": 0.0,
+        "repeat": {
+          "calls": 100,
+          "identical_rounded_results": true
+        },
+        "short1_timing": {
+          "samples": 50,
+          "mean_ms": 76.01966912159696,
+          "p50_ms": 75.66095842048526,
+          "p95_ms": 90.79902285593562,
+          "p99_ms": 98.54802416870369,
+          "min_ms": 62.93704197742045,
+          "max_ms": 101.29933396819979
+        }
+      }
+    },
+    "640": {
+      "package_bytes": 741856079,
+      "package_sha256": "67ad000911c663e5b9998d65b35300c70b0259697e42c980f496627df0357cd9",
+      "conversion_seconds": 143.3883349999087,
+      "load_compile_seconds": 171.5205418750411,
+      "preferred_operation_counts": {
+        "unknown": 5941,
+        "MLNeuralEngineComputeDevice": 10594
+      },
+      "estimated_cost_by_device": {
+        "MLNeuralEngineComputeDevice": 0.9999999999999669
+      },
+      "body_timing": {
+        "samples": 30,
+        "mean_ms": 93.68120700819418,
+        "p50_ms": 66.95504154777154,
+        "p95_ms": 163.36536524468102,
+        "p99_ms": 166.66628690087236,
+        "min_ms": 63.217416987754405,
+        "max_ms": 167.39525005687028
+      },
+      "validation": {
+        "passed": true,
+        "questions": 60,
+        "argmax_agreements": 60,
+        "max_probability_error": 0.006401273736671209,
+        "max_action_probability_error": 0.0,
+        "repeat": {
+          "calls": 100,
+          "identical_rounded_results": true
+        },
+        "short1_timing": {
+          "samples": 50,
+          "mean_ms": 143.35064914543182,
+          "p50_ms": 171.41427099704742,
+          "p95_ms": 184.19362765853293,
+          "p99_ms": 185.90802591177635,
+          "min_ms": 73.01062508486211,
+          "max_ms": 186.86379108112305
+        }
+      }
+    }
+  },
+  "typed_token_capacity": {
+    "min_tokens": 124,
+    "max_tokens": 597,
+    "curve": {
+      "96": {
+        "supported": 0,
+        "coverage": 0.0
+      },
+      "128": {
+        "supported": 17,
+        "coverage": 0.0085
+      },
+      "160": {
+        "supported": 127,
+        "coverage": 0.0635
+      },
+      "192": {
+        "supported": 499,
+        "coverage": 0.2495
+      },
+      "256": {
+        "supported": 647,
+        "coverage": 0.3235
+      },
+      "384": {
+        "supported": 1814,
+        "coverage": 0.907
+      },
+      "512": {
+        "supported": 1966,
+        "coverage": 0.983
+      },
+      "576": {
+        "supported": 1995,
+        "coverage": 0.9975
+      },
+      "608": {
+        "supported": 2000,
+        "coverage": 1.0
+      },
+      "640": {
+        "supported": 2000,
+        "coverage": 1.0
+      }
+    },
+    "note": "Uses the 421M Typed Decisions tokenizer/config; do not substitute the earlier 322M multilingual capacity curve."
+  },
+  "l512_quality_subset": {
+    "capacity": {
+      "supported": 1966,
+      "over_capacity": 34,
+      "errors": 0,
+      "coverage": 0.983,
+      "by_workflow": {
+        "agent_trace_observability": {
+          "supported": 500
+        },
+        "customer_service": {
+          "supported": 466,
+          "over_capacity": 34
+        },
+        "invoice_processing": {
+          "supported": 500
+        },
+        "security_incidents": {
+          "supported": 500
+        }
+      },
+      "by_question_type": {
+        "choice": {
+          "supported": 586,
+          "over_capacity": 14
+        },
+        "noul": {
+          "supported": 594,
+          "over_capacity": 6
+        },
+        "score": {
+          "supported": 786,
+          "over_capacity": 14
+        }
+      }
+    },
+    "ane_metrics": {
+      "accuracy": 0.7650050864699899,
+      "soft_accuracy": 0.4709026629131403,
+      "kl_from_gold": 0.11690072904274695,
+      "total_variation": 0.17376566338674837,
+      "brier_vs_soft": 0.06142652726023449,
+      "ece_15": 0.2122624350198418,
+      "score_mae": 0.24363024809160308,
+      "within_1_level": 0.9949109414758269
+    },
+    "reference_metrics": {
+      "accuracy": 0.7639877924720244,
+      "soft_accuracy": 0.470893147432851,
+      "kl_from_gold": 0.11692225163940312,
+      "total_variation": 0.1737958839837361,
+      "brier_vs_soft": 0.0614397416364861,
+      "ece_15": 0.21123852544174732,
+      "score_mae": 0.24367566793893133,
+      "within_1_level": 0.9949109414758269
+    },
+    "parity": {
+      "decisions": 1966,
+      "selected_mismatches": 4,
+      "mismatch_examples": [
+        {
+          "case_id": "customer_service_000024",
+          "question": "churn_risk",
+          "type": "score",
+          "ane": "2",
+          "reference": "3"
+        },
+        {
+          "case_id": "invoice_processing_000056",
+          "question": "disposition",
+          "type": "choice",
+          "ane": "hold",
+          "reference": "approve"
+        },
+        {
+          "case_id": "security_incidents_000056",
+          "question": "urgency",
+          "type": "score",
+          "ane": "2",
+          "reference": "3"
+        },
+        {
+          "case_id": "security_incidents_000083",
+          "question": "severity",
+          "type": "score",
+          "ane": "2",
+          "reference": "1"
+        }
+      ],
+      "max_probability_abs_delta": 0.005099999999999993,
+      "max_score_abs_delta": 0.012599999999999945,
+      "max_noul_abs_delta": 0.003699999999999981,
+      "max_confidence_abs_delta": 0.006900000000000017
+    },
+    "ane_latency": {
+      "n": 1966,
+      "mean_ms": 83.96527188230118,
+      "p50_ms": 78.35052057635039,
+      "p95_ms": 126.7676662246231,
+      "p99_ms": 140.4883419163525,
+      "min_ms": 59.10812504589558,
+      "max_ms": 176.10375001095235
+    },
+    "mlx_batch1_matched_latency": {
+      "n": 1966,
+      "mean_ms": 130.51716399406075,
+      "p50_ms": 97.30654145823792,
+      "p95_ms": 339.17199954157695,
+      "p99_ms": 904.8696625221048,
+      "min_ms": 35.074957995675504,
+      "max_ms": 2427.5399580365047
+    }
+  },
+  "l512_energy_representative": {
+    "workload_token_length": {
+      "min": 124,
+      "p25": 190.0,
+      "p50": 305.5,
+      "p75": 351.25,
+      "p95": 410.19999999999993,
+      "max": 510,
+      "mean": 286.8984375
+    },
+    "cross_backend_selected_agreement": {
+      "agreements": 128,
+      "decisions": 128
+    },
+    "summary": {
+      "ane": {
+        "blocks": 6,
+        "completed_decisions": 1352,
+        "duration_seconds": 120.29365646000952,
+        "mean_ms_per_decision": 88.97459797337982,
+        "system_mean_watts": 23.239702142997874,
+        "system_joules_per_decision": 2.067743155194329,
+        "idle_subtracted_mean_watts": 5.189982835674059,
+        "idle_subtracted_joules_per_decision": 0.4617766362928412
+      },
+      "mlx": {
+        "blocks": 6,
+        "completed_decisions": 1171,
+        "duration_seconds": 120.25487600103952,
+        "mean_ms_per_decision": 102.69417250302264,
+        "system_mean_watts": 41.75543286821887,
+        "system_joules_per_decision": 4.28803962590725,
+        "idle_subtracted_mean_watts": 24.411148678136957,
+        "idle_subtracted_joules_per_decision": 2.50688271334953
+      },
+      "ratios_by_candidate": {
+        "ane": {
+          "speed": 1.1541965329671686,
+          "system_power": 1.796728400875817,
+          "system_energy_per_decision": 2.073777690974513,
+          "idle_subtracted_energy_per_decision": 5.428777717025424
+        }
+      },
+      "ratios": {
+        "speed": 1.1541965329671686,
+        "system_power": 1.796728400875817,
+        "system_energy_per_decision": 2.073777690974513,
+        "idle_subtracted_energy_per_decision": 5.428777717025424
+      }
+    },
+    "telemetry_audit": {
+      "complete_balanced_cycles": 3,
+      "gross_and_adjacent_idle_energy_recomputed": true,
+      "system_power_positive_and_finite": true,
+      "system_power_below_sanity_ceiling_watts": 500.0,
+      "maximum_system_power_watts": 53.74869,
+      "sample_count": 572,
+      "maximum_sample_gap_seconds": 0.791685540927574,
+      "all_cpu_power_zero": null,
+      "all_ane_power_zero": null,
+      "all_blocks_check_rounded_output_stability": true
+    },
+    "cycle_bootstrap_95_percent": {
+      "speed": [
+        1.0177032153162082,
+        1.270339034790521
+      ],
+      "system_power": [
+        1.7662425203442755,
+        1.8374375241439354
+      ],
+      "system_energy_per_decision": [
+        1.797510691982573,
+        2.334168610908891
+      ],
+      "idle_subtracted_energy_per_decision": [
+        4.488337940426079,
+        7.077895941387312
+      ]
+    }
+  },
+  "l512_short_workload_control": {
+    "summary": {
+      "ane": {
+        "blocks": 6,
+        "completed_decisions": 909,
+        "duration_seconds": 120.51602441479918,
+        "mean_ms_per_decision": 132.58088494477357,
+        "system_mean_watts": 9.0962153861605,
+        "system_joules_per_decision": 1.2059842855454244,
+        "idle_subtracted_mean_watts": 2.170697491195433,
+        "idle_subtracted_joules_per_decision": 0.2877929943300903
+      },
+      "mlx": {
+        "blocks": 6,
+        "completed_decisions": 3848,
+        "duration_seconds": 120.07976037601475,
+        "mean_ms_per_decision": 31.205758933475767,
+        "system_mean_watts": 35.56805345050235,
+        "system_joules_per_decision": 1.1099281017093572,
+        "idle_subtracted_mean_watts": 28.442610067039773,
+        "idle_subtracted_joules_per_decision": 0.8875732331908941
+      },
+      "ratios_by_candidate": {
+        "ane": {
+          "speed": 0.2353714786748821,
+          "system_power": 3.910203523172682,
+          "system_energy_per_decision": 0.9203503851688877,
+          "idle_subtracted_energy_per_decision": 3.0840682388983836
+        }
+      },
+      "ratios": {
+        "speed": 0.2353714786748821,
+        "system_power": 3.910203523172682,
+        "system_energy_per_decision": 0.9203503851688877,
+        "idle_subtracted_energy_per_decision": 3.0840682388983836
+      }
+    },
+    "note": "Shape-mismatch control: fixed L512 ANE on the upstream short workload can be slower and slightly worse in gross energy/decision than MLX."
+  },
+  "full_single_decision_comparison": {
+    "mlx": {
+      "metrics": {
+        "accuracy": 0.766,
+        "soft_accuracy": 0.4706369705592427,
+        "kl_from_gold": 0.11704470935101659,
+        "brier_vs_soft": 0.06147442018131752,
+        "ece_15": 0.2132798282882528,
+        "score_mae": 0.2424216375
+      },
+      "latency": {
+        "n": 2000,
+        "mean_ms": 168.4371438686503,
+        "p50_ms": 98.16687501734123,
+        "p95_ms": 691.055213945219,
+        "p99_ms": 1441.2590241816358,
+        "min_ms": 35.67483299411833,
+        "max_ms": 4710.35908407066
+      },
+      "load_seconds": 0.4392027499852702
+    },
+    "ane_l640": {
+      "metrics": {
+        "accuracy": 0.767,
+        "soft_accuracy": 0.4706435481833463,
+        "kl_from_gold": 0.11702651842217826,
+        "brier_vs_soft": 0.061462251027072846,
+        "ece_15": 0.2142928034600328,
+        "score_mae": 0.24237576250000004
+      },
+      "latency": {
+        "n": 2000,
+        "mean_ms": 149.13777008012403,
+        "p50_ms": 172.14208299992606,
+        "p95_ms": 202.9332327132579,
+        "p99_ms": 206.1327315249946,
+        "min_ms": 70.29041601344943,
+        "max_ms": 401.62541694007814
+      },
+      "load_seconds": 198.0927934999345,
+      "parity": {
+        "decisions": 2000,
+        "selected_mismatches": 4,
+        "mismatch_examples": [
+          {
+            "case_id": "customer_service_000024",
+            "question": "churn_risk",
+            "type": "score",
+            "ane": "2",
+            "reference": "3"
+          },
+          {
+            "case_id": "invoice_processing_000056",
+            "question": "disposition",
+            "type": "choice",
+            "ane": "hold",
+            "reference": "approve"
+          },
+          {
+            "case_id": "security_incidents_000056",
+            "question": "urgency",
+            "type": "score",
+            "ane": "2",
+            "reference": "3"
+          },
+          {
+            "case_id": "security_incidents_000083",
+            "question": "severity",
+            "type": "score",
+            "ane": "2",
+            "reference": "1"
+          }
+        ],
+        "max_probability_abs_delta": 0.005099999999999993,
+        "max_score_abs_delta": 0.012599999999999945,
+        "max_noul_abs_delta": 0.003699999999999981,
+        "max_confidence_abs_delta": 0.006900000000000017
+      }
+    },
+    "hybrid_l512_t192": {
+      "policy": {
+        "policy": "mlx if tokens < 192; ane_l512 if 192 <= tokens <= 512; mlx if tokens > 512",
+        "ane_min_tokens": 192,
+        "ane_max_tokens": 512,
+        "routing_length_source": "ANE tokenizer/prompt prepare on raw state + one question"
+      },
+      "routes": {
+        "ane": 1469,
+        "mlx_long": 34,
+        "mlx_short": 497
+      },
+      "metrics": {
+        "accuracy": 0.767,
+        "soft_accuracy": 0.47063430306572457,
+        "kl_from_gold": 0.11703568990701947,
+        "brier_vs_soft": 0.061469024686914224,
+        "ece_15": 0.21430550259107328,
+        "score_mae": 0.2423610125
+      },
+      "parity": {
+        "decisions": 2000,
+        "selected_mismatches": 4,
+        "selected_agreements": 1996,
+        "selected_agreement_rate": 0.998,
+        "mismatch_examples": [
+          {
+            "case_id": "customer_service_000024",
+            "question": "churn_risk",
+            "workflow": "customer_service",
+            "type": "score",
+            "tokens": 444,
+            "route": "ane",
+            "router_selected": "2",
+            "reference_selected": "3"
+          },
+          {
+            "case_id": "invoice_processing_000056",
+            "question": "disposition",
+            "workflow": "invoice_processing",
+            "type": "choice",
+            "tokens": 375,
+            "route": "ane",
+            "router_selected": "hold",
+            "reference_selected": "approve"
+          },
+          {
+            "case_id": "security_incidents_000056",
+            "question": "urgency",
+            "workflow": "security_incidents",
+            "type": "score",
+            "tokens": 261,
+            "route": "ane",
+            "router_selected": "2",
+            "reference_selected": "3"
+          },
+          {
+            "case_id": "security_incidents_000083",
+            "question": "severity",
+            "workflow": "security_incidents",
+            "type": "score",
+            "tokens": 304,
+            "route": "ane",
+            "router_selected": "2",
+            "reference_selected": "1"
+          }
+        ],
+        "max_probability_abs_delta": 0.005099999999999993,
+        "max_score_abs_delta": 0.012599999999999945,
+        "max_noul_abs_delta": 0.003699999999999981,
+        "max_confidence_abs_delta": 0.005400000000000071,
+        "max_action_probability_abs_delta": 0.0
+      },
+      "latency": {
+        "n": 2000,
+        "mean_ms": 105.23772737145191,
+        "p50_ms": 123.86875000083819,
+        "p95_ms": 152.72147699142806,
+        "p99_ms": 161.88942124135792,
+        "min_ms": 36.13204101566225,
+        "max_ms": 181.66908307466656
+      },
+      "routing_latency": {
+        "n": 2000,
+        "mean_ms": 1.3098228412563913,
+        "p50_ms": 1.251291949301958,
+        "p95_ms": 2.150862198323011,
+        "p99_ms": 2.678499339381233,
+        "min_ms": 0.3617919282987714,
+        "max_ms": 11.577125056646764
+      },
+      "load": {
+        "rss_before_bytes": 338755584,
+        "mlx_load_seconds": 0.42606891598552465,
+        "rss_after_mlx_bytes": 1229914112,
+        "ane_load_seconds": 157.83612812496722,
+        "rss_after_both_bytes": 1598423040
+      },
+      "rss_after_run_bytes": 1088225280
+    }
+  },
+  "runtime_state_sensitivity": {
+    "observed_l512_p50_ms_ranges": {
+      "validation_short1": 75.66095842048526,
+      "full_subset_first_run": 78.35052057635039,
+      "balanced_energy_blocks": [
+        89.40045908093452,
+        88.34497904172167,
+        88.64275005180389,
+        93.59164600027725,
+        89.91187496576458,
+        95.00737499911338
+      ],
+      "hybrid_router_ane_branch": 139.9420000379905
+    },
+    "system_thermal_warning_observed": false,
+    "interpretation": "The same L512 package exhibits materially different latency modes. The data are consistent with runtime/power-management state sensitivity, but macOS reported no thermal/performance warning, so thermal throttling is not claimed as proven."
+  },
+  "phase_gate": {
+    "structural_feasibility": "PASS",
+    "l512_quality": "PASS",
+    "l512_energy": "PASS",
+    "l640_full_coverage_quality": "PASS",
+    "static_router_quality": "PASS",
+    "production_readiness": "CONDITIONAL",
+    "next_focus": "stabilize/health-gate L512 ANE runtime state; do not build larger fixed shapes merely for coverage because L608 already covers 100% and L640 median latency loses to MLX."
+  }
+}
