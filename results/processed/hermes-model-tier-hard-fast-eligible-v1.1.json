@@ -1,0 +1,19 @@
+{
+  "eligible_pairs": 24,
+  "quality_both_pass": 24,
+  "low_faster": 13,
+  "high_faster": 11,
+  "raw_mean_high_minus_low_seconds": 0.21202224493026733,
+  "raw_median_high_minus_low_seconds": 0.665987491607666,
+  "raw_mean_bootstrap_95_ci": [
+    -0.9618185261885325,
+    1.310343861579895
+  ],
+  "control_overhead_mean_seconds": 0.06557910203264328,
+  "net_mean_high_minus_controlled_low_seconds": 0.14644314289762406,
+  "net_mean_bootstrap_95_ci": [
+    -1.0273976282211759,
+    1.2447647595472517
+  ],
+  "median_high_over_low_ratio": 1.1121920770696987
+}

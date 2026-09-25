@@ -24,3 +24,5 @@ results/raw/hermes-system-one-eval/canary*/
 results/raw/hermes-system-one-eval/model-tier-paired/
 results/raw/hermes-system-one-eval/model-tier-canary/
 results/raw/hermes-system-one-eval/model-tier-wire/
+private/hermes-model-tier-hard-fast-v1/
+private/hermes-model-tier-hard-fast-v1.1-rewrite/

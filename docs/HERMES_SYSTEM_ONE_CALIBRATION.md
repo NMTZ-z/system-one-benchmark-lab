@@ -533,3 +533,110 @@ After testing, `systemoneeval` was returned to Shadow and all seven production-p
 The deterministic hard-fast path is technically viable in the isolated profile.
 
 It is **not yet approved for production profiles**. The next evidence target is a larger frozen paired set of bounded real tasks, with zero quality regressions and a repeatable latency benefit.
+
+## 20. Phase 6.1 — 32-pair hard-fast expansion
+
+The same-provider Model Tier calibration was expanded from seven pairs to a corrected 32-pair frozen set.
+
+Method:
+
+- profile: `systemoneeval`
+- Local System One Hermes plugin: `off` during low/high latency measurement
+- provider/model: `local-gemini` / `gemini-3.8-flash-tiered`
+- comparison: `reasoning_effort=low` vs `reasoning_effort=high`
+- toolset: `clarify`
+- seeded counterbalanced low/high order
+- deterministic programmatic validators; no LLM judge
+- categories: JSON construction, sort/deduplicate, date normalization, field extraction, CSV→JSON, key/value formatting, bounded summaries, constrained rewrites
+
+The first rewrite prompts allowed optional alternatives, so their length validator rejected otherwise valid answers. Those four items were corrected to require exactly one output sentence and rerun; the ambiguous original rewrite runs are excluded from v1.1.
+
+### Quality
+
+- low: 32/32 PASS
+- high: 32/32 PASS
+- both pass: 32/32
+- low-only failures: 0
+- high-only failures: 0
+
+On this bounded set, low preserved the tested objective constraints as reliably as high.
+
+### Latency
+
+Turn latency:
+
+- low mean: 7.159 s
+- high mean: 7.030 s
+- low median: 6.326 s
+- high median: 6.392 s
+- low faster: 14/32 pairs
+- high faster: 18/32 pairs
+- mean paired delta (high - low): -0.050 s
+- bootstrap 95% CI for mean paired delta: [-0.935 s, +0.813 s]
+
+The larger sample does **not** reproduce a stable general latency advantage for low reasoning. The earlier seven-pair positive signal was too small to justify broad activation.
+
+### Local System One control overhead
+
+The exact two-gate control path used by the Hermes plugin was measured over the same 32 tasks for three repetitions each, for 96 combined Search + Model Tier decisions:
+
+- 96/96 successful
+- mean: 64.6 ms
+- median: 56.9 ms
+- P95: 112.5 ms
+- P99: 117.3 ms
+- max: 130.8 ms
+
+Because the raw low/high latency delta is already inconclusive, adding control overhead cannot create a broad latency win.
+
+### Exploratory category signals
+
+Three categories showed positive mean high-minus-low deltas after subtracting mean control overhead:
+
+- field extraction: about +1.32 s estimated net saving
+- CSV→JSON: about +1.79 s estimated net saving
+- sort/deduplicate: about +0.40 s estimated net saving
+
+Each currently has only four pairs. These are exploration targets, not production claims. Several other categories favored high or showed no useful difference, including constrained rewrite, bounded summary, date normalization, generic JSON construction and formatting.
+
+### Decision
+
+**Broad hard-fast production Canary: NO-GO.**
+
+The isolated `systemoneeval` Canary remains useful as an engineering reference and safety harness, but current evidence does not justify general `high -> low` routing on production Hermes profiles.
+
+If optimization continues, expand only the three positive-signal categories before changing production policy.
+
+Artifacts:
+
+- `results/processed/hermes-model-tier-hard-fast-v1.1-tasks.json`
+- `results/processed/hermes-model-tier-hard-fast-v1.1-summary.json`
+- `results/processed/hermes-system-one-hard-fast-control-overhead-v0.1.json`
+
+The evaluation profile was returned to `shadow` after measurement.
+
+
+## 20. Phase 6.1 final paired-set result
+
+The expanded hard-fast benchmark now contains 32 task pairs / 64 real Hermes calls with deterministic, programmatic scoring. After correcting a benchmark-design flaw in four constrained-rewrite prompts, final quality was:
+
+- low: 32/32 PASS;
+- high: 32/32 PASS.
+
+Across all 32 pairs, latency did not show a reliable low-effort advantage. The 24 pairs actually eligible for the current hard-fast deterministic allowlist showed a weak positive signal after control overhead:
+
+- 24/24 quality parity;
+- low faster 13/24, high faster 11/24;
+- raw mean high-minus-low +0.212 s;
+- mean control overhead 65.6 ms;
+- estimated net mean advantage +0.146 s for controlled-low;
+- bootstrap 95% CI -1.027 s to +1.245 s.
+
+Therefore production-default hard-fast routing remains NO-GO. The isolated Canary mechanism stays useful for experimentation, but its value on local-gemini is currently architectural/reversible rather than a proven latency optimization.
+
+Artifacts:
+
+- `docs/HERMES_MODEL_TIER_PAIRED_32.md`
+- `results/processed/hermes-model-tier-hard-fast-v1.1-summary.json`
+- `results/processed/hermes-model-tier-hard-fast-eligible-v1.1.json`
+- `results/processed/hermes-system-one-hard-fast-control-overhead-v0.1.json`

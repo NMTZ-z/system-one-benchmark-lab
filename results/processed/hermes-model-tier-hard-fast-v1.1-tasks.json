@@ -1,0 +1,412 @@
+[
+  {
+    "id": "json_01",
+    "category": "json",
+    "prompt": "把下面字段转换成一个 JSON 对象，只输出 JSON，不要解释：status=ready; retries=2; enabled=true",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "status": "ready",
+        "retries": 2,
+        "enabled": true
+      }
+    }
+  },
+  {
+    "id": "json_02",
+    "category": "json",
+    "prompt": "把下面字段转换成一个 JSON 对象，只输出 JSON，不要解释：service=Hermes; mode=shadow; active=false",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "service": "Hermes",
+        "mode": "shadow",
+        "active": false
+      }
+    }
+  },
+  {
+    "id": "json_03",
+    "category": "json",
+    "prompt": "把下面字段转换成一个 JSON 对象，只输出 JSON，不要解释：name=router; port=8787; healthy=true",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "name": "router",
+        "port": 8787,
+        "healthy": true
+      }
+    }
+  },
+  {
+    "id": "json_04",
+    "category": "json",
+    "prompt": "把下面字段转换成一个 JSON 对象，只输出 JSON，不要解释：device=Mac mini M4; memory_gb=24; online=true",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "device": "Mac mini M4",
+        "memory_gb": 24,
+        "online": true
+      }
+    }
+  },
+  {
+    "id": "sort_01",
+    "category": "sort_unique",
+    "prompt": "把下面整数去重并按升序排列，只输出英文逗号分隔结果：7,1,7,2,5",
+    "validator": {
+      "type": "exact",
+      "expected": "1,2,5,7"
+    }
+  },
+  {
+    "id": "sort_02",
+    "category": "sort_unique",
+    "prompt": "把下面整数去重并按升序排列，只输出英文逗号分隔结果：9,3,3,-1,8,0,-1",
+    "validator": {
+      "type": "exact",
+      "expected": "-1,0,3,8,9"
+    }
+  },
+  {
+    "id": "sort_03",
+    "category": "sort_unique",
+    "prompt": "把下面整数去重并按升序排列，只输出英文逗号分隔结果：42,11,5,42,11,19",
+    "validator": {
+      "type": "exact",
+      "expected": "5,11,19,42"
+    }
+  },
+  {
+    "id": "sort_04",
+    "category": "sort_unique",
+    "prompt": "把下面整数去重并按升序排列，只输出英文逗号分隔结果：100,2,10,2,1,100,20",
+    "validator": {
+      "type": "exact",
+      "expected": "1,2,10,20,100"
+    }
+  },
+  {
+    "id": "date_01",
+    "category": "date_normalize",
+    "prompt": "把以下日期统一转换为 YYYY-MM-DD，用 | 连接，只输出结果：25 Sep 2026；2025/01/03；Dec 7 2024",
+    "validator": {
+      "type": "exact",
+      "expected": "2026-09-25|2025-01-03|2024-12-07"
+    }
+  },
+  {
+    "id": "date_02",
+    "category": "date_normalize",
+    "prompt": "把以下日期统一转换为 YYYY-MM-DD，用 | 连接，只输出结果：1 Feb 2026；2024/11/09；Mar 30 2025",
+    "validator": {
+      "type": "exact",
+      "expected": "2026-02-01|2024-11-09|2025-03-30"
+    }
+  },
+  {
+    "id": "date_03",
+    "category": "date_normalize",
+    "prompt": "把以下日期统一转换为 YYYY-MM-DD，用 | 连接，只输出结果：Jun 5 2023；2026/12/31；14 Aug 2025",
+    "validator": {
+      "type": "exact",
+      "expected": "2023-06-05|2026-12-31|2025-08-14"
+    }
+  },
+  {
+    "id": "date_04",
+    "category": "date_normalize",
+    "prompt": "把以下日期统一转换为 YYYY-MM-DD，用 | 连接，只输出结果：9 Jan 2024；Oct 21 2026；2025/04/02",
+    "validator": {
+      "type": "exact",
+      "expected": "2024-01-09|2026-10-21|2025-04-02"
+    }
+  },
+  {
+    "id": "extract_01",
+    "category": "field_extract",
+    "prompt": "从这句话提取字段，只输出 JSON：林舟使用 Mac mini M4，内存 24GB，状态 healthy。字段必须是 name、device、memory、status。",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "name": "林舟",
+        "device": "Mac mini M4",
+        "memory": "24GB",
+        "status": "healthy"
+      }
+    }
+  },
+  {
+    "id": "extract_02",
+    "category": "field_extract",
+    "prompt": "从这句话提取字段，只输出 JSON：服务 local-system-one 监听 127.0.0.1:8787，模式 shadow。字段必须是 service、host、port、mode。",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "service": "local-system-one",
+        "host": "127.0.0.1",
+        "port": 8787,
+        "mode": "shadow"
+      }
+    }
+  },
+  {
+    "id": "extract_03",
+    "category": "field_extract",
+    "prompt": "从这句话提取字段，只输出 JSON：任务编号 R03，结果 PASS，耗时 83.4ms。字段必须是 task、result、latency_ms。",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "task": "R03",
+        "result": "PASS",
+        "latency_ms": 83.4
+      }
+    }
+  },
+  {
+    "id": "extract_04",
+    "category": "field_extract",
+    "prompt": "从这句话提取字段，只输出 JSON：模型 Laya-421M，后端 ANE，准确率 0.767。字段必须是 model、backend、accuracy。",
+    "validator": {
+      "type": "json_equal",
+      "expected": {
+        "model": "Laya-421M",
+        "backend": "ANE",
+        "accuracy": 0.767
+      }
+    }
+  },
+  {
+    "id": "csv_01",
+    "category": "csv_json",
+    "prompt": "把下面 CSV 转成 JSON 数组，只输出 JSON：\nname,score\nA,3\nB,5",
+    "validator": {
+      "type": "json_equal",
+      "expected": [
+        {
+          "name": "A",
+          "score": 3
+        },
+        {
+          "name": "B",
+          "score": 5
+        }
+      ]
+    }
+  },
+  {
+    "id": "csv_02",
+    "category": "csv_json",
+    "prompt": "把下面 CSV 转成 JSON 数组，只输出 JSON：\nservice,port\nHermes,8080\nSystemOne,8787",
+    "validator": {
+      "type": "json_equal",
+      "expected": [
+        {
+          "service": "Hermes",
+          "port": 8080
+        },
+        {
+          "service": "SystemOne",
+          "port": 8787
+        }
+      ]
+    }
+  },
+  {
+    "id": "csv_03",
+    "category": "csv_json",
+    "prompt": "把下面 CSV 转成 JSON 数组，只输出 JSON：\nitem,enabled\nsearch,true\nnotify,false",
+    "validator": {
+      "type": "json_equal",
+      "expected": [
+        {
+          "item": "search",
+          "enabled": true
+        },
+        {
+          "item": "notify",
+          "enabled": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "csv_04",
+    "category": "csv_json",
+    "prompt": "把下面 CSV 转成 JSON 数组，只输出 JSON：\nprofile,count\nagent_a,12\nagent_b,8",
+    "validator": {
+      "type": "json_equal",
+      "expected": [
+        {
+          "profile": "agent_a",
+          "count": 12
+        },
+        {
+          "profile": "agent_b",
+          "count": 8
+        }
+      ]
+    }
+  },
+  {
+    "id": "format_01",
+    "category": "format",
+    "prompt": "把下面键值对改成每行 key:value，只输出结果，保持原顺序：alpha=1;beta=2;gamma=3",
+    "validator": {
+      "type": "exact_lines",
+      "expected": [
+        "alpha:1",
+        "beta:2",
+        "gamma:3"
+      ]
+    }
+  },
+  {
+    "id": "format_02",
+    "category": "format",
+    "prompt": "把下面键值对改成每行 key:value，只输出结果，保持原顺序：mode=shadow;health=ok;port=8787",
+    "validator": {
+      "type": "exact_lines",
+      "expected": [
+        "mode:shadow",
+        "health:ok",
+        "port:8787"
+      ]
+    }
+  },
+  {
+    "id": "format_03",
+    "category": "format",
+    "prompt": "把下面键值对改成每行 key:value，只输出结果，保持原顺序：low=4.2;high=5.1;winner=low",
+    "validator": {
+      "type": "exact_lines",
+      "expected": [
+        "low:4.2",
+        "high:5.1",
+        "winner:low"
+      ]
+    }
+  },
+  {
+    "id": "format_04",
+    "category": "format",
+    "prompt": "把下面键值对改成每行 key:value，只输出结果，保持原顺序：a=true;b=false;c=true",
+    "validator": {
+      "type": "exact_lines",
+      "expected": [
+        "a:true",
+        "b:false",
+        "c:true"
+      ]
+    }
+  },
+  {
+    "id": "summary_01",
+    "category": "bounded_summary",
+    "prompt": "把下面内容压缩成一句中文，40字以内，必须保留“Shadow”“fail-open”“Web”：Shadow 模式不改变 Hermes 请求；Local System One 故障时 fail-open；Canary 只对确定性 no-Web 任务减少直接 Web 工具暴露。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 40,
+      "required": [
+        "Shadow",
+        "fail-open",
+        "Web"
+      ]
+    }
+  },
+  {
+    "id": "summary_02",
+    "category": "bounded_summary",
+    "prompt": "把下面内容压缩成一句中文，38字以内，必须保留“ANE”“MLX”“Router”：长输入优先 ANE，短输入可走 MLX，Router 根据长度和健康状态选择后端。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 38,
+      "required": [
+        "ANE",
+        "MLX",
+        "Router"
+      ]
+    }
+  },
+  {
+    "id": "summary_03",
+    "category": "bounded_summary",
+    "prompt": "把下面内容压缩成一句中文，40字以内，必须保留“Search”“Model Tier”“Notification”：Local System One 当前包含 Search Gate、Model Tier Gate 和 Notification Gate 三类决策工作流。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 40,
+      "required": [
+        "Search",
+        "Model Tier",
+        "Notification"
+      ]
+    }
+  },
+  {
+    "id": "summary_04",
+    "category": "bounded_summary",
+    "prompt": "把下面内容压缩成一句中文，42字以内，必须保留“421M”“L512”“98.3%”：421M Typed Decisions 的 L512 ANE 包覆盖 2000 条评测中的 1966 条，对应 98.3%。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 42,
+      "required": [
+        "421M",
+        "L512",
+        "98.3%"
+      ]
+    }
+  },
+  {
+    "id": "rewrite_01",
+    "category": "constraint_rewrite",
+    "prompt": "把这句话改写得更自然，25字以内，必须保留“第一阶段”“部署”，不要新增事实。只输出改写后的句子，不要解释、不要备选：第一阶段已经完成，后续准备部署。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 25,
+      "required": [
+        "第一阶段",
+        "部署"
+      ]
+    }
+  },
+  {
+    "id": "rewrite_02",
+    "category": "constraint_rewrite",
+    "prompt": "把这句话改写得更自然，30字以内，必须保留“Hermes”“Shadow”，不要新增事实。只输出改写后的句子，不要解释、不要备选：Hermes 已经接入 Shadow 模式进行测试。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 30,
+      "required": [
+        "Hermes",
+        "Shadow"
+      ]
+    }
+  },
+  {
+    "id": "rewrite_03",
+    "category": "constraint_rewrite",
+    "prompt": "把这句话改写得更自然，32字以内，必须保留“ANE”“健康”，不要新增事实。只输出改写后的句子，不要解释、不要备选：目前 ANE 的健康状态是正常的。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 32,
+      "required": [
+        "ANE",
+        "健康"
+      ]
+    }
+  },
+  {
+    "id": "rewrite_04",
+    "category": "constraint_rewrite",
+    "prompt": "把这句话改写得更自然，35字以内，必须保留“回滚”“插件”，不要新增事实。只输出改写后的句子，不要解释、不要备选：如果不想继续使用插件，可以执行回滚。",
+    "validator": {
+      "type": "bounded_contains",
+      "max_chars": 35,
+      "required": [
+        "回滚",
+        "插件"
+      ]
+    }
+  }
+]

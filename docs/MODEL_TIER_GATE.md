@@ -1,7 +1,7 @@
 # Model Tier Gate v0.2 — Hard-Fast Canary
 
 Date: 2026-09-25
-Status: model-based routing Shadow-only; isolated deterministic hard-fast Canary PASS
+Status: model-based routing Shadow-only; isolated hard-fast mechanism PASS, broad production latency gate NO-GO
 
 ## Goal
 
@@ -234,4 +234,39 @@ A structured transform may trigger only the reasoning downgrade while leaving We
 - production Hermes profiles: unchanged;
 - evaluation profile: returned to Shadow after Canary.
 
-Next validation should expand the frozen paired task set before considering any production-profile Canary.
+The expanded 32-pair v1.1 set reached 32/32 quality parity for both low and high, but low was faster in 15/32 pairs and the paired latency confidence interval crossed zero. Including Local System One control overhead, broad hard-fast production activation is therefore NO-GO. Future work, if pursued, should target only field extraction, sort/deduplicate, and CSV→JSON, which showed exploratory positive latency signals at n=4 each.
+
+## Phase 6.1 update — 32-pair benchmark
+
+The initial seven-pair latency signal did not reproduce at larger scale.
+
+A 32-pair / 64-call deterministic benchmark produced:
+
+- low quality: 32/32 PASS;
+- high quality: 32/32 PASS;
+- low mean turn: 7.110 s;
+- high mean turn: 7.068 s;
+- low median turn: 5.817 s;
+- high median turn: 6.392 s;
+- low faster: 15/32;
+- high faster: 17/32;
+- paired mean difference bootstrap 95% CI: -0.941 s to +0.833 s.
+
+Therefore the project no longer treats same-provider high→low routing as a demonstrated latency optimization on `local-gemini`. The mechanism remains technically valid and reversible, but production activation needs evidence of real provider cost/reasoning-token savings or a repeatable performance benefit on another route.
+
+Full report: `docs/HERMES_MODEL_TIER_PAIRED_32.md`.
+
+
+### Hard-fast eligible subset
+
+The current deterministic allowlist actually covers 24/32 benchmark tasks. On this product-relevant subset:
+
+- low/high quality: 24/24 vs 24/24;
+- low faster: 13/24;
+- high faster: 11/24;
+- raw mean high-minus-low latency: +0.212 s;
+- mean Local System One control overhead: 65.6 ms;
+- estimated net mean high-minus-controlled-low: +0.146 s;
+- bootstrap 95% CI: -1.027 s to +1.245 s.
+
+This is a weak positive signal, not reliable evidence of speedup. The hard-fast path remains isolated/experimental.
