@@ -640,3 +640,29 @@ Artifacts:
 - `results/processed/hermes-model-tier-hard-fast-v1.1-summary.json`
 - `results/processed/hermes-model-tier-hard-fast-eligible-v1.1.json`
 - `results/processed/hermes-system-one-hard-fast-control-overhead-v0.1.json`
+
+## 21. Phase 6.2 Public Web gold set expansion
+
+The manually reviewed Public Web gold set was expanded to 100 real Hermes task IDs:
+
+- public Web required: 36;
+- no public Web required: 64.
+
+Current v8 Search policy on this set:
+
+- TP/TN/FP/FN: 30 / 24 / 40 / 6;
+- recall: 83.3%;
+- specificity: 37.5%;
+- accuracy: 54.0%.
+
+No single probability threshold provided a safe and efficient operating point. Therefore model-probability Search decisions remain Shadow-only.
+
+The audited hard no-Web allowlist produced 18 hits on the 100-task gold set:
+
+- 18/18 correct no-Web;
+- 0 false hard no-Web;
+- 28.1% coverage of labeled no-Web tasks.
+
+This supports retaining isolated hard no-Web Canary behavior, but not production-default activation.
+
+Full report: `docs/HERMES_PUBLIC_WEB_GOLD_100.md`.

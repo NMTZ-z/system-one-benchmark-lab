@@ -1,0 +1,512 @@
+{
+  "version": "v0.2",
+  "created_from": "private/hermes-system-one-replay/replay-200-v8-fixed.json",
+  "label_semantics": {
+    "true": "The current task materially requires public Internet/Web information.",
+    "false": "The task can be completed from conversation, local files, connected apps, supplied artifacts, or stable general knowledge without public Web."
+  },
+  "privacy": "Only hashed private_id and labels/rationale codes are stored; raw user content remains private and git-ignored.",
+  "review_method": "Manual task-requirement review. Public Web means the task materially requires public Internet/Web facts; local files, connected apps, supplied web context, project state, and local pipelines do not automatically count as public Web.",
+  "items": [
+    {
+      "private_id": "c4ae0d5e1296bb6e",
+      "public_web_required": false,
+      "rationale_code": "local_code_review"
+    },
+    {
+      "private_id": "db90165d4cc05a6e",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "6dc828323ab3d6c3",
+      "public_web_required": true,
+      "rationale_code": "current_integration_research"
+    },
+    {
+      "private_id": "87eb1e23a7935569",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "336d4191fac04812",
+      "public_web_required": true,
+      "rationale_code": "explicit_online_research"
+    },
+    {
+      "private_id": "33f899d0a52b1a6c",
+      "public_web_required": false,
+      "rationale_code": "general_advice"
+    },
+    {
+      "private_id": "f7ee0ab1d18e980a",
+      "public_web_required": true,
+      "rationale_code": "current_news"
+    },
+    {
+      "private_id": "39abb127e6c37993",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "a1b8db53dda2c8fe",
+      "public_web_required": true,
+      "rationale_code": "current_product_capability"
+    },
+    {
+      "private_id": "1f079fbdcb5ff7ff",
+      "public_web_required": false,
+      "rationale_code": "connected_app_trend"
+    },
+    {
+      "private_id": "ad5e84c240deafef",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "c6e3f20eaefeff1b",
+      "public_web_required": true,
+      "rationale_code": "current_product_research"
+    },
+    {
+      "private_id": "d42c1d07b2082298",
+      "public_web_required": false,
+      "rationale_code": "local_artifact_state"
+    },
+    {
+      "private_id": "7a71951a46e5ae9b",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "31b583fd5a61db88",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "2e1d0b3253d23bc4",
+      "public_web_required": true,
+      "rationale_code": "public_plugin_research"
+    },
+    {
+      "private_id": "a85f636d440f44d0",
+      "public_web_required": false,
+      "rationale_code": "conversation_context"
+    },
+    {
+      "private_id": "f48573c7d77564e3",
+      "public_web_required": false,
+      "rationale_code": "local_execution_recovery"
+    },
+    {
+      "private_id": "587f986df2ace296",
+      "public_web_required": false,
+      "rationale_code": "local_edit"
+    },
+    {
+      "private_id": "e220a72fcd720c3e",
+      "public_web_required": false,
+      "rationale_code": "conversation_state"
+    },
+    {
+      "private_id": "f3045f131a9dee54",
+      "public_web_required": false,
+      "rationale_code": "local_troubleshooting"
+    },
+    {
+      "private_id": "cfc883d6cc7ac797",
+      "public_web_required": false,
+      "rationale_code": "local_review"
+    },
+    {
+      "private_id": "315a5c41bf28ebc6",
+      "public_web_required": false,
+      "rationale_code": "local_artifact_edit"
+    },
+    {
+      "private_id": "f75a256b1683b030",
+      "public_web_required": false,
+      "rationale_code": "local_execution_recovery"
+    },
+    {
+      "private_id": "12cd9a5401d775f5",
+      "public_web_required": false,
+      "rationale_code": "conversation_state"
+    },
+    {
+      "private_id": "dcf02144024401d1",
+      "public_web_required": false,
+      "rationale_code": "conversation_only"
+    },
+    {
+      "private_id": "a0b1ae2e2f2a5577",
+      "public_web_required": false,
+      "rationale_code": "conversation_only"
+    },
+    {
+      "private_id": "d38eb4d79e44975f",
+      "public_web_required": false,
+      "rationale_code": "brainstorm"
+    },
+    {
+      "private_id": "12a202442daa7c28",
+      "public_web_required": false,
+      "rationale_code": "planning"
+    },
+    {
+      "private_id": "c91dc25f3e0d29a0",
+      "public_web_required": false,
+      "rationale_code": "conversation_state"
+    },
+    {
+      "private_id": "fd6270b56814bbdd",
+      "public_web_required": false,
+      "rationale_code": "provided_error_text"
+    },
+    {
+      "private_id": "d5ff8319e3d174fb",
+      "public_web_required": false,
+      "rationale_code": "local_source_read"
+    },
+    {
+      "private_id": "643d82fdb5e31240",
+      "public_web_required": true,
+      "rationale_code": "explicit_search_request"
+    },
+    {
+      "private_id": "6fdb0619b326d9f1",
+      "public_web_required": false,
+      "rationale_code": "provided_content_brief"
+    },
+    {
+      "private_id": "1ee68c4288b21431",
+      "public_web_required": false,
+      "rationale_code": "local_memory"
+    },
+    {
+      "private_id": "25575b5b3ec10f44",
+      "public_web_required": false,
+      "rationale_code": "provided_research_artifacts"
+    },
+    {
+      "private_id": "7aa63b0c1d3b8bef",
+      "public_web_required": true,
+      "rationale_code": "current_public_research"
+    },
+    {
+      "private_id": "03734e5eaf2162f4",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_research"
+    },
+    {
+      "private_id": "63a314a42eb9f8e2",
+      "public_web_required": true,
+      "rationale_code": "current_product_docs"
+    },
+    {
+      "private_id": "828e541a2be27d37",
+      "public_web_required": true,
+      "rationale_code": "explicit_online_research"
+    },
+    {
+      "private_id": "6307aa91203ae319",
+      "public_web_required": true,
+      "rationale_code": "current_product_update"
+    },
+    {
+      "private_id": "43a1abe3f6e21f8c",
+      "public_web_required": true,
+      "rationale_code": "official_doc_verification"
+    },
+    {
+      "private_id": "b3e5822ac4490802",
+      "public_web_required": true,
+      "rationale_code": "current_external_docs"
+    },
+    {
+      "private_id": "713974810f5ca050",
+      "public_web_required": true,
+      "rationale_code": "current_news_correction"
+    },
+    {
+      "private_id": "06110cd3657619d0",
+      "public_web_required": true,
+      "rationale_code": "current_intelligence"
+    },
+    {
+      "private_id": "1693d5434bcc45ef",
+      "public_web_required": true,
+      "rationale_code": "public_design_research"
+    },
+    {
+      "private_id": "391892733ac68eb7",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_research"
+    },
+    {
+      "private_id": "442920166ca70ece",
+      "public_web_required": true,
+      "rationale_code": "current_product_facts"
+    },
+    {
+      "private_id": "826a0d99b4d67930",
+      "public_web_required": true,
+      "rationale_code": "current_project_research"
+    },
+    {
+      "private_id": "52d7e1ddcf2bd693",
+      "public_web_required": true,
+      "rationale_code": "explicit_cross_platform_research"
+    },
+    {
+      "private_id": "9ced59988a1c2117",
+      "public_web_required": true,
+      "rationale_code": "current_model_identity"
+    },
+    {
+      "private_id": "9039500f25e93225",
+      "public_web_required": true,
+      "rationale_code": "public_fact_verification"
+    },
+    {
+      "private_id": "9a26b78810372102",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_research"
+    },
+    {
+      "private_id": "450559132fa757d9",
+      "public_web_required": true,
+      "rationale_code": "public_source_verification"
+    },
+    {
+      "private_id": "1cb0eaa5ba0b2f3d",
+      "public_web_required": true,
+      "rationale_code": "current_benchmark_data"
+    },
+    {
+      "private_id": "4549960ec09ac847",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_and_trend_research"
+    },
+    {
+      "private_id": "b733b793aa24577b",
+      "public_web_required": false,
+      "rationale_code": "local_file_only"
+    },
+    {
+      "private_id": "c3ea7f29b073eb2b",
+      "public_web_required": false,
+      "rationale_code": "conversation_only"
+    },
+    {
+      "private_id": "1eb9bc8f1b3d677d",
+      "public_web_required": false,
+      "rationale_code": "local_pipeline_state"
+    },
+    {
+      "private_id": "cd3c740ef15a9d52",
+      "public_web_required": false,
+      "rationale_code": "conversation_only"
+    },
+    {
+      "private_id": "fb444b4401c1be79",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "17a259276620b7b3",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "66a73ef523b813a9",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "0836b75eff7f5fc4",
+      "public_web_required": false,
+      "rationale_code": "local_file_only"
+    },
+    {
+      "private_id": "fc0e9c67a4b0ab98",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "27270a2032f6f8e1",
+      "public_web_required": false,
+      "rationale_code": "local_pipeline_or_conditional_collection"
+    },
+    {
+      "private_id": "fcf5006303274a41",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "6f659b1b51c536db",
+      "public_web_required": false,
+      "rationale_code": "fixed_response"
+    },
+    {
+      "private_id": "0b10b39c4d9d5029",
+      "public_web_required": true,
+      "rationale_code": "official_fact_verification"
+    },
+    {
+      "private_id": "cffb3321b1d94830",
+      "public_web_required": false,
+      "rationale_code": "provided_web_context_sufficient"
+    },
+    {
+      "private_id": "cb0d7cb19ede7cf0",
+      "public_web_required": false,
+      "rationale_code": "conversation_and_local_state"
+    },
+    {
+      "private_id": "933cd14906e8c7e7",
+      "public_web_required": false,
+      "rationale_code": "local_error_state"
+    },
+    {
+      "private_id": "888cbfbc264e1d58",
+      "public_web_required": false,
+      "rationale_code": "persona_edit"
+    },
+    {
+      "private_id": "5a0e3f3c0a2c47b0",
+      "public_web_required": false,
+      "rationale_code": "conversation_context"
+    },
+    {
+      "private_id": "cc2af9dde06e49f4",
+      "public_web_required": false,
+      "rationale_code": "local_process_state"
+    },
+    {
+      "private_id": "b01550b450803074",
+      "public_web_required": false,
+      "rationale_code": "local_pipeline_or_conditional_collection"
+    },
+    {
+      "private_id": "b1e5aae6fc47509d",
+      "public_web_required": false,
+      "rationale_code": "local_agent_configuration_research"
+    },
+    {
+      "private_id": "572481669131aa44",
+      "public_web_required": false,
+      "rationale_code": "conversation_decision"
+    },
+    {
+      "private_id": "7abfef9b657be8af",
+      "public_web_required": true,
+      "rationale_code": "explicit_github_lookup"
+    },
+    {
+      "private_id": "231d993cb40a2ecc",
+      "public_web_required": true,
+      "rationale_code": "external_field_documentation"
+    },
+    {
+      "private_id": "df3f0f6d1872c133",
+      "public_web_required": true,
+      "rationale_code": "current_public_research"
+    },
+    {
+      "private_id": "61c3f85aa4b0afcf",
+      "public_web_required": false,
+      "rationale_code": "provided_brief_reasoning"
+    },
+    {
+      "private_id": "c037f305159a0a60",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "9440795cced04b10",
+      "public_web_required": true,
+      "rationale_code": "current_product_behavior"
+    },
+    {
+      "private_id": "1926f9a8ffcb27ec",
+      "public_web_required": false,
+      "rationale_code": "connected_app_content_research"
+    },
+    {
+      "private_id": "0ce1930c18e26d66",
+      "public_web_required": false,
+      "rationale_code": "local_network_troubleshooting"
+    },
+    {
+      "private_id": "96719df251eaedb9",
+      "public_web_required": true,
+      "rationale_code": "current_official_api_research"
+    },
+    {
+      "private_id": "0a5af045cb8c7918",
+      "public_web_required": false,
+      "rationale_code": "platform_strategy_reasoning"
+    },
+    {
+      "private_id": "b8cb73f865bec079",
+      "public_web_required": false,
+      "rationale_code": "provided_web_context_sufficient"
+    },
+    {
+      "private_id": "88dfe61fe3016145",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "0f25e53f02533151",
+      "public_web_required": true,
+      "rationale_code": "external_design_identification"
+    },
+    {
+      "private_id": "e08c8922e7d3b987",
+      "public_web_required": true,
+      "rationale_code": "official_sdk_and_parameter_research"
+    },
+    {
+      "private_id": "251088d1089da656",
+      "public_web_required": false,
+      "rationale_code": "general_reflection"
+    },
+    {
+      "private_id": "198ae7278ffb2b64",
+      "public_web_required": false,
+      "rationale_code": "connected_app_research"
+    },
+    {
+      "private_id": "fea775a36f91740d",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "88b61220aee80e57",
+      "public_web_required": true,
+      "rationale_code": "explicit_source_url_completion"
+    },
+    {
+      "private_id": "e879db9be4ac2a04",
+      "public_web_required": false,
+      "rationale_code": "continue_existing_tool_results"
+    },
+    {
+      "private_id": "4484ddc0c8bd020e",
+      "public_web_required": false,
+      "rationale_code": "connected_app_research"
+    },
+    {
+      "private_id": "6e0cc35a2b8969b0",
+      "public_web_required": false,
+      "rationale_code": "connected_app_research"
+    },
+    {
+      "private_id": "14ee69706367bc67",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    }
+  ]
+}

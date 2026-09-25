@@ -200,3 +200,29 @@ Raw historical Hermes content used for replay remains local and git-ignored.
 - Search model-probability Active routing: NO-GO.
 - Production Hermes profiles: unchanged and not approved for Canary.
 - Continue Shadow collection and expand the manual gold set before widening any active behavior.
+
+## Phase 6.2 update — 100-task manual gold set
+
+The manual Public Web gold set was expanded from 56 to 100 real Hermes task IDs:
+
+- 36 genuinely require public Web information;
+- 64 do not;
+- raw task text remains private and git-ignored.
+
+Current v8 policy:
+
+- recall: 83.3%;
+- specificity: 37.5%;
+- TP/TN/FP/FN: 30 / 24 / 40 / 6.
+
+A threshold sweep again found no useful global threshold: threshold 0.30 reaches 100% recall but only 29.7% specificity, while threshold 0.65 reaches 87.5% specificity but only 36.1% recall.
+
+The deterministic hard no-Web Canary allowlist hit 18/100 tasks and was correct on all 18, with zero manually labeled true-Web tasks blocked. It covers 28.1% of the 64 no-Web tasks in this gold set.
+
+Decision remains:
+
+- model-based Search routing: Shadow-only;
+- hard no-Web isolated Canary: retain;
+- production default: NO-GO pending more labeled/live evidence.
+
+Full report: `docs/HERMES_PUBLIC_WEB_GOLD_100.md`.

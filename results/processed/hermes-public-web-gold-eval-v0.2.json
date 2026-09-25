@@ -1,0 +1,293 @@
+{
+  "gold_version": "v0.2",
+  "policy_replay": "replay-200-v8-fixed.json",
+  "n": 100,
+  "tp": 30,
+  "tn": 24,
+  "fp": 40,
+  "fn": 6,
+  "accuracy": 0.54,
+  "recall": 0.8333333333333334,
+  "specificity": 0.375,
+  "precision": 0.42857142857142855,
+  "false_no_web_rate": 0.16666666666666666,
+  "false_web_rate": 0.625,
+  "errors": [
+    {
+      "type": "FN",
+      "private_id": "6dc828323ab3d6c3",
+      "policy_reason": "model_confident_local_answer",
+      "gold_reason": "current_integration_research"
+    },
+    {
+      "type": "FN",
+      "private_id": "336d4191fac04812",
+      "policy_reason": "model_confident_local_answer",
+      "gold_reason": "explicit_online_research"
+    },
+    {
+      "type": "FN",
+      "private_id": "f7ee0ab1d18e980a",
+      "policy_reason": "model_confident_local_answer",
+      "gold_reason": "current_news"
+    },
+    {
+      "type": "FN",
+      "private_id": "a1b8db53dda2c8fe",
+      "policy_reason": "model_confident_local_answer",
+      "gold_reason": "current_product_capability"
+    },
+    {
+      "type": "FN",
+      "private_id": "c6e3f20eaefeff1b",
+      "policy_reason": "model_confident_local_answer",
+      "gold_reason": "current_product_research"
+    },
+    {
+      "type": "FN",
+      "private_id": "2e1d0b3253d23bc4",
+      "policy_reason": "model_confident_local_answer",
+      "gold_reason": "public_plugin_research"
+    },
+    {
+      "type": "FP",
+      "private_id": "a85f636d440f44d0",
+      "policy_reason": "volatile_public_fact",
+      "gold_reason": "conversation_context"
+    },
+    {
+      "type": "FP",
+      "private_id": "f48573c7d77564e3",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "local_execution_recovery"
+    },
+    {
+      "type": "FP",
+      "private_id": "587f986df2ace296",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_edit"
+    },
+    {
+      "type": "FP",
+      "private_id": "e220a72fcd720c3e",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "conversation_state"
+    },
+    {
+      "type": "FP",
+      "private_id": "f3045f131a9dee54",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_troubleshooting"
+    },
+    {
+      "type": "FP",
+      "private_id": "cfc883d6cc7ac797",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "local_review"
+    },
+    {
+      "type": "FP",
+      "private_id": "315a5c41bf28ebc6",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_artifact_edit"
+    },
+    {
+      "type": "FP",
+      "private_id": "f75a256b1683b030",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "local_execution_recovery"
+    },
+    {
+      "type": "FP",
+      "private_id": "12cd9a5401d775f5",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "conversation_state"
+    },
+    {
+      "type": "FP",
+      "private_id": "dcf02144024401d1",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "conversation_only"
+    },
+    {
+      "type": "FP",
+      "private_id": "a0b1ae2e2f2a5577",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "conversation_only"
+    },
+    {
+      "type": "FP",
+      "private_id": "d38eb4d79e44975f",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "brainstorm"
+    },
+    {
+      "type": "FP",
+      "private_id": "12a202442daa7c28",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "planning"
+    },
+    {
+      "type": "FP",
+      "private_id": "c91dc25f3e0d29a0",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "conversation_state"
+    },
+    {
+      "type": "FP",
+      "private_id": "fd6270b56814bbdd",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "provided_error_text"
+    },
+    {
+      "type": "FP",
+      "private_id": "d5ff8319e3d174fb",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_source_read"
+    },
+    {
+      "type": "FP",
+      "private_id": "6fdb0619b326d9f1",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "provided_content_brief"
+    },
+    {
+      "type": "FP",
+      "private_id": "1ee68c4288b21431",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_memory"
+    },
+    {
+      "type": "FP",
+      "private_id": "25575b5b3ec10f44",
+      "policy_reason": "explicit_public_web_instruction",
+      "gold_reason": "provided_research_artifacts"
+    },
+    {
+      "type": "FP",
+      "private_id": "cffb3321b1d94830",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "provided_web_context_sufficient"
+    },
+    {
+      "type": "FP",
+      "private_id": "cb0d7cb19ede7cf0",
+      "policy_reason": "live_public_fact",
+      "gold_reason": "conversation_and_local_state"
+    },
+    {
+      "type": "FP",
+      "private_id": "933cd14906e8c7e7",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_error_state"
+    },
+    {
+      "type": "FP",
+      "private_id": "888cbfbc264e1d58",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "persona_edit"
+    },
+    {
+      "type": "FP",
+      "private_id": "5a0e3f3c0a2c47b0",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "conversation_context"
+    },
+    {
+      "type": "FP",
+      "private_id": "cc2af9dde06e49f4",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_process_state"
+    },
+    {
+      "type": "FP",
+      "private_id": "b01550b450803074",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_pipeline_or_conditional_collection"
+    },
+    {
+      "type": "FP",
+      "private_id": "b1e5aae6fc47509d",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "local_agent_configuration_research"
+    },
+    {
+      "type": "FP",
+      "private_id": "572481669131aa44",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "conversation_decision"
+    },
+    {
+      "type": "FP",
+      "private_id": "61c3f85aa4b0afcf",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "provided_brief_reasoning"
+    },
+    {
+      "type": "FP",
+      "private_id": "c037f305159a0a60",
+      "policy_reason": "live_public_fact",
+      "gold_reason": "connected_app_only"
+    },
+    {
+      "type": "FP",
+      "private_id": "1926f9a8ffcb27ec",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "connected_app_content_research"
+    },
+    {
+      "type": "FP",
+      "private_id": "0ce1930c18e26d66",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "local_network_troubleshooting"
+    },
+    {
+      "type": "FP",
+      "private_id": "0a5af045cb8c7918",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "platform_strategy_reasoning"
+    },
+    {
+      "type": "FP",
+      "private_id": "b8cb73f865bec079",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "provided_web_context_sufficient"
+    },
+    {
+      "type": "FP",
+      "private_id": "88dfe61fe3016145",
+      "policy_reason": "live_public_fact",
+      "gold_reason": "connected_app_only"
+    },
+    {
+      "type": "FP",
+      "private_id": "251088d1089da656",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "general_reflection"
+    },
+    {
+      "type": "FP",
+      "private_id": "198ae7278ffb2b64",
+      "policy_reason": "explicit_public_web_instruction",
+      "gold_reason": "connected_app_research"
+    },
+    {
+      "type": "FP",
+      "private_id": "fea775a36f91740d",
+      "policy_reason": "live_public_fact",
+      "gold_reason": "connected_app_only"
+    },
+    {
+      "type": "FP",
+      "private_id": "e879db9be4ac2a04",
+      "policy_reason": "model_requires_external_information",
+      "gold_reason": "continue_existing_tool_results"
+    },
+    {
+      "type": "FP",
+      "private_id": "4484ddc0c8bd020e",
+      "policy_reason": "model_uncertain_conservative_search",
+      "gold_reason": "connected_app_research"
+    }
+  ]
+}
