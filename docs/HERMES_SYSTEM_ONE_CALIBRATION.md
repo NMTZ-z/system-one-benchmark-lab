@@ -496,3 +496,40 @@ Model Tier:
   not general model-based routing.
 
 The `systemoneeval` profile is currently back in `shadow` mode.
+
+## 19. Model Tier hard-fast Canary v0.1
+
+The first isolated Model Tier active experiment is now complete.
+
+Hermes' real request wire was verified first using non-sensitive sentinel request dumps. On the tested local-gemini route, `gemini-3.8-flash-tiered` carries reasoning depth as the top-level `reasoning_effort` field.
+
+The plugin v0.4.0 therefore permits a single-turn `high -> low` mutation only when all of the following are true:
+
+- profile is `systemoneeval`;
+- the complete Local System One recommendation succeeds;
+- Model Tier returns a deterministic rule decision;
+- reason is `bounded_transform` or `bounded_structured_transform`;
+- request model is exactly `gemini-3.8-flash-tiered`;
+- incoming request explicitly contains `reasoning_effort=high`;
+- this is the first provider API call of the turn.
+
+Real results:
+
+- bounded rewrite: final wire `low`, completed normally;
+- bounded structured transformation: final wire `low`, completed correctly;
+- model-probability fast recommendation: final wire remained `high`;
+- dead Local System One service: final wire remained `high`, Hermes completed normally.
+
+The structured-transform test also demonstrated independent control planes: Model Tier downgraded reasoning while Search did not apply a hard-rule Web-tool filter.
+
+Processed summary:
+
+`results/processed/hermes-model-tier-canary-v0.1.json`
+
+After testing, `systemoneeval` was returned to Shadow and all seven production-profile configuration hashes remained unchanged.
+
+### Decision
+
+The deterministic hard-fast path is technically viable in the isolated profile.
+
+It is **not yet approved for production profiles**. The next evidence target is a larger frozen paired set of bounded real tasks, with zero quality regressions and a repeatable latency benefit.

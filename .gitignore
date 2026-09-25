@@ -22,3 +22,5 @@ private/
 # Local-only Hermes evaluation raw outputs; processed summaries are safe to commit
 results/raw/hermes-system-one-eval/canary*/
 results/raw/hermes-system-one-eval/model-tier-paired/
+results/raw/hermes-system-one-eval/model-tier-canary/
+results/raw/hermes-system-one-eval/model-tier-wire/

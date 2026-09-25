@@ -1,0 +1,43 @@
+{
+  "version": "v0.1",
+  "profile": "systemoneeval",
+  "production_profiles_modified": false,
+  "plugin_version": "0.4.0",
+  "baseline_request": {
+    "model": "gemini-3.8-flash-tiered",
+    "reasoning_effort": "high"
+  },
+  "cases": {
+    "bounded_rewrite": {
+      "completed": true,
+      "wire_model": "gemini-3.8-flash-tiered",
+      "wire_reasoning_effort": "low",
+      "wire_tool_count": 29
+    },
+    "bounded_structured_transform": {
+      "completed": true,
+      "wire_model": "gemini-3.8-flash-tiered",
+      "wire_reasoning_effort": "low",
+      "wire_tool_count": 31
+    },
+    "model_probability_fast_control": {
+      "completed": true,
+      "wire_model": "gemini-3.8-flash-tiered",
+      "wire_reasoning_effort": "high",
+      "wire_tool_count": 31
+    },
+    "dead_service_fail_open": {
+      "completed": true,
+      "wire_model": "gemini-3.8-flash-tiered",
+      "wire_reasoning_effort": "high",
+      "wire_tool_count": 31
+    }
+  },
+  "interpretation": {
+    "bounded_rewrite": "hard-fast rule changed high to low for one request",
+    "bounded_structured_transform": "hard-fast rule changed high to low without Search hard-rule action",
+    "model_probability_fast_control": "model-only fast recommendation did not mutate reasoning effort",
+    "dead_service_fail_open": "Local System One failure preserved original high effort"
+  },
+  "current_eval_mode": "shadow"
+}

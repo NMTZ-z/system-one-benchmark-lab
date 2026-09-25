@@ -1,62 +1,73 @@
-# Model Tier Gate v0.1
+# Model Tier Gate v0.2 — Hard-Fast Canary
 
-Date: 2026-09-24
-Status: functional MVP
+Date: 2026-09-25
+Status: model-based routing Shadow-only; isolated deterministic hard-fast Canary PASS
 
 ## Goal
 
-Choose whether an agent task should use a fast/cheap generative model or a stronger/slower model.
+Choose whether an agent task needs the baseline/strong reasoning tier or can safely use a cheaper/faster reasoning tier.
 
-The gate is not trying to rank models globally. It decides whether the current task justifies spending more reasoning capability.
+The gate is not a global model ranking. It is a control-plane decision made **before** expensive generative reasoning.
 
 ## Endpoint
 
-POST /v1/workflows/model-tier-gate
+`POST /v1/workflows/model-tier-gate`
 
-Request fields:
+Important response fields:
 
-- task
-- optional context
-- risk: auto / low / medium / high / critical
-- task_type: auto / transform / simple_qa / reasoning / coding / research / planning
-- irreversible
-- requires_precision
-- request_id
+- `tier`: fast / strong
+- `decision_source`: rule / model
+- `reason`
+- `difficulty_score`
+- `probability_strong`
+- backend / route metadata
 
-Response fields include:
+## Safety ordering
 
-- tier: fast / strong
-- decision_source: rule / model
-- reason
-- difficulty_score
-- probability_strong
-- backend and route metadata
+Hard-strong policy always wins before any fast rule.
 
-## Policy
-
-### Hard strong
-
-Strong is selected without model inference when:
+Hard strong is returned when:
 
 - risk is high or critical;
 - the action is irreversible;
 - the caller explicitly requires high precision.
 
-These are safety/cost-of-error policies, not model intelligence judgments.
+These are consequence-of-error policies, not intelligence judgments.
 
-### Hard fast
+## Deterministic hard-fast policy
 
-Fast is selected for bounded low-risk transformations when the input context is already supplied.
+The first active experiment deliberately recognizes only **bounded, low-risk tasks with explicit source material**.
+
+Current hard-fast reasons:
+
+- `bounded_transform`
+- `bounded_structured_transform`
+
+### bounded_transform
 
 Examples:
 
-- rewrite a supplied paragraph;
+- rewrite supplied text;
 - proofread supplied text;
-- translate supplied text.
+- translate supplied text;
+- shorten/compress supplied text.
 
-### Model fallback
+The source material must be present either in structured context or visibly embedded in the current task. An instruction such as "translate this" without the actual content does not qualify.
 
-Everything else becomes a Score decision from 0 to 4:
+### bounded_structured_transform
+
+Examples with explicit input data:
+
+- deduplicate/sort a supplied list;
+- normalize supplied dates;
+- extract named fields from supplied text;
+- convert supplied CSV/data to JSON.
+
+The heuristics intentionally prefer false negatives over broad downgrade coverage.
+
+## Model fallback
+
+Everything outside hard policy becomes a 0–4 Score decision:
 
 0. routine/direct;
 1. light reasoning;
@@ -64,63 +75,163 @@ Everything else becomes a Score decision from 0 to 4:
 3. complex reasoning;
 4. expert-level deep reasoning.
 
-Initial strong threshold: expected score >= 2.0.
+The current research threshold for `strong` is expected score >= 2.0.
 
-This threshold is a product baseline and must later be tuned from real workflow outcomes.
+**Model-probability fast/strong decisions are not approved for Active routing.**
 
-## Real 421M smoke
+Task-description sensitivity was observed during calibration: operational wrapper wording can move the same semantic task across the threshold.
 
-Observed on the real local checkpoint:
+## Same-provider low/high paired calibration
 
-| Task | Result | Source | Difficulty |
-|---|---|---|---:|
-| supplied low-risk rewrite | fast | rule | 0.0 |
-| explain Python list vs tuple | fast | model | 1.3404 |
-| design a fault-tolerant 24/7 multi-agent architecture | strong | model | 2.3408 |
-| modify production authentication policy | strong | rule | 4.0 |
+A small isolated paired set used:
 
-The complex architecture task produced P(strong levels 3+4) = 0.4768, while the simple Python explanation produced 0.1565.
+- provider: local-gemini
+- model: `gemini-3.8-flash-tiered`
+- same task/context/toolset
+- reasoning effort: low vs high
 
-This is a functional sanity check, not a benchmark.
+Seven objective bounded tasks were completed successfully by both tiers:
 
-## Product role
+- low: 7/7
+- high: 7/7
 
-Model Tier Gate is intended to sit before expensive generative inference:
+Measured Hermes turn latency:
 
-~~~text
-agent task
-    |
-    v
-Model Tier Gate
-   /       \
- fast     strong
- model     model
-~~~
+- low mean: 4.824 s
+- high mean: 5.812 s
+- low median: 4.351 s
+- high median: 5.224 s
+- low faster: 5/7 pairs
+- high faster: 2/7 pairs
+- median high/low latency ratio: 1.235×
 
-The actual model names remain configuration owned by the calling agent system. Local System One only returns the tier.
+This is promising evidence for a narrow hard-fast path, not a general production benchmark.
 
-## Why not let the generative model self-select?
+## Verified Hermes wire shape
 
-Because asking the expensive model whether it was necessary already pays the expensive-model cost.
+Hermes request dumps were used with non-sensitive sentinel tasks to verify the actual local-gemini wire format.
 
-A small local decision model can make that choice first.
+For `gemini-3.8-flash-tiered`:
 
-## Known limitations
+- low request: top-level `reasoning_effort = low`
+- high request: top-level `reasoning_effort = high`
 
-- The current 421M checkpoint was not trained specifically for model-tier routing.
-- The 2.0 threshold is not yet calibrated on real user outcomes.
-- Strong does not mean a particular vendor/model.
-- Human-confirmation policy remains a separate workflow.
-- Some tasks may be cheap computationally but high consequence; hard risk rules intentionally override model difficulty.
+No `extra_body.reasoning` field is used on this route.
 
-## Next validation
+The Canary therefore modifies only the top-level `reasoning_effort` of the current provider request.
 
-Integrate into real agent traffic and record:
+## Isolated Hermes hard-fast Canary
 
-- selected tier;
-- whether the user/agent later escalated;
-- whether fast-tier output required redo;
-- strong-model calls avoided;
-- estimated latency/cost avoided.
+Plugin version: `local-system-one-hermes v0.4.0`
 
-The future blind set should be built from those real outcomes rather than synthetic prompts.
+Canary remains hard-blocked outside profile:
+
+`systemoneeval`
+
+The Model Tier mutation has additional gates:
+
+1. complete Local System One recommendation must succeed;
+2. tier decision must come from a deterministic rule;
+3. reason must be an audited hard-fast reason;
+4. provider request model must be exactly `gemini-3.8-flash-tiered`;
+5. original provider request must explicitly contain `reasoning_effort = high`;
+6. only the first provider call of the turn is eligible.
+
+The plugin then copy-on-write changes only:
+
+`high -> low`
+
+It never persists a new profile reasoning setting.
+
+## Real Canary results
+
+Processed artifact:
+
+`results/processed/hermes-model-tier-canary-v0.1.json`
+
+### Bounded rewrite
+
+Caller requested high.
+
+Decision:
+
+- tier: fast
+- decision source: rule
+- reason: bounded_transform
+
+Final provider wire:
+
+- model: `gemini-3.8-flash-tiered`
+- reasoning effort: **low**
+
+Hermes completed normally.
+
+### Bounded structured transform
+
+Task: deterministic deduplicate/sort transformation over supplied numbers.
+
+Decision:
+
+- tier: fast
+- decision source: rule
+- reason: bounded_structured_transform
+
+Final provider wire:
+
+- reasoning effort: **low**
+
+The correct output was produced. Search Gate did not need a hard-rule action in this case, demonstrating that the two control paths operate independently.
+
+### Model-probability fast control
+
+A simple Python explanation received a model-based fast recommendation.
+
+Final provider wire remained:
+
+- reasoning effort: **high**
+
+This is intentional: model-only fast recommendations remain Shadow-only.
+
+### Dead-service fail-open
+
+Local System One was deliberately pointed at an unused local port.
+
+The bounded task would normally qualify for hard-fast routing, but the control decision failed.
+
+Final provider wire remained:
+
+- reasoning effort: **high**
+
+Hermes completed normally.
+
+Result: fail-open PASS.
+
+## Interaction with Search Canary
+
+Search and Model Tier actions are independent.
+
+A bounded rewrite can simultaneously:
+
+- remove directly advertised `web_search` / `web_extract` because of an audited Search hard rule;
+- change tiered Gemini reasoning from high to low because of an audited Model Tier hard-fast rule.
+
+A structured transform may trigger only the reasoning downgrade while leaving Web tools untouched.
+
+## Current limitations
+
+- Only one exact same-provider model route is authorized for the first Canary.
+- No cross-provider routing is implemented.
+- No persistent model switch is performed.
+- Model-probability tier decisions remain Shadow-only.
+- Seven low/high paired tasks are too few for production activation.
+- Hard-fast pattern coverage is intentionally narrow.
+- Cost accounting on the local-gemini route is incomplete, so current evidence is primarily quality + latency rather than monetary savings.
+
+## Current decision
+
+- deterministic hard-fast isolated Canary: PASS;
+- model-based fast routing: NO-GO;
+- production Hermes profiles: unchanged;
+- evaluation profile: returned to Shadow after Canary.
+
+Next validation should expand the frozen paired task set before considering any production-profile Canary.

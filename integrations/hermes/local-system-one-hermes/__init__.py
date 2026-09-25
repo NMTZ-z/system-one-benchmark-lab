@@ -1,6 +1,6 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.2:
+Safety invariant for v0.4:
 - mode=off: no network call and no behavior change.
 - mode=shadow: observe and record recommendations without rewriting requests.
 - mode=canary: ONLY for the isolated systemoneeval profile, and ONLY removes exact
@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.3.0"
+_PLUGIN_VERSION = "0.4.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
@@ -229,6 +229,24 @@ def _filter_public_web_tools(
     return updated, removed
 
 
+def _downgrade_reasoning_effort(
+    request: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None, str | None]:
+    """Narrow first Canary: tiered Gemini high -> low for one provider request.
+
+    Do not infer provider capabilities here. The exact model/wire shape was verified
+    with Hermes request dumps before enabling this path.
+    """
+    if request.get("model") != "gemini-3.8-flash-tiered":
+        return None, None, None
+    old = request.get("reasoning_effort")
+    if not isinstance(old, str) or old.strip().lower() != "high":
+        return None, str(old) if old is not None else None, None
+    updated = dict(request)
+    updated["reasoning_effort"] = "low"
+    return updated, old, "low"
+
+
 def register(ctx):
     raw_mode = ctx.get_config(
         "mode", os.environ.get("LOCAL_SYSTEM_ONE_HERMES_MODE", "off")
@@ -298,6 +316,7 @@ def register(ctx):
         if isinstance(search, dict):
             event["search"] = {
                 "decision": search.get("decision"),
+                "decision_source": search.get("decision_source"),
                 "reason": search.get("reason"),
                 "probability_search": search.get("probability_search"),
                 "backend": search.get("backend"),
@@ -306,6 +325,7 @@ def register(ctx):
         if isinstance(tier, dict):
             event["model_tier"] = {
                 "tier": tier.get("tier"),
+                "decision_source": tier.get("decision_source"),
                 "reason": tier.get("reason"),
                 "difficulty_score": tier.get("difficulty_score"),
                 "probability_strong": tier.get("probability_strong"),
@@ -324,18 +344,35 @@ def register(ctx):
             "connected_app_data",
             "local_file_or_repo",
         }
+        canary_fast_reasons = {
+            "bounded_transform",
+            "bounded_structured_transform",
+        }
+        search_reason = None
+        model_tier_reason = None
         if (
-            effective_mode == "canary"
-            and bool(decision.get("ok"))
+            bool(decision.get("ok"))
             and isinstance(search, dict)
             and search.get("decision") == "no_search"
+            and search.get("decision_source") == "rule"
             and search.get("reason") in canary_no_web_reasons
         ):
+            search_reason = str(search.get("reason"))
+        if (
+            bool(decision.get("ok"))
+            and isinstance(tier, dict)
+            and tier.get("tier") == "fast"
+            and tier.get("decision_source") == "rule"
+            and tier.get("reason") in canary_fast_reasons
+        ):
+            model_tier_reason = str(tier.get("reason"))
+        if effective_mode == "canary" and (search_reason or model_tier_reason):
             pending = _state_get(ctx, "canary_pending", {})
             if not isinstance(pending, dict):
                 pending = {}
             pending[request_id] = {
-                "reason": str(search.get("reason")),
+                "search_reason": search_reason,
+                "model_tier_reason": model_tier_reason,
                 "created_at": time.time(),
             }
             # Bound stale turn metadata even if a provider call never follows.
@@ -374,14 +411,39 @@ def register(ctx):
         )
         if not candidate or not isinstance(request, dict):
             return
-        updated, removed = _filter_public_web_tools(request)
+
+        updated = request
+        removed: list[str] = []
+        effort_before = None
+        effort_after = None
+        changed = False
+
+        search_reason = candidate.get("search_reason")
+        if search_reason:
+            filtered, removed = _filter_public_web_tools(updated)
+            if filtered is not None:
+                updated = filtered
+                changed = True
+
+        model_tier_reason = candidate.get("model_tier_reason")
+        if model_tier_reason:
+            downgraded, effort_before, effort_after = _downgrade_reasoning_effort(
+                updated
+            )
+            if downgraded is not None:
+                updated = downgraded
+                changed = True
+
         event = {
             "ts": time.time(),
             "turn_id": turn_id,
             "profile": profile,
-            "reason": candidate["reason"],
+            "search_reason": search_reason,
+            "model_tier_reason": model_tier_reason,
             "removed_tools": removed,
-            "changed": updated is not None,
+            "reasoning_effort_before": effort_before,
+            "reasoning_effort_after": effort_after,
+            "changed": changed,
             "api_call_count": kwargs.get("api_call_count"),
         }
         _state_set(ctx, "last_canary", event)
@@ -390,12 +452,13 @@ def register(ctx):
             canary_history = []
         canary_history.append(event)
         _state_set(ctx, "canary_history", canary_history[-_MAX_HISTORY:])
-        if updated is None:
+        if not changed:
             return
+        reasons = [reason for reason in (search_reason, model_tier_reason) if reason]
         return {
             "request": updated,
             "source": "local-system-one-hermes",
-            "reason": f"{candidate['reason']}_no_public_web",
+            "reason": "+".join(reasons),
         }
 
     ctx.register_middleware("llm_request", _canary_llm_request)

@@ -169,12 +169,14 @@ def _bounded_transform_recommendation():
         "ok": True,
         "search": {
             "decision": "no_search",
+            "decision_source": "rule",
             "reason": "bounded_transform_task",
             "probability_search": 0.0,
             "backend": "rule",
         },
         "model_tier": {
             "tier": "fast",
+            "decision_source": "rule",
             "reason": "bounded_transform",
             "difficulty_score": 0.0,
             "probability_strong": 0.0,
@@ -335,6 +337,7 @@ def _rule_no_web_recommendation(reason: str):
     value = _bounded_transform_recommendation()
     value["search"] = {
         "decision": "no_search",
+        "decision_source": "rule",
         "reason": reason,
         "probability_search": 0.0,
         "backend": "rule",
@@ -376,7 +379,7 @@ def test_canary_accepts_local_file_and_connected_app_hard_no_web(monkeypatch):
         assert result is not None
         names = [plugin._tool_name(tool) for tool in result["request"]["tools"]]
         assert names == ["read_file"]
-        assert ctx.state.values["last_canary"]["reason"] == reason
+        assert ctx.state.values["last_canary"]["search_reason"] == reason
 
 
 def test_canary_partial_gate_failure_is_fail_open(monkeypatch):
@@ -421,3 +424,109 @@ def test_canary_partial_gate_failure_is_fail_open(monkeypatch):
     )
     assert ctx.state.values["last_shadow"]["ok"] is False
     assert "last_canary" not in ctx.state.values
+
+
+def _hard_fast_only_recommendation(reason: str = "bounded_transform"):
+    value = _bounded_transform_recommendation()
+    value["search"] = {
+        "decision": "search",
+        "decision_source": "model",
+        "reason": "model_requires_search",
+        "probability_search": 0.8,
+        "backend": "mlx",
+    }
+    value["model_tier"] = {
+        "tier": "fast",
+        "decision_source": "rule",
+        "reason": reason,
+        "difficulty_score": 0.0,
+        "probability_strong": 0.0,
+        "backend": "rule",
+    }
+    return value
+
+
+def test_canary_hard_fast_downgrades_verified_tiered_high_request(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("canary")
+    monkeypatch.setattr(
+        plugin,
+        "_safe_recommendations",
+        lambda *args, **kwargs: _hard_fast_only_recommendation(),
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](
+        user_message="把这句话润色得自然一些：测试文本",
+        conversation_history=[],
+        is_first_turn=True,
+        model="gemini-3.8-flash-tiered",
+        platform="cli",
+        turn_id="turn-tier-low",
+    )
+    request = {
+        "model": "gemini-3.8-flash-tiered",
+        "reasoning_effort": "high",
+        "tools": [{"type": "function", "function": {"name": "read_file"}}],
+    }
+    result = ctx.middleware["llm_request"](
+        request=request, turn_id="turn-tier-low", api_call_count=1
+    )
+    assert result is not None
+    assert result["request"]["reasoning_effort"] == "low"
+    assert request["reasoning_effort"] == "high"
+    assert ctx.state.values["last_canary"]["reasoning_effort_before"] == "high"
+    assert ctx.state.values["last_canary"]["reasoning_effort_after"] == "low"
+
+
+def test_canary_hard_fast_does_not_touch_other_model(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("canary")
+    monkeypatch.setattr(
+        plugin,
+        "_safe_recommendations",
+        lambda *args, **kwargs: _hard_fast_only_recommendation(),
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](
+        user_message="润色：测试",
+        conversation_history=[],
+        is_first_turn=True,
+        model="gemini-3.8-flash-high",
+        platform="cli",
+        turn_id="turn-other-model",
+    )
+    request = {"model": "gemini-3.8-flash-high", "reasoning_effort": "high"}
+    assert (
+        ctx.middleware["llm_request"](
+            request=request, turn_id="turn-other-model", api_call_count=1
+        )
+        is None
+    )
+    assert ctx.state.values["last_canary"]["changed"] is False
+
+
+def test_canary_model_based_fast_never_downgrades(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("canary")
+    recommendation = _hard_fast_only_recommendation()
+    recommendation["model_tier"]["decision_source"] = "model"
+    recommendation["model_tier"]["reason"] = "model_complexity_fast_sufficient"
+    monkeypatch.setattr(
+        plugin, "_safe_recommendations", lambda *args, **kwargs: recommendation
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](
+        user_message="简单问题",
+        conversation_history=[],
+        is_first_turn=True,
+        model="gemini-3.8-flash-tiered",
+        platform="cli",
+        turn_id="turn-model-fast",
+    )
+    request = {"model": "gemini-3.8-flash-tiered", "reasoning_effort": "high"}
+    assert (
+        ctx.middleware["llm_request"](
+            request=request, turn_id="turn-model-fast", api_call_count=1
+        )
+        is None
+    )

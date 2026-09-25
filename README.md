@@ -126,7 +126,7 @@ The service binds to loopback by default and does not log raw request payloads.
 Phase 5 now has three functional real workflows:
 
 - **Search Gate v0.1** — rule hard gates + conservative System One fallback for deciding whether external/current information is needed.
-- **Model Tier Gate v0.1** — chooses fast vs strong generative-model tier.
+- **Model Tier Gate v0.2** — model routing stays Shadow-only; isolated audited hard-fast tasks can downgrade same-provider reasoning high→low.
 - **Notification Gate v0.1** — chooses silent / digest / notify_now for 24/7 agent events.
 
 A dependency-free Python client is included. The model service is now installed as a current-user launchd service on the Mac mini, and an optional MCP v2 proxy exposes the three workflows plus health without loading a second model copy.
@@ -142,7 +142,7 @@ scripts/run_local_system_one_mcp.sh
 
 - product specification: `docs/LOCAL_SYSTEM_ONE_MVP.md`
 - Search Gate design and real smoke findings: `docs/SEARCH_GATE.md`
-- Model Tier Gate design and real smoke findings: `docs/MODEL_TIER_GATE.md`
+- Model Tier Gate design and hard-fast Canary: `docs/MODEL_TIER_GATE.md`
 - Notification Gate design and real smoke findings: `docs/NOTIFICATION_GATE.md`
 - MCP / launchd deployment: `docs/MCP_DEPLOYMENT.md`
 - Hermes Shadow feasibility / rollback report: `docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md`
@@ -154,7 +154,7 @@ scripts/run_local_system_one_mcp.sh
 1. 将已经验证的 421M MLX + L512 ANE 能力做成常驻 Local System One 服务。
 2. 提供 Choice / Score / Noul 三种稳定的 typed-decision API。
 3. 用 Router + ANE Health Gate 自动选择 MLX 或 L512 ANE，而不是追求“全 ANE”。
-4. Hermes 原生插件已完成 off/shadow 可逆集成与隔离 hard no-Web Canary；真实历史回放和人工 gold set 已建立，模型概率路由仍保持 Shadow-only。
+4. Hermes 原生插件已完成 off/shadow 可逆集成、hard no-Web Canary 与同 provider hard-fast reasoning Canary；模型概率路由仍保持 Shadow-only。
 5. MCP 继续保留为显式通用工具接口；Hermes 自动融合走 native hook/middleware，不要求用户手动调用。
 6. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
 7. MVP 稳定后拆出公开 GitHub 项目，面向其他 Apple Silicon 用户发布。

@@ -98,3 +98,50 @@ def test_high_model_score_uses_strong():
     assert result["decision_source"] == "model"
     assert result["reason"] == "model_complexity_requires_strong"
     assert runtime.predict_calls == 1
+
+
+def test_inline_rewrite_is_hard_fast_without_context():
+    gate, runtime = make_gate(4.0)
+    result = gate.decide(ModelTierRequest(task="把这句话润色得更自然：项目已经完成。"))
+    assert result["tier"] == "fast"
+    assert result["decision_source"] == "rule"
+    assert result["reason"] == "bounded_transform"
+    assert runtime.predict_calls == 0
+
+
+def test_transform_without_source_stays_model_routed():
+    gate, runtime = make_gate(3.0)
+    result = gate.decide(ModelTierRequest(task="请帮我翻译一下。"))
+    assert result["decision_source"] == "model"
+    assert runtime.predict_calls == 1
+
+
+def test_bounded_structured_transform_is_hard_fast():
+    gate, runtime = make_gate(4.0)
+    result = gate.decide(
+        ModelTierRequest(task="把下面数字去重并排序，只输出结果：7,1,7,2,5")
+    )
+    assert result["tier"] == "fast"
+    assert result["decision_source"] == "rule"
+    assert result["reason"] == "bounded_structured_transform"
+    assert runtime.predict_calls == 0
+
+
+def test_structured_instruction_without_payload_stays_model_routed():
+    gate, runtime = make_gate(3.0)
+    result = gate.decide(ModelTierRequest(task="把数据转换成 JSON。"))
+    assert result["decision_source"] == "model"
+    assert runtime.predict_calls == 1
+
+
+def test_precision_override_beats_hard_fast():
+    gate, runtime = make_gate(0.0)
+    result = gate.decide(
+        ModelTierRequest(
+            task="把这句话翻译成英文：系统已经恢复。",
+            requires_precision=True,
+        )
+    )
+    assert result["tier"] == "strong"
+    assert result["reason"] == "precision_required"
+    assert runtime.predict_calls == 0

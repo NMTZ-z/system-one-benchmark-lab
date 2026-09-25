@@ -21,8 +21,13 @@ TaskType = Literal[
 ]
 
 _TRANSFORM_PATTERNS = (
-    r"\b(rewrite|rephrase|proofread|translate|format|fix grammar|shorten)\b",
-    r"(润色|改写|翻译|校对|排版|缩短|精简|修改语法)",
+    r"\b(rewrite|rephrase|proofread|translate|format|fix grammar|shorten|compress)\b",
+    r"(润色|改写|翻译|校对|排版|缩短|精简|压缩|修改语法)",
+)
+
+_STRUCTURED_TRANSFORM_PATTERNS = (
+    r"\b(sort|deduplicate|dedupe|normalize dates?|extract (?:the )?(?:fields?|values?)|convert .{0,24} to json|csv .{0,16} json|return exact json)\b",
+    r"(排序|去重|日期.{0,8}(标准化|规范化)|提取.{0,12}(字段|信息|值)|转换成.{0,4}JSON|转成.{0,4}JSON|输出.{0,6}JSON)",
 )
 
 
@@ -94,6 +99,26 @@ class ModelTierGate:
             re.search(pattern, text, flags=re.IGNORECASE) for pattern in patterns
         )
 
+    @staticmethod
+    def _has_inline_payload(task: str) -> bool:
+        """Return True only when the task visibly contains bounded source material.
+
+        Hard-fast routing must not fire for an instruction such as "translate this"
+        when the actual content is absent. The heuristics intentionally prefer false
+        negatives over broad downgrade coverage.
+        """
+        text = task.strip()
+        if "```" in text:
+            return True
+        if len([line for line in text.splitlines() if line.strip()]) >= 2:
+            return True
+        for marker in ("：", ":"):
+            if marker in text:
+                tail = text.rsplit(marker, 1)[-1].strip()
+                if len(tail) >= 4:
+                    return True
+        return False
+
     def _rule_result(
         self,
         tier: Literal["fast", "strong"],
@@ -131,15 +156,18 @@ class ModelTierGate:
         if request.requires_precision:
             return self._rule_result("strong", "precision_required", request)
 
+        bounded_input = request.context is not None or self._has_inline_payload(
+            request.task
+        )
         transform = request.task_type == "transform" or self._matches(
             _TRANSFORM_PATTERNS, request.task
         )
-        if (
-            transform
-            and request.context is not None
-            and request.risk in {"auto", "low"}
-        ):
+        if transform and bounded_input and request.risk in {"auto", "low"}:
             return self._rule_result("fast", "bounded_transform", request)
+
+        structured = self._matches(_STRUCTURED_TRANSFORM_PATTERNS, request.task)
+        if structured and bounded_input and request.risk in {"auto", "low"}:
+            return self._rule_result("fast", "bounded_structured_transform", request)
 
         return None
 
