@@ -607,7 +607,7 @@ def test_plugin_manifest_has_safe_product_defaults():
 
     manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
     assert manifest["manifest_version"] == 2
-    assert manifest["version"] == "0.5.0"
+    assert manifest["version"] == "0.5.1"
     assert manifest["requires_hermes"] == ">=0.21.4"
     schema = manifest["config_schema"]
     assert schema["mode"]["default"] == "off"

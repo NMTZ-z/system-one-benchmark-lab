@@ -1,4 +1,4 @@
-# Hermes Plugin Productization — v0.5.0
+# Hermes Plugin Productization — v0.5.1
 
 Date: 2026-09-25
 Status: Phase 6.3 release-engineering checkpoint
@@ -135,7 +135,7 @@ PASS.
 
 ### Existing evaluation profile
 
-`systemoneeval` was upgraded to v0.5.0 with its configuration hash unchanged, followed by a real Shadow one-shot:
+`systemoneeval` was upgraded to v0.5.1 with its configuration hash unchanged, followed by a real Shadow one-shot:
 
 - response: `OK`;
 - Hermes call completed normally;
@@ -156,3 +156,32 @@ The plugin itself is close to a release candidate, but the full project still ne
 5. final clean-machine-style install test.
 
 The next project phase should therefore shift from plugin behavior to **public repository extraction and distribution packaging**, not add more control policies.
+
+## v0.5.1 real acceptance
+
+The release-candidate plugin was revalidated after the local Hermes source updated to:
+
+- Hermes Agent `0.21.5+2169.g5307e93`
+- upstream `5307e932`
+
+Real `systemoneeval` acceptance results:
+
+- upgrade install preserved existing Shadow mode;
+- Canary without `--ack-canary` was rejected with exit code 2 and mode stayed Shadow;
+- full uninstall removed plugin code/config/state;
+- Hermes still completed a one-shot turn after uninstall (`UNINSTALL_OK`);
+- fresh install defaulted to OFF;
+- OFF mode produced `OFF_ZERO_OK` with Local System One request delta `0`;
+- Shadow produced `SHADOW_CALL_OK` with request delta `+2` (Search + Model Tier);
+- acknowledged Canary could be entered explicitly;
+- leaving Canary revoked acknowledgement automatically;
+- experimental reasoning downgrade remained disabled by default;
+- final evaluation state was restored to Shadow with acknowledgement false.
+
+Six named production profile configs (`lili`, `sisi`, `susu`, `vivi`, `xixi`, `yaoyao`) remained byte-for-byte unchanged during the acceptance test.
+
+The default Hermes config changed concurrently because the Hermes Desktop updater completed during the same window. It contains no `local-system-one-hermes` / `systemone` plugin entry, and the productization test did not restart production `hermes serve` / gateway processes.
+
+Processed evidence:
+
+`results/processed/hermes-plugin-productization-v0.5.1.json`

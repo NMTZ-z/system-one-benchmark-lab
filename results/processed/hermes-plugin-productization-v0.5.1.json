@@ -1,0 +1,45 @@
+{
+  "plugin_version": "0.5.1",
+  "hermes_version": "0.21.5+2169.g5307e93",
+  "hermes_upstream": "5307e932",
+  "profile": "systemoneeval",
+  "acceptance": {
+    "upgrade_preserved_shadow": true,
+    "canary_without_ack_rejected": true,
+    "canary_without_ack_exit_code": 2,
+    "canary_rejection_preserved_mode": "shadow",
+    "uninstall_removed_plugin_dir": true,
+    "uninstall_removed_plugin_config": true,
+    "hermes_after_uninstall_response": "UNINSTALL_OK",
+    "hermes_after_uninstall_completed": true,
+    "fresh_install_default_off": true,
+    "off_response": "OFF_ZERO_OK",
+    "off_local_system_one_request_delta": 0,
+    "shadow_response": "SHADOW_CALL_OK",
+    "shadow_local_system_one_request_delta": 2,
+    "acknowledged_canary_entered": true,
+    "leaving_canary_revoked_ack": true,
+    "final_mode": "shadow",
+    "final_canary_acknowledged": false,
+    "reasoning_downgrade_default": false
+  },
+  "production_scope": {
+    "named_profiles_checked": [
+      "lili",
+      "sisi",
+      "susu",
+      "vivi",
+      "xixi",
+      "yaoyao"
+    ],
+    "named_profile_configs_unchanged": true,
+    "default_config_changed_during_concurrent_hermes_desktop_update": true,
+    "default_config_contains_local_system_one_plugin_reference": false,
+    "production_serve_or_gateway_restarted_by_acceptance_test": false
+  },
+  "notes": [
+    "Hermes desktop updater completed during acceptance; final CLI reports Up to date.",
+    "The default config mtime changed during that updater window, but contains no local-system-one-hermes/systemone entries.",
+    "All plugin install/mode/uninstall operations were explicitly scoped to systemoneeval via HERMES_HOME."
+  ]
+}
