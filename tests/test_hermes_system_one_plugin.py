@@ -37,12 +37,19 @@ class FakeState:
 class FakeContext:
     profile_name = "systemoneeval"
 
-    def __init__(self, mode="off"):
+    def __init__(self, mode="off", **overrides):
         self.settings = {
             "mode": mode,
             "service_url": "http://127.0.0.1:8787",
             "timeout_ms": 500,
+            "search_gate_enabled": True,
+            "model_tier_gate_enabled": True,
+            # Existing Canary unit cases are explicit acknowledged experiments.
+            "canary_acknowledged": mode == "canary",
+            "canary_web_filter_enabled": True,
+            "canary_reasoning_downgrade_enabled": mode == "canary",
         }
+        self.settings.update(overrides)
         self.state = FakeState()
         self.hooks = {}
         self.middleware = {}
@@ -86,7 +93,7 @@ def test_shadow_uses_original_message_and_never_injects(monkeypatch):
     ctx = FakeContext("shadow")
     seen = {}
 
-    def fake_recommendations(base_url, task, context, timeout, request_id):
+    def fake_recommendations(base_url, task, context, timeout, request_id, **kwargs):
         seen["task"] = task
         seen["context"] = context
         return {
@@ -187,13 +194,23 @@ def _bounded_transform_recommendation():
     }
 
 
-def test_canary_is_blocked_outside_eval_profile():
+def test_canary_without_acknowledgement_degrades_to_shadow():
+    plugin = load_plugin()
+    ctx = FakeContext("canary", canary_acknowledged=False)
+    plugin.register(ctx)
+    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert ctx.middleware == {}
+    assert ctx.state.values["status"]["requested_mode"] == "canary"
+    assert ctx.state.values["status"]["mode"] == "shadow_canary_ack_required"
+
+
+def test_acknowledged_canary_is_portable_across_profiles():
     plugin = load_plugin()
     ctx = ProductionFakeContext("canary")
     plugin.register(ctx)
-    assert ctx.hooks == {}
-    assert ctx.middleware == {}
-    assert ctx.state.values["status"]["mode"] == "off_canary_profile_blocked"
+    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.middleware) == {"llm_request"}
+    assert ctx.state.values["status"]["mode"] == "canary"
 
 
 def test_canary_filters_only_exact_public_web_tools(monkeypatch):
@@ -530,3 +547,71 @@ def test_canary_model_based_fast_never_downgrades(monkeypatch):
         )
         is None
     )
+
+
+def test_safe_recommendations_respects_independent_gate_switches(monkeypatch):
+    plugin = load_plugin()
+    calls = []
+
+    def fake_post(base_url, path, payload, timeout):
+        calls.append(path)
+        if path.endswith("search-gate"):
+            return {"decision": "no_search"}
+        return {"tier": "fast"}
+
+    monkeypatch.setattr(plugin, "_post_json", fake_post)
+    result = plugin._safe_recommendations(
+        "http://127.0.0.1:8787",
+        "task",
+        "",
+        0.5,
+        "turn",
+        search_enabled=True,
+        model_tier_enabled=False,
+    )
+    assert result["ok"] is True
+    assert calls == ["/v1/workflows/search-gate"]
+    assert result["search"] == {"decision": "no_search"}
+    assert result["model_tier"] is None
+
+
+def test_reasoning_canary_is_disabled_by_feature_switch(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("canary", canary_reasoning_downgrade_enabled=False)
+    monkeypatch.setattr(
+        plugin,
+        "_safe_recommendations",
+        lambda *args, **kwargs: _hard_fast_only_recommendation(),
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](
+        user_message="把这句话润色得自然一些：测试文本",
+        conversation_history=[],
+        is_first_turn=True,
+        model="gemini-3.8-flash-tiered",
+        platform="cli",
+        turn_id="turn-tier-disabled",
+    )
+    request = {"model": "gemini-3.8-flash-tiered", "reasoning_effort": "high"}
+    assert (
+        ctx.middleware["llm_request"](
+            request=request, turn_id="turn-tier-disabled", api_call_count=1
+        )
+        is None
+    )
+    assert request["reasoning_effort"] == "high"
+
+
+def test_plugin_manifest_has_safe_product_defaults():
+    import yaml
+
+    manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
+    assert manifest["manifest_version"] == 2
+    assert manifest["version"] == "0.5.0"
+    assert manifest["requires_hermes"] == ">=0.21.4"
+    schema = manifest["config_schema"]
+    assert schema["mode"]["default"] == "off"
+    assert schema["mode"]["choices"] == ["off", "shadow", "canary"]
+    assert schema["canary_acknowledged"]["default"] is False
+    assert schema["canary_web_filter_enabled"]["default"] is True
+    assert schema["canary_reasoning_downgrade_enabled"]["default"] is False

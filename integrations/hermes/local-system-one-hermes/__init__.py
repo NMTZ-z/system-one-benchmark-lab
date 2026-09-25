@@ -1,13 +1,16 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.4:
-- mode=off: no network call and no behavior change.
-- mode=shadow: observe and record recommendations without rewriting requests.
-- mode=canary: ONLY for the isolated systemoneeval profile, and ONLY removes exact
-  generic public-web tools for deterministic bounded-transform no-web decisions.
+Safety invariant for v0.5:
+- mode=off: no Local System One network call and no behavior change.
+- mode=shadow: observe privacy-safe recommendations without rewriting requests.
+- mode=canary: request mutation requires explicit ``canary_acknowledged=true``.
+- Canary acts only on audited deterministic rule reasons and only on the first
+  provider call of a turn.
+- Any Local System One error, timeout, incomplete decision, unsupported model,
+  or disabled Canary feature fails open to the original Hermes request.
 
-Model switching, connected-app filtering, and production-profile mutation are not
-implemented in v0.2.
+Search and Model Tier observation can be enabled independently. Experimental
+reasoning downgrade is disabled by default.
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.4.0"
+_PLUGIN_VERSION = "0.5.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
@@ -72,7 +75,14 @@ def _post_json(
 
 
 def _safe_recommendations(
-    base_url: str, task: str, context: str, timeout: float, request_id: str
+    base_url: str,
+    task: str,
+    context: str,
+    timeout: float,
+    request_id: str,
+    *,
+    search_enabled: bool = True,
+    model_tier_enabled: bool = True,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     result: dict[str, Any] = {
@@ -81,19 +91,16 @@ def _safe_recommendations(
         "model_tier": None,
         "error": None,
     }
+    payload = {"task": task, "context": context or None, "request_id": request_id}
     try:
-        result["search"] = _post_json(
-            base_url,
-            "/v1/workflows/search-gate",
-            {"task": task, "context": context or None, "request_id": request_id},
-            timeout,
-        )
-        result["model_tier"] = _post_json(
-            base_url,
-            "/v1/workflows/model-tier-gate",
-            {"task": task, "context": context or None, "request_id": request_id},
-            timeout,
-        )
+        if search_enabled:
+            result["search"] = _post_json(
+                base_url, "/v1/workflows/search-gate", payload, timeout
+            )
+        if model_tier_enabled:
+            result["model_tier"] = _post_json(
+                base_url, "/v1/workflows/model-tier-gate", payload, timeout
+            )
         result["ok"] = True
     except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
         result["error"] = type(exc).__name__
@@ -247,6 +254,20 @@ def _downgrade_reasoning_effort(
     return updated, old, "low"
 
 
+def _as_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return bool(value)
+
+
 def register(ctx):
     raw_mode = ctx.get_config(
         "mode", os.environ.get("LOCAL_SYSTEM_ONE_HERMES_MODE", "off")
@@ -261,11 +282,21 @@ def register(ctx):
     timeout_ms = int(ctx.get_config("timeout_ms", 500))
     timeout = max(0.05, min(timeout_ms / 1000.0, 5.0))
     profile = _profile_name(ctx)
+    search_enabled = _as_bool(ctx.get_config("search_gate_enabled", True), True)
+    model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", True), True)
+    canary_acknowledged = _as_bool(ctx.get_config("canary_acknowledged", False), False)
+    canary_web_filter_enabled = _as_bool(
+        ctx.get_config("canary_web_filter_enabled", True), True
+    )
+    canary_reasoning_downgrade_enabled = _as_bool(
+        ctx.get_config("canary_reasoning_downgrade_enabled", False), False
+    )
 
     if mode not in {"off", "shadow", "canary"}:
         effective_mode = "off_invalid_requested_mode"
-    elif mode == "canary" and profile != "systemoneeval":
-        effective_mode = "off_canary_profile_blocked"
+    elif mode == "canary" and not canary_acknowledged:
+        # Safer than turning the plugin fully off: keep observing, never mutate.
+        effective_mode = "shadow_canary_ack_required"
     else:
         effective_mode = mode
 
@@ -274,9 +305,16 @@ def register(ctx):
         "status",
         {
             "version": _PLUGIN_VERSION,
+            "requested_mode": mode,
             "mode": effective_mode,
             "profile": profile,
             "service_url": base_url,
+            "timeout_ms": timeout_ms,
+            "search_gate_enabled": search_enabled,
+            "model_tier_gate_enabled": model_tier_enabled,
+            "canary_acknowledged": canary_acknowledged,
+            "canary_web_filter_enabled": canary_web_filter_enabled,
+            "canary_reasoning_downgrade_enabled": canary_reasoning_downgrade_enabled,
             "registered_at": time.time(),
         },
     )
@@ -296,7 +334,15 @@ def register(ctx):
         )
 
         request_id = str(kwargs.get("turn_id") or kwargs.get("task_id") or "shadow")
-        decision = _safe_recommendations(base_url, task, context, timeout, request_id)
+        decision = _safe_recommendations(
+            base_url,
+            task,
+            context,
+            timeout,
+            request_id,
+            search_enabled=search_enabled,
+            model_tier_enabled=model_tier_enabled,
+        )
         event = {
             "ts": time.time(),
             "request_id": request_id,
@@ -351,7 +397,8 @@ def register(ctx):
         search_reason = None
         model_tier_reason = None
         if (
-            bool(decision.get("ok"))
+            canary_web_filter_enabled
+            and bool(decision.get("ok"))
             and isinstance(search, dict)
             and search.get("decision") == "no_search"
             and search.get("decision_source") == "rule"
@@ -359,7 +406,8 @@ def register(ctx):
         ):
             search_reason = str(search.get("reason"))
         if (
-            bool(decision.get("ok"))
+            canary_reasoning_downgrade_enabled
+            and bool(decision.get("ok"))
             and isinstance(tier, dict)
             and tier.get("tier") == "fast"
             and tier.get("decision_source") == "rule"

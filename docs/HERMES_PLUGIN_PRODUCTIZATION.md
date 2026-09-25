@@ -1,0 +1,158 @@
+# Hermes Plugin Productization — v0.5.0
+
+Date: 2026-09-25
+Status: Phase 6.3 release-engineering checkpoint
+
+## Objective
+
+Turn the research integration `local-system-one-hermes` into a plugin another Hermes user can install, inspect, disable, upgrade and uninstall without editing source code or risking an irreversible Hermes configuration change.
+
+## Product safety model
+
+The plugin exposes three modes:
+
+- `off`: no Local System One calls;
+- `shadow`: decision observation only;
+- `canary`: deterministic audited request mutation only after explicit acknowledgement.
+
+Canary activation is portable across profiles but gated by `canary_acknowledged=true`.
+
+A direct configuration mistake such as `mode=canary` without acknowledgement degrades to Shadow rather than mutating requests.
+
+## Manifest and settings
+
+The plugin manifest is now v2 and declares:
+
+- `requires_hermes: >=0.21.4`;
+- a Hermes `config_schema` for the Plugins settings surface;
+- typed/default settings for mode, service URL, timeout, gate enablement and Canary switches.
+
+Important default:
+
+> `canary_reasoning_downgrade_enabled=false`
+
+This matches the Phase 6.1 evidence: high→low was technically safe on the tested bounded set but did not demonstrate a statistically reliable latency advantage.
+
+## Independent control paths
+
+Search Gate and Model Tier Gate can now be observed independently.
+
+This removes an unnecessary coupling discovered during Canary testing: a user evaluating Search should not have a Model Tier timeout invalidate the whole decision when Model Tier is intentionally disabled.
+
+The fail-open invariant remains: every enabled control path required for the turn must complete successfully before a Canary mutation is eligible.
+
+## Install and upgrade behavior
+
+`scripts/install_hermes_system_one_plugin.sh`
+
+- supports default and named profiles;
+- validates source and installed plugin bytes with Hermes' validator;
+- copies only publishable runtime files, never source bytecode/cache;
+- first install enables plugin code but behavior defaults to off;
+- upgrades replace plugin code while preserving existing settings and activation state;
+- refuses to overwrite a non-matching plugin directory.
+
+A real `systemoneeval` v0.4→v0.5 upgrade preserved the profile `config.yaml` SHA-256 exactly while updating plugin source/manifest bytes.
+
+## Mode UX
+
+`scripts/set_hermes_system_one_mode.sh`
+
+Supports both default and named profile forms:
+
+```text
+set_hermes_system_one_mode.sh shadow
+set_hermes_system_one_mode.sh <profile> shadow
+```
+
+Canary requires:
+
+```text
+set_hermes_system_one_mode.sh canary --ack-canary
+```
+
+or the named-profile equivalent.
+
+Leaving Canary revokes acknowledgement automatically.
+
+Hermes CLI YAML-coerces a bare `off` value to boolean false for plugin keys it does not know from core defaults. The product script therefore implements off by **unsetting** the mode key and relying on the manifest/plugin default string `"off"`. The manifest also quotes `"off"` explicitly so the settings UI exposes the enum correctly.
+
+## Status UX
+
+`scripts/hermes_system_one_status.sh`
+
+Now supports default/named profiles and displays:
+
+- profile and home path;
+- installed plugin/version;
+- configured settings, with missing values shown as manifest defaults;
+- effective runtime safety state from plugin state;
+- Local System One health.
+
+## Uninstall / rollback
+
+`scripts/uninstall_hermes_system_one_plugin.sh`
+
+Performs idempotent cleanup:
+
+- behavior off;
+- Hermes plugin disable/remove;
+- defensive plugin directory removal;
+- plugin config entry removal;
+- hashed plugin-data state directory removal.
+
+It does not touch other Hermes plugins, models, agent files, sessions, or Local System One runtime deployment.
+
+## Validation evidence
+
+### Automated script/plugin tests
+
+Productization-specific tests cover:
+
+- default-profile install;
+- named-profile install;
+- upgrade preserving settings/activation;
+- Canary requiring explicit acknowledgement;
+- leaving Canary revoking acknowledgement;
+- off using the manifest default instead of boolean false;
+- clean uninstall of code/config/state;
+- independent gate enablement;
+- reasoning Canary feature switch.
+
+### Real disposable Hermes profile lifecycle
+
+A real temporary Hermes profile was used for:
+
+1. fresh plugin install;
+2. verification of safe off default;
+3. Shadow transition;
+4. return to off;
+5. uninstall;
+6. verification that plugin code, plugin config and plugin-data state were absent;
+7. profile deletion.
+
+PASS.
+
+### Existing evaluation profile
+
+`systemoneeval` was upgraded to v0.5.0 with its configuration hash unchanged, followed by a real Shadow one-shot:
+
+- response: `OK`;
+- Hermes call completed normally;
+- effective plugin mode: `shadow`;
+- Canary acknowledgement: false;
+- Web Canary switch: true;
+- reasoning downgrade switch: false;
+- Local System One / ANE: healthy.
+
+## Remaining pre-public-release work
+
+The plugin itself is close to a release candidate, but the full project still needs:
+
+1. public-repo extraction and licensing decision;
+2. Runtime installation UX outside the private research repo;
+3. public-safe example configuration and docs/screenshots;
+4. distribution path (Git/catalog or checkout installer);
+5. final clean-machine-style install test.
+
+The next project phase should therefore shift from plugin behavior to **public repository extraction and distribution packaging**, not add more control policies.
