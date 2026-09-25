@@ -1,5 +1,5 @@
 name: local-system-one-hermes
-version: 0.1.0
-description: "Optional Local System One shadow observer for Hermes. Default mode=off; shadow mode records recommendations without modifying LLM requests."
+version: 0.3.0
+description: "Optional Local System One shadow observer for Hermes. Default mode=off; shadow observes decisions; isolated canary can filter exact public-web tools for audited hard no-web rules."
 author: local-system-one
 kind: standalone

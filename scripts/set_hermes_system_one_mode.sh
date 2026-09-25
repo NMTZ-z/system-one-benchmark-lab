@@ -5,14 +5,20 @@ PROFILE="${1:-}"
 MODE="${2:-}"
 
 if [[ -z "$PROFILE" || -z "$MODE" ]]; then
-  echo "Usage: $0 <hermes-profile> <off|shadow>" >&2
+  echo "Usage: $0 <hermes-profile> <off|shadow|canary>" >&2
   exit 2
 fi
 
 case "$MODE" in
   off|shadow) ;;
+  canary)
+    if [[ "$PROFILE" != "systemoneeval" ]]; then
+      echo "Refusing canary outside isolated profile 'systemoneeval'." >&2
+      exit 2
+    fi
+    ;;
   *)
-    echo "Refusing unsupported mode '$MODE'. v0.1 only allows off or shadow." >&2
+    echo "Refusing unsupported mode '$MODE'. Allowed: off, shadow, canary." >&2
     exit 2
     ;;
 esac

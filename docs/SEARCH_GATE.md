@@ -1,152 +1,202 @@
-# Search Gate v0.1
+# Search Gate v0.3 — Public Web Gate
 
-Date: 2026-09-24
-Status: functional MVP
+Date: 2026-09-25
+Status: calibrated Shadow + isolated hard-rule Canary
 
 ## Goal
 
-Decide whether an agent should use external/current information before answering a task.
+Decide whether the **current agent task materially requires public Internet/Web information**.
 
-This is intentionally a hybrid policy rather than a pure model prediction.
+The endpoint name remains `/v1/workflows/search-gate` for compatibility, but the semantics are deliberately narrower than the original v0.1 design.
 
-## Why hybrid
+The gate does **not** answer whether the task needs any tool. Local files, Git, databases, Feishu/Lark, Xiaohongshu MCP, project memory and other connected/private sources are not public Web.
 
-A false negative can make an agent answer a current or externally grounded question from stale internal knowledge. That failure is more costly than one unnecessary search.
+## Why the semantics changed
 
-Search Gate therefore uses:
+Historical Hermes replay showed that "needs information outside the prompt" and "needs public Web" are very different questions.
 
-1. deterministic hard gates for obvious cases;
-2. Local System One Noul for ambiguous cases;
-3. conservative fallback when the model is uncertain.
+Examples that may require tools but should normally be no-public-Web:
 
-## Endpoint
+- inspect a local Git diff;
+- read project files;
+- query a Feishu task board;
+- query Xiaohongshu through its connector;
+- inspect current session/project state.
 
-POST /v1/workflows/search-gate
+Treating all of these as Search caused severe over-searching.
 
-Example request:
+## Decision policy
 
-~~~json
-{
-  "task": "OpenAI 的 CEO 是谁？",
-  "freshness": "auto",
-  "source_scope": "auto",
-  "external_lookup_required": false,
-  "provided_context_sufficient": false,
-  "request_id": "example-1"
-}
-~~~
+Search Gate v0.3 combines:
 
-Example response:
+1. deterministic public-Web hard-search rules;
+2. deterministic audited hard no-Web rules;
+3. a 421M Noul fallback for ambiguous tasks;
+4. bounded recent context only for reference resolution.
 
-~~~json
-{
-  "workflow": "search_gate",
-  "should_search": true,
-  "decision": "search",
-  "decision_source": "rule",
-  "reason": "volatile_public_fact",
-  "probability_search": 1.0,
-  "confidence": 1.0,
-  "backend": "rule",
-  "route_reason": "search_gate:volatile_public_fact",
-  "token_count": 0
-}
-~~~
+Recent context is background only. It must not trigger Search merely because an earlier turn contains words such as "today", "latest" or a current-event topic.
 
-## Hard-search conditions
+## Hard public-Web examples
 
-Current implementation searches without model inference when:
-
-- external lookup is explicitly required;
-- freshness is current or recent;
-- the task contains clear current/live language;
-- the task asks for volatile public facts such as current leadership roles, price, availability, opening hours or service status.
+- explicit public-Web / official online documentation research;
+- current weather / forecast / live market-style facts;
+- volatile public roles, price, availability or service status;
+- explicit requests for public evidence, source URLs or cross-platform research.
 
 Examples:
 
 - 今天北京天气怎么样？
 - OpenAI 的 CEO 是谁？
-- What is the current exchange rate?
-- Is this store open now?
+- 查验官方 API 文档中的当前参数说明。
+- 扫描 GitHub Trending / Reddit / 官方发布并附来源链接。
 
-## Hard-no-search conditions
+## Audited hard no-Web categories
 
-Current implementation suppresses search when:
+The current isolated Canary allowlist is intentionally small:
 
-- source_scope is provided_only;
-- source_scope is local_private;
-- the caller explicitly says the provided context is sufficient;
-- a static transformation request clearly targets supplied content.
+- `bounded_transform_task`
+- `local_file_or_repo`
+- `connected_app_data`
 
 Examples:
 
-- rewrite this supplied paragraph;
-- summarize this local meeting note;
-- translate the following text.
+- 润色这段已经提供的文字；
+- review 当前本地 Git diff；
+- 检查飞书任务板；
+- 查看 Xiaohongshu MCP 返回的账号数据。
+
+These decisions may still require local tools or connectors. They only mean generic public Web is unnecessary.
 
 ## Model fallback
 
-Ambiguous requests are converted to a Noul decision:
+Ambiguous tasks are converted to a Noul decision whose effective question is:
 
-> Does answering this task correctly require looking up information outside the provided state, such as current public facts, recent events, live data, an external page, or information not supplied here?
+> Does the CURRENT USER TASK require PUBLIC INTERNET or WEB lookup for current/public facts?
 
-The default policy only returns no_search when P(search) <= 0.40.
+The model is explicitly told:
 
-This is deliberately conservative. The threshold is a product baseline, not a trained optimum.
+- local files are not public Web;
+- connected apps are not public Web;
+- supplied context/conversation can satisfy a task without Web;
+- background context exists only to resolve references such as "这个模型" / "继续" / "怎么样了".
 
-## Real smoke findings
+The current probability threshold remains a research parameter. It is **not approved for active routing**.
 
-Initial real 421M MLX smoke exposed an important failure:
+## Real Hermes calibration
 
-- task: OpenAI 的 CEO 是谁？
-- model-only P(search): 0.181
-- model-only decision: no_search
+A deterministic 200-turn Hermes history sample was replayed repeatedly while semantics and rule precedence were corrected.
 
-That is unacceptable for a volatile public role.
+Historical tool use is only a weak label, because Hermes itself may have searched unnecessarily or skipped a needed search.
 
-The product policy was therefore changed so volatile public facts are hard-search cases.
+A privacy-safe manual gold set was therefore created:
 
-After the fix:
+- 56 reviewed task IDs;
+- 27 genuine public-Web tasks;
+- 29 genuine no-public-Web tasks;
+- only hashed IDs + labels + rationale codes are stored;
+- raw task text remains under git-ignored private storage.
 
-- OpenAI 的 CEO 是谁？ -> search / volatile_public_fact
-- 今天北京天气怎么样？ -> search / current_language
-- 解释 Python 里 list 和 tuple 的区别。 -> no_search / model_confident_local_answer
-- supplied local summary -> no_search / source_scope_provided_only
+Current v8 policy on the 56-task gold set:
 
-This is the intended development loop: real workflow failure -> explicit product policy -> regression test.
+- TP: 21
+- TN: 10
+- FP: 19
+- FN: 6
+- accuracy: 55.4%
+- public-Web recall: 77.8%
+- no-Web specificity: 34.5%
 
-## Python client
+Conclusion: model-probability routing is not good enough for Active use.
 
-~~~python
-from local_system_one import LocalSystemOneClient
+## Threshold sweep
 
-client = LocalSystemOneClient("http://127.0.0.1:8787")
-decision = client.search_gate(
-    "OpenAI 的 CEO 是谁？",
-    request_id="agent-task-123",
-)
+Holding deterministic rules fixed:
 
-if decision["should_search"]:
-    # invoke the agent's web/search tool
-    ...
-~~~
+- threshold 0.30: recall 100%, specificity 31.0%
+- threshold 0.35: recall 96.3%, specificity 34.5%
+- threshold 0.40: recall 77.8%, specificity 34.5%
+- threshold 0.45: recall 74.1%, specificity 51.7%
+- threshold 0.65: recall 33.3%, specificity 89.7%
+
+There is no useful single global threshold that simultaneously gives the required safety recall and useful no-Web specificity.
+
+Therefore:
+
+> **Model-based Search decisions remain Shadow-only.**
+
+## Hard-rule evidence
+
+On the manual gold set, audited hard no-Web decisions were:
+
+- 8/8 correct;
+- 0 false hard no-Web cases.
+
+Across the full 200-turn replay:
+
+- 49 hard no-Web decisions;
+- 12 unique exact task templates after deduplication;
+- all 12 templates manually reviewed as completable without generic public Web.
+
+This evidence justified an isolated Canary for hard no-Web rules only.
+
+## Hermes isolated Canary
+
+Canary is hard-blocked outside the `systemoneeval` profile.
+
+For eligible hard no-Web turns, Hermes middleware removes exactly the directly advertised functions:
+
+- `web_search`
+- `web_extract`
+
+It deliberately preserves all other tools, including local tools and connectors.
+
+Real tests:
+
+- bounded rewrite -> Web functions removed; task completed normally;
+- local Git branch lookup -> Web functions removed; local task completed normally;
+- current Beijing weather -> candidate=false; no tool filtering; task completed normally.
+
+After testing the evaluation profile was returned to `shadow` mode.
+
+## Fail-open requirement
+
+Any incomplete Local System One control decision must leave the original Hermes provider request unchanged.
+
+A real Canary exposed an edge case:
+
+- Search hard rule succeeded;
+- Model Tier timed out;
+- the combined recommendation was incomplete;
+- the first implementation still filtered Web tools.
+
+That behavior was rejected and fixed. Canary now requires the complete recommendation call to succeed before request mutation is allowed. A regression test covers the partial-failure case.
+
+## Important Canary limitation
+
+The current Canary is **direct public-Web tool exposure reduction**, not a total network sandbox.
+
+It removes direct `web_search` / `web_extract` tool declarations. It does not remove `execute_code`, `terminal`, browser tooling or MCP/connectors. Some execution paths may still have indirect network capability.
+
+A future strict no-public-Web mode would require enforcement on actual tool execution paths, not only request tool declarations.
 
 ## Privacy
 
-The service does not persist raw task/context by default.
+The Local System One service does not persist raw task/context by default.
 
-Metrics record backend, route reason and latency. Rule decisions are counted as backend=rule.
+Hermes Shadow/Canary state stores decision metadata such as:
 
-## Known limitations
+- turn/request IDs;
+- route reason;
+- probability/score;
+- backend;
+- latency;
+- removed tool names.
 
-- The 421M Typed Decisions checkpoint was not trained specifically for search gating.
-- Volatile-fact rules are deliberately conservative and incomplete.
-- Multilingual phrasing outside the current rule set may still reach the model.
-- Search Gate does not decide which search tool to use yet.
-- Search result quality is outside this workflow; this only decides whether lookup is needed.
+Raw historical Hermes content used for replay remains local and git-ignored.
 
-## Next validation
+## Current decision
 
-Do not create a synthetic leaderboard.
-
-Deploy Search Gate into real agent traffic, retain only privacy-safe decision metadata by default, sample disagreements for manual review, and build the future Agent Decision Blind Set from real use.
+- Search hard-rule isolated Canary: technically viable.
+- Search model-probability Active routing: NO-GO.
+- Production Hermes profiles: unchanged and not approved for Canary.
+- Continue Shadow collection and expand the manual gold set before widening any active behavior.

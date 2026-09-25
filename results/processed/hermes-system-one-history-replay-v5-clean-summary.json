@@ -1,0 +1,289 @@
+{
+  "generated_at": 1790295443.232824,
+  "method": {
+    "profiles": [
+      "default",
+      "sisi",
+      "lili",
+      "susu",
+      "vivi",
+      "xixi",
+      "yaoyao"
+    ],
+    "sample_size_requested": 200,
+    "sample_size_actual": 200,
+    "positive_fraction_target": 0.5,
+    "seed": 20260925,
+    "max_task_chars": 4000,
+    "raw_content_committed": false,
+    "private_output": "private/hermes-system-one-replay/replay-200-v5-clean.json",
+    "observed_public_lookup_is_weak_label": true,
+    "limitations": [
+      "Observed tool use is not ground truth; Hermes can search unnecessarily or omit needed search.",
+      "Generic terminal/network access is not detectable from tool_name alone.",
+      "The balanced sample is not prevalence-representative.",
+      "Cron wrappers and Kanban opaque triggers are normalized before replay.",
+      "Recent conversation context is provided to the local gates but raw context stays private."
+    ]
+  },
+  "population": {
+    "turns": 2290,
+    "observed_public_lookup_turns": 164,
+    "by_profile": {
+      "default": {
+        "turns": 975,
+        "observed_public_lookup_turns": 33
+      },
+      "sisi": {
+        "turns": 812,
+        "observed_public_lookup_turns": 80
+      },
+      "lili": {
+        "turns": 134,
+        "observed_public_lookup_turns": 9
+      },
+      "susu": {
+        "turns": 102,
+        "observed_public_lookup_turns": 5
+      },
+      "vivi": {
+        "turns": 67,
+        "observed_public_lookup_turns": 28
+      },
+      "xixi": {
+        "turns": 64,
+        "observed_public_lookup_turns": 4
+      },
+      "yaoyao": {
+        "turns": 136,
+        "observed_public_lookup_turns": 5
+      }
+    },
+    "task_normalization": {
+      "user_message": 1181,
+      "cron_prompt": 875,
+      "kanban_task": 234
+    },
+    "by_source": {
+      "cli": {
+        "turns": 42,
+        "observed_public_lookup_turns": 5
+      },
+      "cron": {
+        "turns": 875,
+        "observed_public_lookup_turns": 41
+      },
+      "desktop": {
+        "turns": 750,
+        "observed_public_lookup_turns": 59
+      },
+      "discord": {
+        "turns": 123,
+        "observed_public_lookup_turns": 3
+      },
+      "feishu": {
+        "turns": 18,
+        "observed_public_lookup_turns": 0
+      },
+      "kanban": {
+        "turns": 364,
+        "observed_public_lookup_turns": 43
+      },
+      "qqbot": {
+        "turns": 24,
+        "observed_public_lookup_turns": 1
+      },
+      "subagent": {
+        "turns": 18,
+        "observed_public_lookup_turns": 1
+      },
+      "webui": {
+        "turns": 76,
+        "observed_public_lookup_turns": 11
+      }
+    }
+  },
+  "replay": {
+    "valid": 200,
+    "errors": 0,
+    "elapsed_seconds": 57.26854029193055,
+    "roundtrip_pair_ms": {
+      "mean": 286.0603018681286,
+      "p50": 204.5563124702312,
+      "p95": 561.4381166640669,
+      "max": 638.0086250137538
+    },
+    "gate_model_latency_ms": {
+      "p50": 147.33074995456263,
+      "p95": 278.46619794145226
+    }
+  },
+  "search_behavior_alignment": {
+    "confusion_vs_observed_tool_use": {
+      "tp": 86,
+      "tn": 44,
+      "fp_candidate": 56,
+      "fn_candidate": 14
+    },
+    "observed_lookup_recall": 0.86,
+    "observed_no_lookup_specificity": 0.44,
+    "precision_vs_observed_lookup": 0.6056338028169014,
+    "reasons": {
+      "model_requires_external_information": 95,
+      "model_confident_local_answer": 17,
+      "live_public_fact": 22,
+      "model_uncertain_conservative_search": 21,
+      "local_or_connected_data": 39,
+      "volatile_public_fact": 1,
+      "explicit_public_web_instruction": 3,
+      "bounded_transform_task": 2
+    },
+    "backends": {
+      "mlx": 91,
+      "rule": 67,
+      "ane": 42
+    },
+    "note": "These are behavioral-alignment metrics against weak labels, not correctness accuracy."
+  },
+  "model_tier": {
+    "counts": {
+      "strong": 120,
+      "fast": 80
+    },
+    "backends": {
+      "mlx": 144,
+      "ane": 54,
+      "rule": 2
+    },
+    "execution_complexity_proxy": {
+      "strong": {
+        "median_tool_calls": 7.0,
+        "median_span_messages": 15.0,
+        "n": 120
+      },
+      "fast": {
+        "median_tool_calls": 6.0,
+        "median_span_messages": 11.0,
+        "n": 80
+      }
+    },
+    "note": "Tool/message counts are complexity proxies only and are not tier-quality labels."
+  },
+  "by_profile": {
+    "default": {
+      "tp": 15,
+      "tier_strong": 37,
+      "fp_candidate": 26,
+      "tier_fast": 27,
+      "fn_candidate": 5,
+      "tn": 18
+    },
+    "lili": {
+      "tn": 5,
+      "tier_fast": 5,
+      "tp": 6,
+      "tier_strong": 7,
+      "fp_candidate": 1
+    },
+    "sisi": {
+      "tp": 41,
+      "tier_strong": 48,
+      "tn": 14,
+      "tier_fast": 35,
+      "fp_candidate": 20,
+      "fn_candidate": 8
+    },
+    "susu": {
+      "tp": 3,
+      "tier_fast": 2,
+      "tn": 3,
+      "tier_strong": 6,
+      "fp_candidate": 2
+    },
+    "vivi": {
+      "tp": 16,
+      "tier_fast": 7,
+      "fp_candidate": 1,
+      "tier_strong": 12,
+      "fn_candidate": 1,
+      "tn": 1
+    },
+    "xixi": {
+      "fp_candidate": 2,
+      "tier_strong": 3,
+      "tp": 2,
+      "tn": 1,
+      "tier_fast": 2
+    },
+    "yaoyao": {
+      "tp": 3,
+      "tier_strong": 7,
+      "fp_candidate": 4,
+      "tn": 2,
+      "tier_fast": 2
+    }
+  },
+  "by_source": {
+    "cli": {
+      "tp": 2,
+      "tier_fast": 3,
+      "tn": 1
+    },
+    "cron": {
+      "tp": 22,
+      "tier_strong": 20,
+      "fp_candidate": 11,
+      "tier_fast": 40,
+      "tn": 25,
+      "fn_candidate": 2
+    },
+    "desktop": {
+      "tp": 27,
+      "tier_strong": 50,
+      "tn": 6,
+      "tier_fast": 19,
+      "fp_candidate": 27,
+      "fn_candidate": 9
+    },
+    "discord": {
+      "tn": 5,
+      "tier_fast": 6,
+      "tp": 2,
+      "fp_candidate": 4,
+      "tier_strong": 6,
+      "fn_candidate": 1
+    },
+    "feishu": {
+      "fp_candidate": 1,
+      "tier_strong": 1
+    },
+    "kanban": {
+      "tp": 25,
+      "tier_fast": 11,
+      "tier_strong": 28,
+      "tn": 6,
+      "fp_candidate": 8
+    },
+    "qqbot": {
+      "tp": 1,
+      "tier_strong": 1
+    },
+    "subagent": {
+      "fn_candidate": 1,
+      "tier_strong": 2,
+      "tn": 1
+    },
+    "webui": {
+      "fp_candidate": 5,
+      "tier_strong": 12,
+      "tp": 7,
+      "fn_candidate": 1,
+      "tier_fast": 1
+    }
+  },
+  "private_review_candidates": {
+    "false_no_search_candidates": 14,
+    "false_search_candidates": 56,
+    "stored_only_in_private_output": true
+  }
+}

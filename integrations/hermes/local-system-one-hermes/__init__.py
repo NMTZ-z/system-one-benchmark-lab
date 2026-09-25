@@ -1,11 +1,13 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.1:
+Safety invariant for v0.2:
 - mode=off: no network call and no behavior change.
-- mode=shadow: observe the original user message, query Local System One, and
-  record recommendations without injecting context or rewriting provider requests.
+- mode=shadow: observe and record recommendations without rewriting requests.
+- mode=canary: ONLY for the isolated systemoneeval profile, and ONLY removes exact
+  generic public-web tools for deterministic bounded-transform no-web decisions.
 
-Active request mutation is intentionally not implemented in v0.1.
+Model switching, connected-app filtering, and production-profile mutation are not
+implemented in v0.2.
 """
 
 from __future__ import annotations
@@ -17,8 +19,9 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.1.0"
+_PLUGIN_VERSION = "0.3.0"
 _MAX_TASK_CHARS = 4000
+_MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
 
 
@@ -69,7 +72,7 @@ def _post_json(
 
 
 def _safe_recommendations(
-    base_url: str, task: str, timeout: float, request_id: str
+    base_url: str, task: str, context: str, timeout: float, request_id: str
 ) -> dict[str, Any]:
     started = time.perf_counter()
     result: dict[str, Any] = {
@@ -82,13 +85,13 @@ def _safe_recommendations(
         result["search"] = _post_json(
             base_url,
             "/v1/workflows/search-gate",
-            {"task": task, "request_id": request_id},
+            {"task": task, "context": context or None, "request_id": request_id},
             timeout,
         )
         result["model_tier"] = _post_json(
             base_url,
             "/v1/workflows/model-tier-gate",
-            {"task": task, "request_id": request_id},
+            {"task": task, "context": context or None, "request_id": request_id},
             timeout,
         )
         result["ok"] = True
@@ -96,6 +99,88 @@ def _safe_recommendations(
         result["error"] = type(exc).__name__
     result["shadow_latency_ms"] = (time.perf_counter() - started) * 1000.0
     return result
+
+
+def _strip_cron_wrapper(text: str) -> str:
+    marker = "[IMPORTANT: You are running as a scheduled cron job."
+    clean = text.strip()
+    start = clean.find(marker)
+    if start >= 0:
+        end = clean.find("]\n\n", start)
+        if end >= 0:
+            clean = clean[end + 3 :].strip()
+
+    if clean.startswith("## Your previous run's output"):
+        fence_end = clean.rfind("\n```\n")
+        if fence_end >= 0:
+            tail = clean[fence_end + len("\n```\n") :].strip()
+            if tail:
+                clean = tail
+    return clean or text
+
+
+def _resolve_effective_task(kwargs: dict[str, Any]) -> tuple[str, str]:
+    raw = _text_from_content(kwargs.get("user_message")).strip()
+
+    # Kanban workers intentionally start with the opaque prompt
+    # "work kanban task <id>". Hermes itself resolves the owned card from the
+    # same env/DB path, so reuse that path rather than asking System One to
+    # reason over an identifier.
+    try:
+        from agent.delegation_context import owned_kanban_task
+        from hermes_cli import kanban_db as kb
+        from hermes_cli import kanban_db_connect as kbc
+
+        task_id = owned_kanban_task()
+        if task_id:
+            with kbc.connect_closing() as conn:
+                task = kb.get_task(conn, task_id)
+            if task is not None:
+                parts = [
+                    str(getattr(task, "title", "") or "").strip(),
+                    str(getattr(task, "body", "") or "").strip(),
+                ]
+                resolved = "\n\n".join(part for part in parts if part).strip()
+                if resolved:
+                    return resolved[:_MAX_TASK_CHARS], "kanban_task"
+    except Exception:  # noqa: BLE001,S110 - optional source enrichment must fail open
+        # Falling back to the original user message is safer than blocking Hermes.
+        pass
+
+    platform = str(kwargs.get("platform") or "").lower()
+    if platform == "cron" or os.environ.get("HERMES_CRON_SESSION"):
+        return _strip_cron_wrapper(raw)[:_MAX_TASK_CHARS], "cron_prompt"
+    return raw[:_MAX_TASK_CHARS], "user_message"
+
+
+def _recent_context(history: Any, current_user_message: str) -> str:
+    if not isinstance(history, list):
+        return ""
+    parts: list[str] = []
+    remaining = _MAX_CONTEXT_CHARS
+    skipped_current = False
+    for message in reversed(history):
+        if not isinstance(message, dict) or message.get("role") not in {
+            "user",
+            "assistant",
+        }:
+            continue
+        text = _text_from_content(message.get("content")).strip()
+        if not text:
+            continue
+        if (
+            not skipped_current
+            and message.get("role") == "user"
+            and text == current_user_message
+        ):
+            skipped_current = True
+            continue
+        piece = text[-remaining:]
+        parts.append(f"{message.get('role')}: {piece}")
+        remaining -= len(piece)
+        if remaining <= 0 or len(parts) >= 4:
+            break
+    return "\n".join(reversed(parts))
 
 
 def _profile_name(ctx) -> str:
@@ -119,6 +204,31 @@ def _state_get(ctx, key: str, default: Any) -> Any:
         return default
 
 
+def _tool_name(tool: Any) -> str:
+    if not isinstance(tool, dict):
+        return ""
+    function = tool.get("function")
+    if isinstance(function, dict) and isinstance(function.get("name"), str):
+        return function["name"]
+    name = tool.get("name")
+    return name if isinstance(name, str) else ""
+
+
+def _filter_public_web_tools(
+    request: dict[str, Any],
+) -> tuple[dict[str, Any] | None, list[str]]:
+    tools = request.get("tools")
+    if not isinstance(tools, list):
+        return None, []
+    blocked = {"web_search", "web_extract"}
+    removed = [_tool_name(tool) for tool in tools if _tool_name(tool) in blocked]
+    if not removed:
+        return None, []
+    updated = dict(request)
+    updated["tools"] = [tool for tool in tools if _tool_name(tool) not in blocked]
+    return updated, removed
+
+
 def register(ctx):
     raw_mode = ctx.get_config(
         "mode", os.environ.get("LOCAL_SYSTEM_ONE_HERMES_MODE", "off")
@@ -134,65 +244,66 @@ def register(ctx):
     timeout = max(0.05, min(timeout_ms / 1000.0, 5.0))
     profile = _profile_name(ctx)
 
+    if mode not in {"off", "shadow", "canary"}:
+        effective_mode = "off_invalid_requested_mode"
+    elif mode == "canary" and profile != "systemoneeval":
+        effective_mode = "off_canary_profile_blocked"
+    else:
+        effective_mode = mode
+
     _state_set(
         ctx,
         "status",
         {
             "version": _PLUGIN_VERSION,
-            "mode": mode,
+            "mode": effective_mode,
             "profile": profile,
             "service_url": base_url,
             "registered_at": time.time(),
         },
     )
 
-    if mode == "off":
-        return
-    if mode != "shadow":
-        _state_set(
-            ctx,
-            "status",
-            {
-                "version": _PLUGIN_VERSION,
-                "mode": "off_invalid_requested_mode",
-                "profile": profile,
-                "service_url": base_url,
-                "registered_at": time.time(),
-            },
-        )
+    if effective_mode.startswith("off"):
         return
 
-    def _shadow_pre_llm_call(**kwargs):
-        # Hermes guarantees this is the original user message before plugin/memory
-        # sidecars are appended. Returning None injects no context and changes no request.
-        task = _text_from_content(kwargs.get("user_message")).strip()[:_MAX_TASK_CHARS]
+    # Raw tasks are never persisted. Canary state stores only turn ids and rule reasons.
+
+    def _observe_pre_llm_call(**kwargs):
+        original_user_message = _text_from_content(kwargs.get("user_message")).strip()
+        task, task_source = _resolve_effective_task(kwargs)
         if not task:
             return
+        context = _recent_context(
+            kwargs.get("conversation_history"), original_user_message
+        )
 
         request_id = str(kwargs.get("turn_id") or kwargs.get("task_id") or "shadow")
-        decision = _safe_recommendations(base_url, task, timeout, request_id)
+        decision = _safe_recommendations(base_url, task, context, timeout, request_id)
         event = {
             "ts": time.time(),
             "request_id": request_id,
             "profile": profile,
+            "mode": effective_mode,
             "model": str(kwargs.get("model") or ""),
             "platform": str(kwargs.get("platform") or ""),
             "is_first_turn": bool(kwargs.get("is_first_turn")),
             "task_chars": len(task),
+            "task_source": task_source,
+            "context_chars": len(context),
             "ok": bool(decision["ok"]),
             "shadow_latency_ms": round(float(decision["shadow_latency_ms"]), 3),
             "error": decision.get("error"),
         }
-        if isinstance(decision.get("search"), dict):
-            search = decision["search"]
+        search = decision.get("search")
+        if isinstance(search, dict):
             event["search"] = {
                 "decision": search.get("decision"),
                 "reason": search.get("reason"),
                 "probability_search": search.get("probability_search"),
                 "backend": search.get("backend"),
             }
-        if isinstance(decision.get("model_tier"), dict):
-            tier = decision["model_tier"]
+        tier = decision.get("model_tier")
+        if isinstance(tier, dict):
             event["model_tier"] = {
                 "tier": tier.get("tier"),
                 "reason": tier.get("reason"),
@@ -207,6 +318,84 @@ def register(ctx):
         history.append(event)
         _state_set(ctx, "shadow_history", history[-_MAX_HISTORY:])
         _state_set(ctx, "last_shadow", event)
+
+        canary_no_web_reasons = {
+            "bounded_transform_task",
+            "connected_app_data",
+            "local_file_or_repo",
+        }
+        if (
+            effective_mode == "canary"
+            and bool(decision.get("ok"))
+            and isinstance(search, dict)
+            and search.get("decision") == "no_search"
+            and search.get("reason") in canary_no_web_reasons
+        ):
+            pending = _state_get(ctx, "canary_pending", {})
+            if not isinstance(pending, dict):
+                pending = {}
+            pending[request_id] = {
+                "reason": str(search.get("reason")),
+                "created_at": time.time(),
+            }
+            # Bound stale turn metadata even if a provider call never follows.
+            if len(pending) > 32:
+                pending = dict(list(pending.items())[-32:])
+            _state_set(ctx, "canary_pending", pending)
         return
 
-    ctx.register_hook("pre_llm_call", _shadow_pre_llm_call)
+    ctx.register_hook("pre_llm_call", _observe_pre_llm_call)
+
+    if effective_mode != "canary":
+        return
+
+    def _canary_llm_request(**kwargs):
+        # First provider call only. Retries/tool-loop follow-ups preserve Hermes' request.
+        if kwargs.get("api_call_count") != 1:
+            return
+        turn_id = str(kwargs.get("turn_id") or "")
+        pending = _state_get(ctx, "canary_pending", {})
+        if not isinstance(pending, dict):
+            pending = {}
+        candidate = pending.pop(turn_id, None)
+        _state_set(ctx, "canary_pending", pending)
+        request = kwargs.get("request")
+        tools = request.get("tools") if isinstance(request, dict) else None
+        _state_set(
+            ctx,
+            "last_middleware_seen",
+            {
+                "ts": time.time(),
+                "turn_id": turn_id,
+                "api_call_count": kwargs.get("api_call_count"),
+                "candidate_found": bool(candidate),
+                "tool_count": len(tools) if isinstance(tools, list) else None,
+            },
+        )
+        if not candidate or not isinstance(request, dict):
+            return
+        updated, removed = _filter_public_web_tools(request)
+        event = {
+            "ts": time.time(),
+            "turn_id": turn_id,
+            "profile": profile,
+            "reason": candidate["reason"],
+            "removed_tools": removed,
+            "changed": updated is not None,
+            "api_call_count": kwargs.get("api_call_count"),
+        }
+        _state_set(ctx, "last_canary", event)
+        canary_history = _state_get(ctx, "canary_history", [])
+        if not isinstance(canary_history, list):
+            canary_history = []
+        canary_history.append(event)
+        _state_set(ctx, "canary_history", canary_history[-_MAX_HISTORY:])
+        if updated is None:
+            return
+        return {
+            "request": updated,
+            "source": "local-system-one-hermes",
+            "reason": f"{candidate['reason']}_no_public_web",
+        }
+
+    ctx.register_middleware("llm_request", _canary_llm_request)

@@ -15,3 +15,10 @@ artifacts/
 datasets/
 experiments/phase4a/**/model.mlpackage/
 experiments/phase4a/**/*.mlmodelc/
+
+# Local-only private replay data; never commit raw Hermes history
+private/
+
+# Local-only Hermes evaluation raw outputs; processed summaries are safe to commit
+results/raw/hermes-system-one-eval/canary*/
+results/raw/hermes-system-one-eval/model-tier-paired/

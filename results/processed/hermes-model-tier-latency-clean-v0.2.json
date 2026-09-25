@@ -1,0 +1,111 @@
+{
+  "model": "gemini-3.8-flash-tiered",
+  "provider": "local-gemini",
+  "toolsets": "clarify",
+  "rows": [
+    {
+      "task": "extract",
+      "effort": "high",
+      "passed": true,
+      "response": "{\"name\": \"林舟\", \"device\": \"Mac mini M4\", \"memory\": \"24GB\"}",
+      "wall_seconds": 8.139846708974801,
+      "turn_seconds": 4.1784820556640625,
+      "total_tokens": 12945,
+      "input_tokens": 12800,
+      "cache_read_tokens": 0,
+      "output_tokens": 145,
+      "session_id": "20260925_090057_e1d03b"
+    },
+    {
+      "task": "extract",
+      "effort": "low",
+      "passed": true,
+      "response": "{\n  \"name\": \"林舟\",\n  \"device\": \"Mac mini M4\",\n  \"memory\": \"24GB\"\n}",
+      "wall_seconds": 7.976766958949156,
+      "turn_seconds": 4.327481746673584,
+      "total_tokens": 13054,
+      "input_tokens": 4635,
+      "cache_read_tokens": 8165,
+      "output_tokens": 254,
+      "session_id": "20260925_090105_5c1b63"
+    },
+    {
+      "task": "decision",
+      "effort": "low",
+      "passed": true,
+      "response": "GO",
+      "wall_seconds": 7.927019374910742,
+      "turn_seconds": 4.204030275344849,
+      "total_tokens": 13141,
+      "input_tokens": 13023,
+      "cache_read_tokens": 0,
+      "output_tokens": 118,
+      "session_id": "20260925_090113_b1bd46"
+    },
+    {
+      "task": "decision",
+      "effort": "high",
+      "passed": true,
+      "response": "GO",
+      "wall_seconds": 8.989534374908544,
+      "turn_seconds": 5.193238019943237,
+      "total_tokens": 13195,
+      "input_tokens": 4857,
+      "cache_read_tokens": 8166,
+      "output_tokens": 172,
+      "session_id": "20260925_090121_216b66"
+    },
+    {
+      "task": "csv_json",
+      "effort": "high",
+      "passed": true,
+      "response": "[\n  {\"name\": \"A\", \"score\": 3},\n  {\"name\": \"B\", \"score\": 5}\n]",
+      "wall_seconds": 10.129541250062175,
+      "turn_seconds": 6.186957836151123,
+      "total_tokens": 13130,
+      "input_tokens": 12682,
+      "cache_read_tokens": 0,
+      "output_tokens": 448,
+      "session_id": "20260925_090130_cefafc"
+    },
+    {
+      "task": "csv_json",
+      "effort": "low",
+      "passed": true,
+      "response": "[\n  {\n    \"name\": \"A\",\n    \"score\": 3\n  },\n  {\n    \"name\": \"B\",\n    \"score\": 5\n  }\n]",
+      "wall_seconds": 8.096958959009498,
+      "turn_seconds": 4.351083040237427,
+      "total_tokens": 12950,
+      "input_tokens": 4517,
+      "cache_read_tokens": 8165,
+      "output_tokens": 268,
+      "session_id": "20260925_090140_83358f"
+    },
+    {
+      "task": "constraint",
+      "effort": "low",
+      "passed": true,
+      "response": "服务已启动，ANE健康，回滚可用。",
+      "wall_seconds": 10.196215042029507,
+      "turn_seconds": 6.2692551612854,
+      "total_tokens": 13000,
+      "input_tokens": 12357,
+      "cache_read_tokens": 0,
+      "output_tokens": 643,
+      "session_id": "20260925_090148_5b175a"
+    },
+    {
+      "task": "constraint",
+      "effort": "high",
+      "passed": true,
+      "response": "服务已启，ANE健康，回滚就绪。",
+      "wall_seconds": 12.374804874998517,
+      "turn_seconds": 8.52327013015747,
+      "total_tokens": 13148,
+      "input_tokens": 4193,
+      "cache_read_tokens": 8164,
+      "output_tokens": 791,
+      "session_id": "20260925_090158_d0cfa5"
+    }
+  ]
+}

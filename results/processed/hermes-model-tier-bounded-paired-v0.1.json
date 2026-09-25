@@ -1,0 +1,79 @@
+{
+  "model": "gemini-3.8-flash-tiered",
+  "provider": "local-gemini",
+  "rows": [
+    {
+      "task": "rewrite",
+      "effort": "low",
+      "returncode": 0,
+      "wall_seconds": 23.26356999995187,
+      "response": "第一阶段已经完成，接下来准备部署。",
+      "api_calls": 1,
+      "total_tokens": 28948,
+      "input_tokens": 4082,
+      "output_tokens": 428,
+      "completed": true
+    },
+    {
+      "task": "rewrite",
+      "effort": "high",
+      "returncode": 0,
+      "wall_seconds": 28.533063292037696,
+      "response": "第一阶段已经完成，接下来准备部署。",
+      "api_calls": 1,
+      "total_tokens": 28973,
+      "input_tokens": 4082,
+      "output_tokens": 453,
+      "completed": true
+    },
+    {
+      "task": "translate",
+      "effort": "high",
+      "returncode": 0,
+      "wall_seconds": 27.839263207977638,
+      "response": "Local System One has completed shadow and rollback verification, and production Active mode has not yet been enabled.",
+      "api_calls": 1,
+      "total_tokens": 28831,
+      "input_tokens": 3973,
+      "output_tokens": 421,
+      "completed": true
+    },
+    {
+      "task": "translate",
+      "effort": "low",
+      "returncode": 0,
+      "wall_seconds": 22.234293124987744,
+      "response": "Local System One has completed shadow and rollback verification, and production Active mode has not yet been enabled.",
+      "api_calls": 1,
+      "total_tokens": 28834,
+      "input_tokens": 3973,
+      "output_tokens": 424,
+      "completed": true
+    },
+    {
+      "task": "compress",
+      "effort": "low",
+      "returncode": 0,
+      "wall_seconds": 26.81147937499918,
+      "response": "Shadow模式不改变Hermes请求，Local System One故障时Hermes继续运行，Canary目前仅对确定性no-Web任务移除web_search和web_extract。",
+      "api_calls": 1,
+      "total_tokens": 31230,
+      "input_tokens": 4622,
+      "output_tokens": 2168,
+      "completed": true
+    },
+    {
+      "task": "compress",
+      "effort": "high",
+      "returncode": 0,
+      "wall_seconds": 23.806060959002934,
+      "response": "Shadow模式不改变Hermes请求且Local System One故障时继续运行，Canary目前仅对确定性no-Web任务移除web_search和web_extract。",
+      "api_calls": 1,
+      "total_tokens": 30572,
+      "input_tokens": 29062,
+      "output_tokens": 1510,
+      "completed": true
+    }
+  ],
+  "note": "Token accounting is recorded but not used for conclusions because smoke runs showed inconsistent input-token accounting across reasoning efforts."
+}

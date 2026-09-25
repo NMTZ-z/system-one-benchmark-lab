@@ -1,0 +1,291 @@
+{
+  "version": "v0.1",
+  "created_from": "private/hermes-system-one-replay/replay-200-v8-fixed.json",
+  "label_semantics": {
+    "true": "The current task materially requires public Internet/Web information.",
+    "false": "The task can be completed from conversation, local files, connected apps, supplied artifacts, or stable general knowledge without public Web."
+  },
+  "privacy": "Only hashed private_id and labels/rationale codes are stored; raw user content remains private and git-ignored.",
+  "items": [
+    {
+      "private_id": "c4ae0d5e1296bb6e",
+      "public_web_required": false,
+      "rationale_code": "local_code_review"
+    },
+    {
+      "private_id": "db90165d4cc05a6e",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "6dc828323ab3d6c3",
+      "public_web_required": true,
+      "rationale_code": "current_integration_research"
+    },
+    {
+      "private_id": "87eb1e23a7935569",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "336d4191fac04812",
+      "public_web_required": true,
+      "rationale_code": "explicit_online_research"
+    },
+    {
+      "private_id": "33f899d0a52b1a6c",
+      "public_web_required": false,
+      "rationale_code": "general_advice"
+    },
+    {
+      "private_id": "f7ee0ab1d18e980a",
+      "public_web_required": true,
+      "rationale_code": "current_news"
+    },
+    {
+      "private_id": "39abb127e6c37993",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "a1b8db53dda2c8fe",
+      "public_web_required": true,
+      "rationale_code": "current_product_capability"
+    },
+    {
+      "private_id": "1f079fbdcb5ff7ff",
+      "public_web_required": false,
+      "rationale_code": "connected_app_trend"
+    },
+    {
+      "private_id": "ad5e84c240deafef",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "c6e3f20eaefeff1b",
+      "public_web_required": true,
+      "rationale_code": "current_product_research"
+    },
+    {
+      "private_id": "d42c1d07b2082298",
+      "public_web_required": false,
+      "rationale_code": "local_artifact_state"
+    },
+    {
+      "private_id": "7a71951a46e5ae9b",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "31b583fd5a61db88",
+      "public_web_required": false,
+      "rationale_code": "connected_app_only"
+    },
+    {
+      "private_id": "2e1d0b3253d23bc4",
+      "public_web_required": true,
+      "rationale_code": "public_plugin_research"
+    },
+    {
+      "private_id": "a85f636d440f44d0",
+      "public_web_required": false,
+      "rationale_code": "conversation_context"
+    },
+    {
+      "private_id": "f48573c7d77564e3",
+      "public_web_required": false,
+      "rationale_code": "local_execution_recovery"
+    },
+    {
+      "private_id": "587f986df2ace296",
+      "public_web_required": false,
+      "rationale_code": "local_edit"
+    },
+    {
+      "private_id": "e220a72fcd720c3e",
+      "public_web_required": false,
+      "rationale_code": "conversation_state"
+    },
+    {
+      "private_id": "f3045f131a9dee54",
+      "public_web_required": false,
+      "rationale_code": "local_troubleshooting"
+    },
+    {
+      "private_id": "cfc883d6cc7ac797",
+      "public_web_required": false,
+      "rationale_code": "local_review"
+    },
+    {
+      "private_id": "315a5c41bf28ebc6",
+      "public_web_required": false,
+      "rationale_code": "local_artifact_edit"
+    },
+    {
+      "private_id": "f75a256b1683b030",
+      "public_web_required": false,
+      "rationale_code": "local_execution_recovery"
+    },
+    {
+      "private_id": "12cd9a5401d775f5",
+      "public_web_required": false,
+      "rationale_code": "conversation_state"
+    },
+    {
+      "private_id": "dcf02144024401d1",
+      "public_web_required": false,
+      "rationale_code": "conversation_only"
+    },
+    {
+      "private_id": "a0b1ae2e2f2a5577",
+      "public_web_required": false,
+      "rationale_code": "conversation_only"
+    },
+    {
+      "private_id": "d38eb4d79e44975f",
+      "public_web_required": false,
+      "rationale_code": "brainstorm"
+    },
+    {
+      "private_id": "12a202442daa7c28",
+      "public_web_required": false,
+      "rationale_code": "planning"
+    },
+    {
+      "private_id": "c91dc25f3e0d29a0",
+      "public_web_required": false,
+      "rationale_code": "conversation_state"
+    },
+    {
+      "private_id": "fd6270b56814bbdd",
+      "public_web_required": false,
+      "rationale_code": "provided_error_text"
+    },
+    {
+      "private_id": "d5ff8319e3d174fb",
+      "public_web_required": false,
+      "rationale_code": "local_source_read"
+    },
+    {
+      "private_id": "643d82fdb5e31240",
+      "public_web_required": true,
+      "rationale_code": "explicit_search_request"
+    },
+    {
+      "private_id": "6fdb0619b326d9f1",
+      "public_web_required": false,
+      "rationale_code": "provided_content_brief"
+    },
+    {
+      "private_id": "1ee68c4288b21431",
+      "public_web_required": false,
+      "rationale_code": "local_memory"
+    },
+    {
+      "private_id": "25575b5b3ec10f44",
+      "public_web_required": false,
+      "rationale_code": "provided_research_artifacts"
+    },
+    {
+      "private_id": "7aa63b0c1d3b8bef",
+      "public_web_required": true,
+      "rationale_code": "current_public_research"
+    },
+    {
+      "private_id": "03734e5eaf2162f4",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_research"
+    },
+    {
+      "private_id": "63a314a42eb9f8e2",
+      "public_web_required": true,
+      "rationale_code": "current_product_docs"
+    },
+    {
+      "private_id": "828e541a2be27d37",
+      "public_web_required": true,
+      "rationale_code": "explicit_online_research"
+    },
+    {
+      "private_id": "6307aa91203ae319",
+      "public_web_required": true,
+      "rationale_code": "current_product_update"
+    },
+    {
+      "private_id": "43a1abe3f6e21f8c",
+      "public_web_required": true,
+      "rationale_code": "official_doc_verification"
+    },
+    {
+      "private_id": "b3e5822ac4490802",
+      "public_web_required": true,
+      "rationale_code": "current_external_docs"
+    },
+    {
+      "private_id": "713974810f5ca050",
+      "public_web_required": true,
+      "rationale_code": "current_news_correction"
+    },
+    {
+      "private_id": "06110cd3657619d0",
+      "public_web_required": true,
+      "rationale_code": "current_intelligence"
+    },
+    {
+      "private_id": "1693d5434bcc45ef",
+      "public_web_required": true,
+      "rationale_code": "public_design_research"
+    },
+    {
+      "private_id": "391892733ac68eb7",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_research"
+    },
+    {
+      "private_id": "442920166ca70ece",
+      "public_web_required": true,
+      "rationale_code": "current_product_facts"
+    },
+    {
+      "private_id": "826a0d99b4d67930",
+      "public_web_required": true,
+      "rationale_code": "current_project_research"
+    },
+    {
+      "private_id": "52d7e1ddcf2bd693",
+      "public_web_required": true,
+      "rationale_code": "explicit_cross_platform_research"
+    },
+    {
+      "private_id": "9ced59988a1c2117",
+      "public_web_required": true,
+      "rationale_code": "current_model_identity"
+    },
+    {
+      "private_id": "9039500f25e93225",
+      "public_web_required": true,
+      "rationale_code": "public_fact_verification"
+    },
+    {
+      "private_id": "9a26b78810372102",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_research"
+    },
+    {
+      "private_id": "450559132fa757d9",
+      "public_web_required": true,
+      "rationale_code": "public_source_verification"
+    },
+    {
+      "private_id": "1cb0eaa5ba0b2f3d",
+      "public_web_required": true,
+      "rationale_code": "current_benchmark_data"
+    },
+    {
+      "private_id": "4549960ec09ac847",
+      "public_web_required": true,
+      "rationale_code": "explicit_web_and_trend_research"
+    }
+  ]
+}

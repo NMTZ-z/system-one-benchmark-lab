@@ -1,0 +1,194 @@
+{
+  "generated_at": 1790296084.645164,
+  "method": {
+    "frozen_input": "private/hermes-system-one-replay/replay-200-v5-clean.json",
+    "frozen_input_sha256": "32af512edb95fe717a99051df1d4826330d3c77c668c197da5fe4ecf18ad25cb",
+    "sample_size": 200,
+    "raw_content_committed": false,
+    "private_output": "private/hermes-system-one-replay/replay-200-v8-fixed.json",
+    "observed_public_lookup_is_weak_label": true
+  },
+  "replay": {
+    "valid": 200,
+    "errors": 0,
+    "elapsed_seconds": 54.36969641596079,
+    "roundtrip_pair_ms": {
+      "mean": 271.6141252272064,
+      "p50": 175.8869584882632,
+      "p95": 544.2913336737547,
+      "max": 1099.7234579408541
+    },
+    "gate_model_latency_ms": {
+      "p50": 138.2427079952322,
+      "p95": 269.9689267843496
+    }
+  },
+  "search_behavior_alignment": {
+    "confusion_vs_observed_tool_use": {
+      "tp": 84,
+      "tn": 52,
+      "fp_candidate": 48,
+      "fn_candidate": 16
+    },
+    "observed_lookup_recall": 0.84,
+    "observed_no_lookup_specificity": 0.52,
+    "precision_vs_observed_lookup": 0.6363636363636364,
+    "reasons": {
+      "model_requires_external_information": 70,
+      "model_confident_local_answer": 19,
+      "explicit_public_web_instruction": 21,
+      "model_uncertain_conservative_search": 20,
+      "live_public_fact": 20,
+      "connected_app_data": 41,
+      "volatile_public_fact": 1,
+      "local_file_or_repo": 7,
+      "bounded_transform_task": 1
+    },
+    "backends": {
+      "mlx": 81,
+      "rule": 91,
+      "ane": 28
+    },
+    "note": "Behavioral alignment against historical weak labels, not correctness accuracy."
+  },
+  "model_tier": {
+    "counts": {
+      "strong": 120,
+      "fast": 80
+    },
+    "backends": {
+      "mlx": 144,
+      "ane": 54,
+      "rule": 2
+    },
+    "execution_complexity_proxy": {
+      "strong": {
+        "median_tool_calls": 7.0,
+        "median_span_messages": 15.0,
+        "n": 120
+      },
+      "fast": {
+        "median_tool_calls": 6.0,
+        "median_span_messages": 11.0,
+        "n": 80
+      }
+    }
+  },
+  "by_profile": {
+    "default": {
+      "tp": 14,
+      "tier_strong": 37,
+      "tn": 22,
+      "tier_fast": 27,
+      "fn_candidate": 6,
+      "fp_candidate": 22
+    },
+    "lili": {
+      "tn": 4,
+      "tier_fast": 5,
+      "tp": 6,
+      "tier_strong": 7,
+      "fp_candidate": 2
+    },
+    "sisi": {
+      "tp": 40,
+      "tier_strong": 48,
+      "tn": 19,
+      "tier_fast": 35,
+      "fp_candidate": 15,
+      "fn_candidate": 9
+    },
+    "susu": {
+      "tp": 3,
+      "tier_fast": 2,
+      "tn": 2,
+      "tier_strong": 6,
+      "fp_candidate": 3
+    },
+    "vivi": {
+      "tp": 16,
+      "tier_fast": 7,
+      "tn": 1,
+      "tier_strong": 12,
+      "fn_candidate": 1,
+      "fp_candidate": 1
+    },
+    "xixi": {
+      "fp_candidate": 2,
+      "tier_strong": 3,
+      "tp": 2,
+      "tn": 1,
+      "tier_fast": 2
+    },
+    "yaoyao": {
+      "tp": 3,
+      "tier_strong": 7,
+      "tn": 3,
+      "fp_candidate": 3,
+      "tier_fast": 2
+    }
+  },
+  "by_source": {
+    "cli": {
+      "tp": 2,
+      "tier_fast": 3,
+      "tn": 1
+    },
+    "cron": {
+      "tp": 18,
+      "tier_strong": 20,
+      "tn": 35,
+      "tier_fast": 40,
+      "fn_candidate": 6,
+      "fp_candidate": 1
+    },
+    "desktop": {
+      "tp": 29,
+      "tier_strong": 50,
+      "tn": 5,
+      "tier_fast": 19,
+      "fp_candidate": 28,
+      "fn_candidate": 7
+    },
+    "discord": {
+      "tn": 4,
+      "tier_fast": 6,
+      "tp": 2,
+      "fp_candidate": 5,
+      "tier_strong": 6,
+      "fn_candidate": 1
+    },
+    "feishu": {
+      "fp_candidate": 1,
+      "tier_strong": 1
+    },
+    "kanban": {
+      "tp": 25,
+      "tier_fast": 11,
+      "tier_strong": 28,
+      "fp_candidate": 8,
+      "tn": 6
+    },
+    "qqbot": {
+      "tp": 1,
+      "tier_strong": 1
+    },
+    "subagent": {
+      "fn_candidate": 1,
+      "tier_strong": 2,
+      "tn": 1
+    },
+    "webui": {
+      "fp_candidate": 5,
+      "tier_strong": 12,
+      "tp": 7,
+      "fn_candidate": 1,
+      "tier_fast": 1
+    }
+  },
+  "private_review_candidates": {
+    "false_no_search_candidates": 16,
+    "false_search_candidates": 48,
+    "stored_only_in_private_output": true
+  }
+}

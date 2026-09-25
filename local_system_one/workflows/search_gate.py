@@ -12,10 +12,13 @@ from ..schemas import DecisionRequest
 Freshness = Literal["auto", "current", "recent", "static"]
 SourceScope = Literal["auto", "public", "provided_only", "local_private"]
 
-_CURRENT_PATTERNS = (
-    r"\b(today|tonight|currently|current|latest|recent|now|this week|this month)\b",
-    r"\b(weather|forecast|score|standings|stock price|exchange rate|open now)\b",
-    r"(今天|今晚|当前|现在|最新|最近|本周|本月|天气|预报|比分|排名|股价|汇率|营业)",
+_LIVE_PUBLIC_PATTERNS = (
+    r"\b(weather|forecast|live score|score today|standings|stock price|exchange rate|open now|opening hours)\b",
+    r"\b(latest|current|today|now)\b.{0,30}\b(version|release|price|availability|status|weather|forecast|score|standings)\b",
+    r"\b(version|release|price|availability|status|weather|forecast|score|standings)\b.{0,30}\b(latest|current|today|now)\b",
+    r"(天气|预报|比分|股价|汇率|营业时间|票价|油价|金价)",
+    r"(最新|当前|现在|今天).{0,18}(版本|发布|价格|售价|状态|榜单|排名|天气|预报|比分|汇率|营业)",
+    r"(版本|发布|价格|售价|状态|榜单|排名|天气|预报|比分|汇率|营业).{0,18}(最新|当前|现在|今天)",
 )
 
 _VOLATILE_FACT_PATTERNS = (
@@ -28,8 +31,35 @@ _VOLATILE_FACT_PATTERNS = (
 )
 
 _PROVIDED_ONLY_PATTERNS = (
-    r"\b(rewrite|rephrase|proofread|translate|summarize the following|fix grammar)\b",
-    r"(润色|改写|翻译|校对|总结以下|修改语法)",
+    r"^\s*(please\s+)?(rewrite|rephrase|proofread|translate|polish|shorten|fix grammar)\b",
+    r"^\s*(请)?(把|将)?[^。！？\n]{0,40}(润色|改写|翻译|校对|精简|缩短|修改语法)",
+)
+
+_EXPLICIT_PUBLIC_LOOKUP_PATTERNS = (
+    r"(全网|知乎|B站|微博|GitHub Trending|热榜|官方发布|原始链接|公开来源)",
+    r"\b(github trending|official release|source link|public web|news trend|reddit)\b",
+    r"(证据|来源|参考资料|公开事实|公开资料).{0,24}(URL|链接|网址)",
+    r"(URL|链接|网址).{0,24}(证据|来源|参考资料|公开事实|公开资料)",
+    r"(核验|查验|验证|对齐|严格对齐).{0,18}官方.{0,12}(事实|参数|规则|说明|文档)",
+    r"\b(search|look up|check|verify|browse|research)\b.{0,40}\b(web|internet|official docs?|official documentation|website|release notes?)\b",
+    r"\b(web|internet|official docs?|official documentation|website|release notes?)\b.{0,40}\b(search|look up|check|verify|browse|research)\b",
+    r"(搜索|检索|查|查询|查验|核查|验证|浏览|访问).{0,18}(官网|官方网站|官方.{0,12}文档|网页|互联网|公开资料|发布说明|release notes)",
+    r"(官网|官方网站|官方文档|网页|互联网|公开资料|发布说明).{0,18}(搜索|检索|查|查询|查验|核查|验证|浏览|访问)",
+)
+
+_LOCAL_FILE_PATTERNS = (
+    r"\b(read|open|inspect|check|query|search|load|use)\b.{0,30}\b(local files?|project files?|config files?|log files?|workspace)\b",
+    r"\b(local files?|project files?|config files?|log files?|workspace)\b.{0,30}\b(read|open|inspect|check|query|search|load|use)\b",
+    r"\b(git diff|staged changes|local repository|repository path)\b",
+    r"(调用|读取|查看|检查|查询|打开|搜索|检索|使用).{0,24}(本地文件|项目文件|WPS|NAS|日志|配置文件)",
+    r"(本地文件|项目文件|WPS|NAS|日志|配置文件).{0,24}(调用|读取|查看|检查|查询|打开|搜索|检索|使用)",
+    r"(/Users/|本地路径|Git仓库|Git 仓库|暂存区|git diff)",
+)
+
+_CONNECTED_APP_PATTERNS = (
+    r"\b(call|query|check|read|use)\b.{0,30}\b(mcp|connector|connected app)\b",
+    r"(调用|读取|查看|检查|查询|使用).{0,24}(飞书|看板|数据库|mcp|xiaohongshu|lark-cli)",
+    r"(飞书|看板|数据库|mcp|xiaohongshu|lark-cli).{0,24}(调用|读取|查看|检查|查询|使用)",
 )
 
 
@@ -102,15 +132,7 @@ class SearchGate:
 
     def _hard_gate(self, request: SearchGateRequest) -> dict[str, Any] | None:
         if request.external_lookup_required:
-            return self._rule_result(True, "explicit_external_lookup_required", request)
-
-        if request.freshness in {"current", "recent"}:
-            return self._rule_result(True, f"freshness_{request.freshness}", request)
-
-        if request.source_scope == "public" and self._matches(
-            _CURRENT_PATTERNS, request.task
-        ):
-            return self._rule_result(True, "public_current_language", request)
+            return self._rule_result(True, "explicit_public_lookup_required", request)
 
         if request.source_scope in {"provided_only", "local_private"}:
             return self._rule_result(
@@ -120,16 +142,38 @@ class SearchGate:
         if request.provided_context_sufficient:
             return self._rule_result(False, "provided_context_sufficient", request)
 
-        if request.freshness == "static" and self._matches(
-            _PROVIDED_ONLY_PATTERNS, request.task
-        ):
-            return self._rule_result(False, "static_transform_task", request)
+        if self._matches(_EXPLICIT_PUBLIC_LOOKUP_PATTERNS, request.task):
+            return self._rule_result(True, "explicit_public_web_instruction", request)
 
-        if self._matches(_CURRENT_PATTERNS, request.task):
-            return self._rule_result(True, "current_language", request)
+        if (
+            request.freshness in {"current", "recent"}
+            and request.source_scope == "public"
+        ):
+            return self._rule_result(
+                True, f"public_freshness_{request.freshness}", request
+            )
+
+        if request.source_scope == "public" and self._matches(
+            _LIVE_PUBLIC_PATTERNS, request.task
+        ):
+            return self._rule_result(True, "public_live_fact", request)
+
+        if self._matches(_LIVE_PUBLIC_PATTERNS, request.task):
+            return self._rule_result(True, "live_public_fact", request)
 
         if self._matches(_VOLATILE_FACT_PATTERNS, request.task):
             return self._rule_result(True, "volatile_public_fact", request)
+
+        if len(request.task) <= 600 and self._matches(
+            _PROVIDED_ONLY_PATTERNS, request.task
+        ):
+            return self._rule_result(False, "bounded_transform_task", request)
+
+        if self._matches(_LOCAL_FILE_PATTERNS, request.task):
+            return self._rule_result(False, "local_file_or_repo", request)
+
+        if self._matches(_CONNECTED_APP_PATTERNS, request.task):
+            return self._rule_result(False, "connected_app_data", request)
 
         return None
 
@@ -160,6 +204,14 @@ class SearchGate:
             "ane_health": self.engine.health.snapshot().as_dict(),
         }
 
+    @staticmethod
+    def _background_context(value: Any, max_chars: int = 1200) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value[-max_chars:]
+        return value
+
     def decide(self, request: SearchGateRequest) -> dict[str, Any]:
         hard = self._hard_gate(request)
         if hard is not None:
@@ -167,7 +219,7 @@ class SearchGate:
 
         state = {
             "task": request.task,
-            "context": request.context,
+            "background_context": self._background_context(request.context),
             "freshness_requirement": request.freshness,
             "source_scope": request.source_scope,
             "provided_context_sufficient": request.provided_context_sufficient,
@@ -176,9 +228,14 @@ class SearchGate:
             primitive="noul",
             state=state,
             instructions=(
-                "Does answering this task correctly require looking up information "
-                "outside the provided state, such as current public facts, recent "
-                "events, live data, an external page, or information not supplied here?"
+                "Does the CURRENT USER TASK require PUBLIC INTERNET or WEB lookup for "
+                "current/public facts? The background context is only for resolving short "
+                "references such as 'this model', 'continue', or 'how is it going'; do not "
+                "trigger web search merely because the background contains dates, current "
+                "events, or words like today/latest. Answer false when the task can be "
+                "completed from local files, connected apps, databases, supplied context, "
+                "the existing conversation, or stable general knowledge. Needing a local "
+                "tool or connector is not the same as needing public web search."
             ),
             request_id=request.request_id,
         )

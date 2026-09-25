@@ -1,0 +1,85 @@
+{
+  "model": "gemini-3.8-flash-tiered",
+  "provider": "local-gemini",
+  "toolsets": "clarify",
+  "rows": [
+    {
+      "task": "json",
+      "effort": "low",
+      "response": "{\"status\": \"ready\", \"retries\": 2, \"enabled\": true}",
+      "returncode": 0,
+      "wall_seconds": 9.900032750098035,
+      "turn_seconds": 5.973416090011597,
+      "total_tokens": 12826,
+      "input_tokens": 12655,
+      "cache_read_tokens": 0,
+      "output_tokens": 171,
+      "session_id": "20260925_085933_196b4a"
+    },
+    {
+      "task": "json",
+      "effort": "high",
+      "response": "{\"status\": \"ready\", \"retries\": 2, \"enabled\": true}",
+      "returncode": 0,
+      "wall_seconds": 8.962024582899176,
+      "turn_seconds": 5.223538875579834,
+      "total_tokens": 12886,
+      "input_tokens": 4490,
+      "cache_read_tokens": 8165,
+      "output_tokens": 231,
+      "session_id": "20260925_085943_d228b4"
+    },
+    {
+      "task": "sort",
+      "effort": "high",
+      "response": "1,4,7,9",
+      "returncode": 0,
+      "wall_seconds": 9.13385958399158,
+      "turn_seconds": 5.0852601528167725,
+      "total_tokens": 12610,
+      "input_tokens": 12476,
+      "cache_read_tokens": 0,
+      "output_tokens": 134,
+      "session_id": "20260925_085952_cb1e4f"
+    },
+    {
+      "task": "sort",
+      "effort": "low",
+      "response": "1,4,7,9",
+      "returncode": 0,
+      "wall_seconds": 8.340276792063378,
+      "turn_seconds": 4.362228870391846,
+      "total_tokens": 12600,
+      "input_tokens": 12476,
+      "cache_read_tokens": 0,
+      "output_tokens": 124,
+      "session_id": "20260925_090001_942c41"
+    },
+    {
+      "task": "date",
+      "effort": "low",
+      "response": "2026-09-25|2024-12-07",
+      "returncode": 0,
+      "wall_seconds": 8.198856250033714,
+      "turn_seconds": 4.278483152389526,
+      "total_tokens": 12957,
+      "input_tokens": 12801,
+      "cache_read_tokens": 0,
+      "output_tokens": 156,
+      "session_id": "20260925_090010_f3679d"
+    },
+    {
+      "task": "date",
+      "effort": "high",
+      "response": "2026-09-25|2024-12-07",
+      "returncode": 0,
+      "wall_seconds": 9.709199042059481,
+      "turn_seconds": 6.294138193130493,
+      "total_tokens": 12958,
+      "input_tokens": 4636,
+      "cache_read_tokens": 8165,
+      "output_tokens": 157,
+      "session_id": "20260925_090017_f20235"
+    }
+  ]
+}

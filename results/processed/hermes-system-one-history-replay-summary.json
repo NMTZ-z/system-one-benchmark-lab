@@ -1,0 +1,266 @@
+{
+  "generated_at": 1790278912.012064,
+  "method": {
+    "profiles": [
+      "default",
+      "sisi",
+      "lili",
+      "susu",
+      "vivi",
+      "xixi",
+      "yaoyao"
+    ],
+    "sample_size_requested": 200,
+    "sample_size_actual": 200,
+    "positive_fraction_target": 0.5,
+    "seed": 20260925,
+    "max_task_chars": 4000,
+    "raw_content_committed": false,
+    "private_output": "private/hermes-system-one-replay/replay-200.json",
+    "observed_public_lookup_is_weak_label": true,
+    "limitations": [
+      "Observed tool use is not ground truth; Hermes can search unnecessarily or omit needed search.",
+      "Generic terminal/network access is not detectable from tool_name alone.",
+      "The balanced sample is not prevalence-representative."
+    ]
+  },
+  "population": {
+    "turns": 2417,
+    "observed_public_lookup_turns": 336,
+    "by_profile": {
+      "default": {
+        "turns": 1060,
+        "observed_public_lookup_turns": 36
+      },
+      "sisi": {
+        "turns": 838,
+        "observed_public_lookup_turns": 249
+      },
+      "lili": {
+        "turns": 137,
+        "observed_public_lookup_turns": 9
+      },
+      "susu": {
+        "turns": 108,
+        "observed_public_lookup_turns": 5
+      },
+      "vivi": {
+        "turns": 70,
+        "observed_public_lookup_turns": 28
+      },
+      "xixi": {
+        "turns": 65,
+        "observed_public_lookup_turns": 4
+      },
+      "yaoyao": {
+        "turns": 139,
+        "observed_public_lookup_turns": 5
+      }
+    },
+    "by_source": {
+      "cli": {
+        "turns": 43,
+        "observed_public_lookup_turns": 5
+      },
+      "cron": {
+        "turns": 872,
+        "observed_public_lookup_turns": 202
+      },
+      "desktop": {
+        "turns": 854,
+        "observed_public_lookup_turns": 66
+      },
+      "discord": {
+        "turns": 128,
+        "observed_public_lookup_turns": 3
+      },
+      "feishu": {
+        "turns": 21,
+        "observed_public_lookup_turns": 0
+      },
+      "kanban": {
+        "turns": 370,
+        "observed_public_lookup_turns": 43
+      },
+      "qqbot": {
+        "turns": 24,
+        "observed_public_lookup_turns": 1
+      },
+      "subagent": {
+        "turns": 18,
+        "observed_public_lookup_turns": 3
+      },
+      "webui": {
+        "turns": 87,
+        "observed_public_lookup_turns": 13
+      }
+    }
+  },
+  "replay": {
+    "valid": 200,
+    "errors": 0,
+    "elapsed_seconds": 28.194029791047797,
+    "roundtrip_pair_ms": {
+      "mean": 140.71417100843973,
+      "p50": 110.3478335426189,
+      "p95": 269.0698868362233,
+      "max": 536.9683329481632
+    },
+    "gate_model_latency_ms": {
+      "p50": 45.70129152853042,
+      "p95": 262.79239613795653
+    }
+  },
+  "search_behavior_alignment": {
+    "confusion_vs_observed_tool_use": {
+      "fp_candidate": 67,
+      "tp": 79,
+      "tn": 33,
+      "fn_candidate": 21
+    },
+    "observed_lookup_recall": 0.79,
+    "observed_no_lookup_specificity": 0.33,
+    "precision_vs_observed_lookup": 0.541095890410959,
+    "reasons": {
+      "model_uncertain_conservative_search": 34,
+      "current_language": 100,
+      "model_confident_local_answer": 54,
+      "model_requires_external_information": 11,
+      "volatile_public_fact": 1
+    },
+    "backends": {
+      "ane": 22,
+      "rule": 101,
+      "mlx": 77
+    },
+    "note": "These are behavioral-alignment metrics against weak labels, not correctness accuracy."
+  },
+  "model_tier": {
+    "counts": {
+      "fast": 142,
+      "strong": 58
+    },
+    "backends": {
+      "ane": 50,
+      "mlx": 150
+    },
+    "execution_complexity_proxy": {
+      "fast": {
+        "median_tool_calls": 5.0,
+        "median_span_messages": 11.0,
+        "n": 142
+      },
+      "strong": {
+        "median_tool_calls": 5.0,
+        "median_span_messages": 11.0,
+        "n": 58
+      }
+    },
+    "note": "Tool/message counts are complexity proxies only and are not tier-quality labels."
+  },
+  "by_profile": {
+    "default": {
+      "fp_candidate": 34,
+      "tier_fast": 50,
+      "tn": 15,
+      "tp": 9,
+      "tier_strong": 10,
+      "fn_candidate": 2
+    },
+    "lili": {
+      "tn": 3,
+      "tier_fast": 8,
+      "fp_candidate": 3,
+      "tier_strong": 1,
+      "fn_candidate": 3
+    },
+    "sisi": {
+      "tp": 70,
+      "tier_strong": 46,
+      "fp_candidate": 23,
+      "tier_fast": 56,
+      "tn": 5,
+      "fn_candidate": 4
+    },
+    "susu": {
+      "fp_candidate": 3,
+      "tier_strong": 1,
+      "tn": 2,
+      "tier_fast": 5,
+      "fn_candidate": 1
+    },
+    "vivi": {
+      "fn_candidate": 8,
+      "tier_fast": 10,
+      "tn": 2
+    },
+    "xixi": {
+      "tn": 2,
+      "tier_fast": 4,
+      "fn_candidate": 1,
+      "fp_candidate": 1
+    },
+    "yaoyao": {
+      "fp_candidate": 3,
+      "tier_fast": 9,
+      "tn": 4,
+      "fn_candidate": 2
+    }
+  },
+  "by_source": {
+    "cron": {
+      "fp_candidate": 34,
+      "tier_fast": 51,
+      "tp": 59,
+      "tier_strong": 42
+    },
+    "desktop": {
+      "fp_candidate": 21,
+      "tier_fast": 48,
+      "tier_strong": 11,
+      "tn": 18,
+      "tp": 16,
+      "fn_candidate": 4
+    },
+    "discord": {
+      "tn": 1,
+      "tier_fast": 3,
+      "fn_candidate": 2,
+      "fp_candidate": 3,
+      "tier_strong": 3
+    },
+    "feishu": {
+      "tn": 2,
+      "tier_fast": 2
+    },
+    "kanban": {
+      "fn_candidate": 14,
+      "tier_fast": 29,
+      "tn": 10,
+      "fp_candidate": 6,
+      "tier_strong": 1
+    },
+    "qqbot": {
+      "tn": 1,
+      "tier_fast": 2,
+      "fp_candidate": 1
+    },
+    "subagent": {
+      "tp": 1,
+      "tier_fast": 1
+    },
+    "webui": {
+      "tn": 1,
+      "tier_fast": 6,
+      "fp_candidate": 2,
+      "tier_strong": 1,
+      "fn_candidate": 1,
+      "tp": 3
+    }
+  },
+  "private_review_candidates": {
+    "false_no_search_candidates": 21,
+    "false_search_candidates": 67,
+    "stored_only_in_private_output": true
+  }
+}

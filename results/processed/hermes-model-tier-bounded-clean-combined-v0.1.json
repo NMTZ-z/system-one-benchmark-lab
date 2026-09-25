@@ -1,0 +1,85 @@
+{
+  "pairs": 7,
+  "low_mean_turn": 4.8237111909048895,
+  "high_mean_turn": 5.812126466206142,
+  "low_median_turn": 4.351083040237427,
+  "high_median_turn": 5.223538875579834,
+  "mean_high_over_low_ratio": 1.213380782971264,
+  "median_high_over_low_ratio": 1.2352998622297613,
+  "low_faster_pairs": 5,
+  "high_faster_pairs": 2,
+  "all_quality_passed": true,
+  "pairs_detail": [
+    {
+      "task": "json",
+      "low_turn": 5.973416090011597,
+      "high_turn": 5.223538875579834,
+      "low_wall": 9.900032750098035,
+      "high_wall": 8.962024582899176,
+      "turn_ratio_high_over_low": 0.8744642591220685,
+      "low_tokens": 12826,
+      "high_tokens": 12886
+    },
+    {
+      "task": "sort",
+      "low_turn": 4.362228870391846,
+      "high_turn": 5.0852601528167725,
+      "low_wall": 8.340276792063378,
+      "high_wall": 9.13385958399158,
+      "turn_ratio_high_over_low": 1.1657481310374205,
+      "low_tokens": 12600,
+      "high_tokens": 12610
+    },
+    {
+      "task": "date",
+      "low_turn": 4.278483152389526,
+      "high_turn": 6.294138193130493,
+      "low_wall": 8.198856250033714,
+      "high_wall": 9.709199042059481,
+      "turn_ratio_high_over_low": 1.4711144040885673,
+      "low_tokens": 12957,
+      "high_tokens": 12958
+    },
+    {
+      "task": "extract",
+      "low_turn": 4.327481746673584,
+      "high_turn": 4.1784820556640625,
+      "low_wall": 7.976766958949156,
+      "high_wall": 8.139846708974801,
+      "turn_ratio_high_over_low": 0.9655689614117833,
+      "low_tokens": 13054,
+      "high_tokens": 12945
+    },
+    {
+      "task": "decision",
+      "low_turn": 4.204030275344849,
+      "high_turn": 5.193238019943237,
+      "low_wall": 7.927019374910742,
+      "high_wall": 8.989534374908544,
+      "turn_ratio_high_over_low": 1.2352998622297613,
+      "low_tokens": 13141,
+      "high_tokens": 13195
+    },
+    {
+      "task": "csv_json",
+      "low_turn": 4.351083040237427,
+      "high_turn": 6.186957836151123,
+      "low_wall": 8.096958959009498,
+      "high_wall": 10.129541250062175,
+      "turn_ratio_high_over_low": 1.4219351317674502,
+      "low_tokens": 12950,
+      "high_tokens": 13130
+    },
+    {
+      "task": "constraint",
+      "low_turn": 6.2692551612854,
+      "high_turn": 8.52327013015747,
+      "low_wall": 10.196215042029507,
+      "high_wall": 12.374804874998517,
+      "turn_ratio_high_over_low": 1.3595347311417971,
+      "low_tokens": 13000,
+      "high_tokens": 13148
+    }
+  ],
+  "note": "Same provider/model (local-gemini / gemini-3.8-flash-tiered), reasoning low vs high, minimal clarify toolset. Turn time is first user-message timestamp to final assistant-message timestamp in Hermes state.db. Small calibration sample, not a production benchmark."
+}
