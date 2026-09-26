@@ -145,17 +145,18 @@ PASS.
 - reasoning downgrade switch: false;
 - Local System One / ANE: healthy.
 
-## Remaining pre-public-release work
+## Public-release handoff
 
-The plugin itself is close to a release candidate, but the full project still needs:
+On 2026-09-26 the project added a standard Python package definition plus an allowlisted public-release builder and sanitizer. A review bundle can now be generated without copying private replay data, model weights, raw Hermes logs, Core ML build outputs, or machine-specific experiment history.
 
-1. public-repo extraction and licensing decision;
-2. Runtime installation UX outside the private research repo;
-3. public-safe example configuration and docs/screenshots;
-4. distribution path (Git/catalog or checkout installer);
-5. final clean-machine-style install test.
+The remaining publication gates are now narrower:
 
-The next project phase should therefore shift from plugin behavior to **public repository extraction and distribution packaging**, not add more control policies.
+1. choose the public-project license and add `LICENSE` to the release allowlist and package metadata;
+2. finish public-facing repository metadata/examples;
+3. complete the final clean-machine model/runtime install smoke;
+4. publish the reviewed repository/package through the chosen Git/catalog path.
+
+Further control-policy expansion is not a prerequisite for the first public release.
 
 ## v0.5.1 real acceptance
 
@@ -185,3 +186,15 @@ The default Hermes config changed concurrently because the Hermes Desktop update
 Processed evidence:
 
 `results/processed/hermes-plugin-productization-v0.5.1.json`
+
+## Hermes 0.21.5/main post-upgrade regression
+
+After the local Hermes installation moved to `0.21.5+2169.g5307e93` / upstream `5307e932`, the plugin was rechecked against the real `systemoneeval` profile:
+
+- OFF completed a Hermes turn with zero new System One observations;
+- Shadow recorded a successful deterministic decision without mutating the provider request;
+- acknowledged Canary removed only `web_search` and `web_extract` on the first provider call for an audited bounded-transform rule;
+- forcing the Runtime URL to `127.0.0.1:9` produced `URLError` in the decision layer while Hermes still completed normally, confirming fail-open behavior;
+- the original Shadow configuration was restored afterward.
+
+The repeatable check now lives in `scripts/smoke_hermes_system_one_live.sh` and refuses ordinary production-profile names unless explicitly overridden.

@@ -3,18 +3,31 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 python="$repo/.venv/bin/python"
-source_model="${LOCAL_SYSTEM_ONE_SOURCE:-$repo/models/typed-decisions-source}"
-ane_package="${LOCAL_SYSTEM_ONE_ANE_PACKAGE:-$repo/experiments/phase4a/typed421-body512-fp16/model.mlpackage}"
+legacy_source="$repo/models/typed-decisions-source"
+legacy_ane="$repo/experiments/phase4a/typed421-body512-fp16/model.mlpackage"
+public_ane="$repo/artifacts/models/typed421-body512-fp16/model.mlpackage"
+
+if [[ -n "${LOCAL_SYSTEM_ONE_SOURCE:-}" ]]; then
+  source_model="$LOCAL_SYSTEM_ONE_SOURCE"
+elif [[ -d "$legacy_source" ]]; then
+  source_model="$legacy_source"
+else
+  source_model="laya-typed-decisions"
+fi
+
+if [[ -n "${LOCAL_SYSTEM_ONE_ANE_PACKAGE:-}" ]]; then
+  ane_package="$LOCAL_SYSTEM_ONE_ANE_PACKAGE"
+elif [[ -d "$legacy_ane" ]]; then
+  ane_package="$legacy_ane"
+else
+  ane_package="$public_ane"
+fi
+
 host="${LOCAL_SYSTEM_ONE_HOST:-127.0.0.1}"
 port="${LOCAL_SYSTEM_ONE_PORT:-8787}"
 
 if [[ ! -x "$python" ]]; then
   echo "missing Python runtime: $python" >&2
-  exit 1
-fi
-
-if [[ ! -d "$source_model" ]]; then
-  echo "missing source model: $source_model" >&2
   exit 1
 fi
 

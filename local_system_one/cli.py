@@ -25,7 +25,14 @@ def _is_loopback(host: str) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument(
+        "--source",
+        default="laya-typed-decisions",
+        help=(
+            "Local model directory or the pinned 'laya-typed-decisions' alias "
+            "(default: laya-typed-decisions)"
+        ),
+    )
     parser.add_argument("--ane-package", type=Path)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)

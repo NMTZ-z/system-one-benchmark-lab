@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .sources import require_local_source
+
 
 def _ensure_reference_path() -> None:
     project_root = Path(__file__).resolve().parents[2]
@@ -21,7 +23,7 @@ class ANERuntime:
         _ensure_reference_path()
         from laya_coreml.ane import ANEAgent
 
-        self.source = Path(source)
+        self.source = require_local_source(source)
         self.package = Path(package)
         self.length = length
         self.agent = ANEAgent(

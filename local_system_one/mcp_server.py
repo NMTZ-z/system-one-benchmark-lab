@@ -102,5 +102,10 @@ def system_one_health() -> dict[str, Any]:
     return client.health()
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run the stdio MCP proxy."""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

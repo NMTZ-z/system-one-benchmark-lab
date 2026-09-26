@@ -6,7 +6,7 @@ Apple Silicon 上 System One / typed-decision 模型的可复现实验仓。
 
 ## Current status
 
-Phase 1–4 are complete on the M4 Mac mini. The research phase is frozen; Phase 5 now turns the validated 421M MLX + L512 ANE hybrid into a usable Local System One service.
+Phase 1–4 research is frozen on the M4 Mac mini. Phase 5 Local System One and Phase 6 Hermes plugin productization are functional; Phase 7 packages the validated 421M MLX + L512 ANE control plane for a public, reproducible release.
 
 Published 322M ANE short-decision baseline:
 
@@ -99,26 +99,31 @@ Phase 4 — 421M long-context ANE engineering:
 - production readiness remains conditional on ANE runtime health gating
 - final report: `results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md`
 
-Next: **Phase 5 — Local System One MVP**.
+Phase 5 Local System One MVP and Phase 6 Hermes plugin productization are functional. Current focus: **Phase 7 — public extraction and distribution packaging**.
 
 ### Local System One MVP quick start
 
-MLX-only development mode:
+Create a Python 3.12 environment and install the base MLX runtime:
 
 ~~~bash
-PYTHONPATH=. .venv/bin/python -m local_system_one \
-  --source models/typed-decisions-source \
-  --host 127.0.0.1 \
-  --port 8788
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+local-system-one --host 127.0.0.1 --port 8788
 ~~~
 
-With the validated research L512 ANE package:
+The default source alias is `laya-typed-decisions`, pinned to the validated checkpoint revision `f9ab0b228f0fc0f14d873dbc99038f135c2da1b2`. The first MLX run downloads that exact snapshot if no local model directory is supplied.
+
+For the validated fixed L512 ANE path:
 
 ~~~bash
-PYTHONPATH=. .venv/bin/python -m local_system_one \
-  --source models/typed-decisions-source \
-  --ane-package experiments/phase4a/typed421-body512-fp16/model.mlpackage
+python -m pip install -e '.[ane]'
+scripts/build_typed421_ane.sh
+local-system-one \
+  --ane-package artifacts/models/typed421-body512-fp16/model.mlpackage
 ~~~
+
+The ANE builder checks out `laya-coreml` at the validated commit `4619e0483f07adf39068532e85b42ec2347edb83` and rebuilds the 421M fixed-shape body locally rather than redistributing the converted model package.
 
 Endpoints: POST /v1/choice, POST /v1/score, POST /v1/noul, POST /v1/workflows/search-gate, POST /v1/workflows/model-tier-gate, POST /v1/workflows/notification-gate, GET /health, GET /metrics.
 The service binds to loopback by default and does not log raw request payloads.
@@ -138,6 +143,7 @@ scripts/local_system_one_status.sh
 scripts/install_local_system_one_launchd.sh
 scripts/uninstall_local_system_one_launchd.sh
 scripts/run_local_system_one_mcp.sh
+scripts/build_typed421_ane.sh
 ~~~
 
 - product specification: `docs/LOCAL_SYSTEM_ONE_MVP.md`
@@ -149,7 +155,8 @@ scripts/run_local_system_one_mcp.sh
 - Hermes calibration / limited Canary report: `docs/HERMES_SYSTEM_ONE_CALIBRATION.md`
 - Hermes Model Tier 32-pair benchmark: `docs/HERMES_MODEL_TIER_PAIRED_32.md`
 - Hermes Public Web 100-task gold report: `docs/HERMES_PUBLIC_WEB_GOLD_100.md`
-- Hermes plugin v0.5 productization: `docs/HERMES_PLUGIN_PRODUCTIZATION.md`
+- Hermes plugin v0.5.1 productization: `docs/HERMES_PLUGIN_PRODUCTIZATION.md`
+- public release packaging: `docs/PUBLIC_RELEASE.md`
 - Hermes plugin source: `integrations/hermes/local-system-one-hermes/`
 
 ## 当前目标
@@ -157,10 +164,10 @@ scripts/run_local_system_one_mcp.sh
 1. 将已经验证的 421M MLX + L512 ANE 能力做成常驻 Local System One 服务。
 2. 提供 Choice / Score / Noul 三种稳定的 typed-decision API。
 3. 用 Router + ANE Health Gate 自动选择 MLX 或 L512 ANE，而不是追求“全 ANE”。
-4. Hermes 插件已产品化到 v0.5.0：首次安装默认 off、Shadow 推荐、显式确认 Canary、Search/Model Tier 独立开关、升级保留设置、卸载清配置与状态；Model Tier 32 对质量对齐但提速仅弱信号，Search Gold Set 100 条中 hard no-Web 18/18 正确，模型概率路由继续 Shadow-only。
+4. Hermes 插件已产品化到 v0.5.1，并已在 Hermes 0.21.5/main 上完成 OFF / Shadow / Canary / fail-open 实机回归；首次安装默认 off、显式确认 Canary、升级保留设置、卸载可逆，模型概率路由继续 Shadow-only。
 5. MCP 继续保留为显式通用工具接口；Hermes 自动融合走 native hook/middleware，不要求用户手动调用。
 6. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
-7. MVP 稳定后拆出公开 GitHub 项目，面向其他 Apple Silicon 用户发布。
+7. 当前进入公开发布工程：标准 Python 包入口、白名单源码导出、敏感信息扫描和 clean-machine 安装验证；许可证确定后再推公开 GitHub Release。
 
 ## 仓库布局
 

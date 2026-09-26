@@ -33,10 +33,19 @@ scripts/run_local_system_one_service.sh
 
 Defaults:
 
-- source: models/typed-decisions-source
-- ANE package: experiments/phase4a/typed421-body512-fp16/model.mlpackage
-- host: 127.0.0.1
-- port: 8787
+- source: the pinned `laya-typed-decisions` alias, unless the service wrapper finds the legacy local research checkout at `models/typed-decisions-source`;
+- public ANE package path: `artifacts/models/typed421-body512-fp16/model.mlpackage`;
+- an existing private-research package at `experiments/phase4a/typed421-body512-fp16/model.mlpackage` is still preferred by the service wrapper for backward compatibility;
+- host: 127.0.0.1;
+- port: 8787.
+
+Build the public L512 ANE package locally with:
+
+~~~bash
+scripts/build_typed421_ane.sh
+~~~
+
+The builder pins both the `laya-coreml` source revision and the original Typed Decisions checkpoint revision.
 
 Environment overrides:
 
@@ -113,7 +122,7 @@ by default. Override with LOCAL_SYSTEM_ONE_URL.
 For a local stdio MCP host, configure the host to launch the absolute wrapper path:
 
 ~~~text
-/Users/zhongshengyuan/Projects/system-one-benchmark-lab/scripts/run_local_system_one_mcp.sh
+/absolute/path/to/local-system-one/scripts/run_local_system_one_mcp.sh
 ~~~
 
 The wrapper changes to the repository itself before starting the MCP server, so the host does not need to inherit the user's shell working directory.
