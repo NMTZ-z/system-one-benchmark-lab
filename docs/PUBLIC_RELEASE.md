@@ -98,10 +98,37 @@ For safety it refuses ordinary production-profile names unless `LOCAL_SYSTEM_ONE
 
 The smoke test makes real Hermes provider calls. It is not a unit test and should be run only on a disposable/evaluation profile.
 
+## 2026-09-26 isolated public-path acceptance
+
+The public path was exercised from the sanitized bundle rather than from the private research checkout:
+
+1. the committed public builder exported 71 allowlisted files with zero sanitizer findings;
+2. the wheel built successfully from that bundle;
+3. a fresh Python 3.12 environment installed the wheel with both `[ane,mcp]` extras, resolving `laya-coreml` from the pinned Git revision;
+4. `scripts/build_typed421_ane.sh --prepare-only` created an independent upstream checkout and environment without using `references/laya-coreml`;
+5. the full build path downloaded the five required Typed Decisions files anonymously from the pinned Hugging Face revision and produced a new fixed B1/L512/K32 Core ML package;
+6. the rebuilt package is 741,823,311 bytes and its three source-file SHA-256 values exactly match the frozen Phase 4 source artifact;
+7. loading the rebuilt package through the installed public Runtime passed the MLX-vs-ANE startup probe with six samples, `healthy=true`, and rolling p50 about 64.96 ms;
+8. old frozen L512 and newly rebuilt L512 produced field-for-field identical outputs on the three public startup probes for choice, score and noul.
+
+The WebCodex shell used for the full conversion has a 120-second execution ceiling, so that wrapper invocation was externally terminated after the package had already been written, while Core ML was doing its expensive initial load/plan phase. The resulting package was then loaded and validated to completion through a longer-lived AgentDock process. This is an orchestration limit, not a conversion failure.
+
+### Known non-blocking numerical warning
+
+Both the frozen L512 package and the newly rebuilt L512 package emit the same NumPy warnings in the existing `laya-coreml` CPU action-head matmul on the three startup probes: divide-by-zero, overflow and invalid-value warnings. Both sides emit 10 warnings total in the same comparison.
+
+For those probes:
+
+- choice / score / noul outputs, probabilities and confidence are identical old vs new;
+- `act_probability` remains finite and equals 1.0 on all three probes;
+- Local System One's Search Gate, Model Tier Gate and Notification Gate do not use `act_probability` as a routing condition.
+
+Therefore this is recorded as an upstream/runtime numerical issue for later cleanup, **not a blocker for the first Local System One public release**. It must not be presented as a newly introduced rebuild regression.
+
 ## Publication gate
 
-The source bundle can be generated and reviewed now, but it is **not publish-ready until a project license is selected and a `LICENSE` file is added to the public allowlist**.
+The source bundle, standard wheel, isolated dependency installation, fresh pinned checkpoint acquisition, L512 rebuild and Runtime startup correctness path have now passed.
 
-The builder records this as `license_status: missing` and `publish_ready: false` rather than silently pretending an unlicensed repository is ready for public reuse.
+The project is still **not publish-ready until a project license is selected and a `LICENSE` file is added to the public allowlist**.
 
-A wheel build and isolated Python 3.12 dependency install have passed, including the pinned ANE Git dependency and MCP extra. The remaining clean-machine gate is an end-to-end model/runtime smoke with a freshly acquired 421M checkpoint and ANE package, rather than reuse of this research machine's model directories.
+The builder records this as `license_status: missing` and `publish_ready: false` rather than silently pretending an unlicensed repository is ready for public reuse. A second physical Mac is useful future cross-machine evidence, but it is no longer required to prove that the release bundle itself contains a complete reproducible installation and ANE build path.
