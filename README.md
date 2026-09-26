@@ -1,0 +1,199 @@
+# SystemOne Benchmark Lab
+
+Apple Silicon 上 System One / typed-decision 模型的可复现实验仓。
+
+当前主线：**Laya ANE Evaluation**。
+
+## Current status
+
+Phase 1–4 research is frozen on the M4 Mac mini. Phase 5 Local System One and Phase 6 Hermes plugin productization are functional; Phase 7 packages the validated 421M MLX + L512 ANE control plane for a public, reproducible release.
+
+Published 322M ANE short-decision baseline:
+
+- compiled MLX FP16: 14.773 ms mean interval
+- ANE FP16: 6.408 ms, 2.305× faster than MLX
+- ANE W8: 4.598 ms, 3.213× faster than MLX
+- gross system energy per decision improves 4.380× (FP16) / 5.820× (W8)
+- FP16 and W8 both pass the upstream L96 conversion-fidelity gate
+
+Typed Decisions 421M runtime baseline:
+
+- Core ML CPU+GPU fidelity: 63/63 selected answers, max probability drift 0.00272663, 100/100 repeat stability
+- 1-question P50: Core ML 33.715 ms vs MLX 36.055 ms
+- 3-question P50: Core ML 102.174 ms vs MLX 84.492 ms
+- 10-question P50: Core ML 350.114 ms vs MLX 242.303 ms
+- L1024 P50: Core ML 304.921 ms vs MLX 312.202 ms
+- ordinary Core ML CPU+NE: 1204.469 ms P50; compute plan prefers CPU, not ANE
+
+Typed Decisions public quality baseline (400 cases / 2,000 decisions):
+
+- Laya Typed Decisions 421M MLX coverage: 100%
+- accuracy: 0.7660
+- soft accuracy: 0.47064
+- KL from gold: 0.11704
+- Brier vs soft gold: 0.06147
+- ECE (15 bins): 0.21328
+- score MAE: 0.24242
+- end-to-end case P50 / P95: 513.7 / 2838.6 ms
+
+Frozen reports:
+
+- `results/reports/M4-Laya-ANE-Baseline-v0.1.md`
+- `results/reports/M4-Typed-Decisions-421M-Baseline-v0.1.md`
+- `results/reports/M4-Typed-Decisions-Quality-Laya-v0.1.md`
+
+Published 322M ANE × Typed Decisions capacity audit:
+
+- public ANE W8 bundle: B1 / L96 / K32
+- unmodified benchmark prompt lengths: 127–631 tokens, median 323
+- L96 coverage: **0 / 2,000 decisions**
+- quality score on this benchmark: **not applicable without changing/truncating inputs**
+- hypothetical capacity coverage: L384 79.85%, L512 98.05%, L640 100%
+
+Frozen capacity report:
+
+- `results/reports/M4-Laya-ANE-W8-Typed-Decisions-Capacity-v0.1.md`
+
+421M full-quality backend parity:
+
+- Core ML vs MLX selected decisions: **2,000 / 2,000 identical**
+- accuracy: 0.766 on both backends
+- max probability delta: 0.0030
+- max Score / Noul delta: 0.0039 / 0.0049
+- end-to-end case P50: Core ML 887.9 ms vs MLX 513.7 ms
+- Core ML / MLX P50 ratio: 1.73×
+
+Frozen parity report:
+
+- `results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md`
+
+Jev 1.13.0 local independent rerun:
+
+- request alias: `jev-latest`
+- concrete model: `jev-1.13.0`
+- 400 / 400 cases, 2,000 / 2,000 decisions, zero errors
+- accuracy: 0.7370
+- soft accuracy: 0.53836
+- KL: 1.50336
+- Brier: 0.14774
+- ECE: 0.04218
+- Score MAE: 0.38757
+- P50 end-to-end latency from this client: 960.1 ms/case
+- 100-case repeat: 9 / 500 selected labels changed (1.8%)
+
+Final Phase 3 reports:
+
+- `results/reports/M4-Jev-1.13.0-Typed-Decisions-v0.1.md`
+- `results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md`
+- Jev provenance and public-reference notes: `references/JEV_TYPED_DECISIONS.md`
+
+Phase 4 — 421M long-context ANE engineering:
+
+- full 28-layer L192 / L384 / L512 / L640 bodies: **PASS**
+- 10,594 / 10,594 attributed nonconstant operations preferred on ANE at every tested shape
+- 421M-tokenizer capacity: L512 **1,966 / 2,000 (98.3%)**; L608/L640 100%
+- L512 vs same-subset MLX selected agreement: **99.8%**
+- representative real-workload gross system energy / decision: **2.074× improvement vs MLX**
+- L640 reaches 100% coverage but loses median single-decision latency to MLX
+- practical conclusion: route short/fallback traffic to MLX and suitable medium/long traffic to L512 ANE
+- production readiness remains conditional on ANE runtime health gating
+- final report: `results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md`
+
+Phase 5 Local System One MVP and Phase 6 Hermes plugin productization are functional. Current focus: **Phase 7 — public extraction and distribution packaging**.
+
+### Local System One MVP quick start
+
+Create a Python 3.12 environment and install the base MLX runtime:
+
+~~~bash
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+local-system-one --host 127.0.0.1 --port 8788
+~~~
+
+The default source alias is `laya-typed-decisions`, pinned to the validated checkpoint revision `f9ab0b228f0fc0f14d873dbc99038f135c2da1b2`. The first MLX run downloads that exact snapshot if no local model directory is supplied.
+
+For the validated fixed L512 ANE path:
+
+~~~bash
+python -m pip install -e '.[ane]'
+scripts/build_typed421_ane.sh
+local-system-one \
+  --ane-package artifacts/models/typed421-body512-fp16/model.mlpackage
+~~~
+
+The ANE builder checks out `laya-coreml` at the validated commit `4619e0483f07adf39068532e85b42ec2347edb83` and rebuilds the 421M fixed-shape body locally rather than redistributing the converted model package.
+
+Endpoints: POST /v1/choice, POST /v1/score, POST /v1/noul, POST /v1/workflows/search-gate, POST /v1/workflows/model-tier-gate, POST /v1/workflows/notification-gate, GET /health, GET /metrics.
+The service binds to loopback by default and does not log raw request payloads.
+
+Phase 5 now has three functional real workflows:
+
+- **Search Gate v0.1** — rule hard gates + conservative System One fallback for deciding whether external/current information is needed.
+- **Model Tier Gate v0.2** — model routing stays Shadow-only; isolated audited hard-fast tasks can downgrade same-provider reasoning high→low.
+- **Notification Gate v0.1** — chooses silent / digest / notify_now for 24/7 agent events.
+
+A dependency-free Python client is included. The model service is now installed as a current-user launchd service on the Mac mini, and an optional MCP v2 proxy exposes the three workflows plus health without loading a second model copy.
+
+Operational commands:
+
+~~~bash
+scripts/local_system_one_status.sh
+scripts/install_local_system_one_launchd.sh
+scripts/uninstall_local_system_one_launchd.sh
+scripts/run_local_system_one_mcp.sh
+scripts/build_typed421_ane.sh
+~~~
+
+- product specification: `docs/LOCAL_SYSTEM_ONE_MVP.md`
+- Search Gate design and real smoke findings: `docs/SEARCH_GATE.md`
+- Model Tier Gate design and hard-fast Canary: `docs/MODEL_TIER_GATE.md`
+- Notification Gate design and real smoke findings: `docs/NOTIFICATION_GATE.md`
+- MCP / launchd deployment: `docs/MCP_DEPLOYMENT.md`
+- Hermes Shadow feasibility / rollback report: `docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md`
+- Hermes calibration / limited Canary report: `docs/HERMES_SYSTEM_ONE_CALIBRATION.md`
+- Hermes Model Tier 32-pair benchmark: `docs/HERMES_MODEL_TIER_PAIRED_32.md`
+- Hermes Public Web 100-task gold report: `docs/HERMES_PUBLIC_WEB_GOLD_100.md`
+- Hermes plugin v0.5.1 productization: `docs/HERMES_PLUGIN_PRODUCTIZATION.md`
+- public release packaging: `docs/PUBLIC_RELEASE.md`
+- Hermes plugin source: `integrations/hermes/local-system-one-hermes/`
+
+## 当前目标
+
+1. 将已经验证的 421M MLX + L512 ANE 能力做成常驻 Local System One 服务。
+2. 提供 Choice / Score / Noul 三种稳定的 typed-decision API。
+3. 用 Router + ANE Health Gate 自动选择 MLX 或 L512 ANE，而不是追求“全 ANE”。
+4. Hermes 插件已产品化到 v0.5.1，并已在 Hermes 0.21.5/main 上完成 OFF / Shadow / Canary / fail-open 实机回归；首次安装默认 off、显式确认 Canary、升级保留设置、卸载可逆，模型概率路由继续 Shadow-only。
+5. MCP 继续保留为显式通用工具接口；Hermes 自动融合走 native hook/middleware，不要求用户手动调用。
+6. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
+7. 公开发布工程的标准 Python 包、白名单源码导出、敏感信息扫描、隔离安装、固定 421M 源模型获取与 L512 ANE 重建/Runtime 验收均已通过；项目采用 Apache-2.0，下一步进入公开 GitHub 仓与 v0.1 Release 收尾。
+
+## 仓库布局
+
+- `references/laya-coreml/`：固定版本的上游 reference（Git submodule）。
+- `docs/benchmark-plan.md`：冻结的评测问题、矩阵和口径。
+- `scripts/capture_env.py`：采集机器、系统和关键 Python 包版本。
+- `benchmarks/`：统一 benchmark 实现。
+- `experiments/`：按阶段组织实验。
+- `results/raw/`：原始结果。
+- `results/processed/`：清洗/聚合结果。
+- `results/reports/`：面向人阅读的结果与结论。
+
+## 阶段策略
+
+Phase 1 已完成公开 322M ANE 复现与 M4 能耗基线；Phase 2 已完成 421M
+Typed Decisions 的 Core ML / MLX runtime baseline。
+
+Phase 3 已完成统一 decision-quality benchmark，并将 Jev generalist、Laya
+specialist、421M backend parity 与公开 ANE 固定形状能力分开报告。
+
+Phase 4 已完成 421M 长上下文 ANE 工程验证，并证明最大固定 shape 并非默认最优解。
+研究阶段到此冻结。
+
+Phase 5 转入产品化：构建本地 Decision Service、动态 Router、ANE Health Gate 和 Agent
+集成。进一步 ANE 研究只在真实产品需求暴露具体 blocker 时启动。
+
+产品规格见 `docs/LOCAL_SYSTEM_ONE_MVP.md`。
+
+上游基线与固定提交见 `references/UPSTREAM.md`。
