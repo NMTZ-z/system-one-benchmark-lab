@@ -1,6 +1,7 @@
 # Public Local System One source bundle allowlist.
 # A trailing slash includes tracked files recursively under that prefix.
 README.md
+LICENSE
 pyproject.toml
 pytest.ini
 requirements-mcp.txt

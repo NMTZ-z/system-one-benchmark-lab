@@ -129,6 +129,6 @@ Therefore this is recorded as an upstream/runtime numerical issue for later clea
 
 The source bundle, standard wheel, isolated dependency installation, fresh pinned checkpoint acquisition, L512 rebuild and Runtime startup correctness path have now passed.
 
-The project is still **not publish-ready until a project license is selected and a `LICENSE` file is added to the public allowlist**.
+The project license is **Apache License 2.0**. The canonical `LICENSE` is included in the public allowlist and package metadata uses the SPDX identifier `Apache-2.0`.
 
-The builder records this as `license_status: missing` and `publish_ready: false` rather than silently pretending an unlicensed repository is ready for public reuse. A second physical Mac is useful future cross-machine evidence, but it is no longer required to prove that the release bundle itself contains a complete reproducible installation and ANE build path.
+After the license commit is clean, the release builder is expected to report `license_status: included` and `publish_ready: true`. A second physical Mac remains useful future cross-machine evidence, but it is no longer required to prove that the release bundle itself contains a complete reproducible installation and ANE build path.

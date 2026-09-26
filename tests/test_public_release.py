@@ -31,6 +31,7 @@ def test_public_release_build_is_allowlisted_and_sanitized(tmp_path):
     assert result.returncode == 0, result.stderr
     assert (output / "README.md").is_file()
     assert (output / "pyproject.toml").is_file()
+    assert (output / "LICENSE").is_file()
     assert (
         output
         / "integrations/hermes/local-system-one-hermes/plugin.yaml"
@@ -41,8 +42,8 @@ def test_public_release_build_is_allowlisted_and_sanitized(tmp_path):
 
     metadata = json.loads((output / "PUBLIC-RELEASE.json").read_text())
     assert metadata["file_count"] > 0
-    assert metadata["license_status"] == "missing"
-    assert metadata["publish_ready"] is False
+    assert metadata["license_status"] == "included"
+    assert metadata["publish_ready"] is (not metadata["source_dirty"])
     assert (output / "PUBLIC-MANIFEST.sha256").read_text().strip()
 
 

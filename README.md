@@ -167,7 +167,7 @@ scripts/build_typed421_ane.sh
 4. Hermes 插件已产品化到 v0.5.1，并已在 Hermes 0.21.5/main 上完成 OFF / Shadow / Canary / fail-open 实机回归；首次安装默认 off、显式确认 Canary、升级保留设置、卸载可逆，模型概率路由继续 Shadow-only。
 5. MCP 继续保留为显式通用工具接口；Hermes 自动融合走 native hook/middleware，不要求用户手动调用。
 6. 从真实使用中形成脱敏 Agent Decision Blind Set，再决定是否训练自己的专用模型。
-7. 公开发布工程的标准 Python 包、白名单源码导出、敏感信息扫描、隔离安装、固定 421M 源模型获取与 L512 ANE 重建/Runtime 验收均已通过；当前唯一明确的发布 gate 是项目许可证，确定后再进入公开 GitHub Release。
+7. 公开发布工程的标准 Python 包、白名单源码导出、敏感信息扫描、隔离安装、固定 421M 源模型获取与 L512 ANE 重建/Runtime 验收均已通过；项目采用 Apache-2.0，下一步进入公开 GitHub 仓与 v0.1 Release 收尾。
 
 ## 仓库布局
 
