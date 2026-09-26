@@ -1,0 +1,68 @@
+manifest_version: 2
+name: local-system-one-hermes
+version: 0.5.1
+description: >-
+  Reversible Local System One control-plane integration for Hermes. Safe defaults:
+  off mode on first install, Shadow-only model recommendations, explicit Canary
+  acknowledgement, and fail-open behavior on Local System One errors.
+author: local-system-one
+kind: standalone
+requires_hermes: ">=0.21.4"
+tags:
+  - system-one
+  - control-plane
+  - shadow
+  - canary
+config_schema:
+  mode:
+    type: str
+    default: "off"
+    choices: ["off", "shadow", "canary"]
+    label: Mode
+    description: >-
+      off = no Local System One calls; shadow = observe only; canary = allow only
+      audited deterministic request mutations after explicit acknowledgement.
+  service_url:
+    type: str
+    default: http://127.0.0.1:8787
+    label: Local System One URL
+    description: Loopback Local System One HTTP service endpoint.
+  timeout_ms:
+    type: int
+    default: 500
+    label: Gate timeout (ms)
+    description: >-
+      Per-gate HTTP timeout. Any timeout/error fails open and preserves the original
+      Hermes request.
+  search_gate_enabled:
+    type: bool
+    default: true
+    label: Search Gate
+    description: Observe Search Gate decisions in Shadow/Canary mode.
+  model_tier_gate_enabled:
+    type: bool
+    default: true
+    label: Model Tier Gate
+    description: Observe Model Tier decisions in Shadow/Canary mode.
+  canary_acknowledged:
+    type: bool
+    default: false
+    label: I understand Canary mutates requests
+    description: >-
+      Must be explicitly true before canary mode can change any provider request.
+      Without acknowledgement, requested canary behaves as Shadow only.
+  canary_web_filter_enabled:
+    type: bool
+    default: true
+    label: Canary public-Web filter
+    description: >-
+      In acknowledged Canary mode, audited deterministic no-Web rules may hide only
+      direct web_search/web_extract tools on the first provider call.
+  canary_reasoning_downgrade_enabled:
+    type: bool
+    default: false
+    label: Experimental reasoning downgrade
+    description: >-
+      Experimental. In acknowledged Canary mode, audited hard-fast rules may change
+      gemini-3.8-flash-tiered reasoning_effort high to low for one request. Disabled
+      by default because the 32-pair benchmark did not prove a reliable speedup.

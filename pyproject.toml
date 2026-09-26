@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "local-system-one"
+version = "0.1.0"
+description = "Local typed-decision control plane for Apple Silicon agents"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11,<3.14"
+authors = [{ name = "Local System One contributors" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "laya-mlx==0.2.0",
+]
+
+[project.optional-dependencies]
+ane = [
+  "laya-coreml @ git+https://github.com/mizorewww/laya-coreml.git@4619e0483f07adf39068532e85b42ec2347edb83",
+]
+mcp = ["mcp>=2,<3"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+local-system-one = "local_system_one.cli:main"
+local-system-one-mcp = "local_system_one.mcp_server:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["local_system_one"]
