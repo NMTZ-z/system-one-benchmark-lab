@@ -64,19 +64,42 @@ class FakeContext:
         self.middleware[name] = callback
 
 
-def test_off_mode_registers_no_hook():
+def test_off_mode_registers_inert_declared_surfaces(monkeypatch):
     plugin = load_plugin()
+    monkeypatch.setattr(
+        plugin,
+        "_safe_recommendations",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("off mode must not call Local System One")
+        ),
+    )
     ctx = FakeContext("off")
     plugin.register(ctx)
-    assert ctx.hooks == {}
+    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "off"
+    assert (
+        ctx.hooks["pre_llm_call"](
+            user_message="must stay inert",
+            conversation_history=[],
+            turn_id="off-turn",
+        )
+        is None
+    )
+    assert (
+        ctx.middleware["llm_request"](
+            request={"model": "test"}, turn_id="off-turn", api_call_count=1
+        )
+        is None
+    )
 
 
 def test_boolean_false_is_off():
     plugin = load_plugin()
     ctx = FakeContext(False)
     plugin.register(ctx)
-    assert ctx.hooks == {}
+    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "off"
 
 
@@ -84,7 +107,8 @@ def test_unknown_mode_fails_closed():
     plugin = load_plugin()
     ctx = FakeContext("active")
     plugin.register(ctx)
-    assert ctx.hooks == {}
+    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "off_invalid_requested_mode"
 
 
@@ -199,7 +223,7 @@ def test_canary_without_acknowledgement_degrades_to_shadow():
     ctx = FakeContext("canary", canary_acknowledged=False)
     plugin.register(ctx)
     assert set(ctx.hooks) == {"pre_llm_call"}
-    assert ctx.middleware == {}
+    assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["requested_mode"] == "canary"
     assert ctx.state.values["status"]["mode"] == "shadow_canary_ack_required"
 
@@ -607,7 +631,11 @@ def test_plugin_manifest_has_safe_product_defaults():
 
     manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
     assert manifest["manifest_version"] == 2
-    assert manifest["version"] == "0.5.1"
+    assert manifest["version"] == "0.5.2"
+    assert manifest["provides_tools"] == []
+    assert manifest["provides_hooks"] == ["pre_llm_call"]
+    assert manifest["provides_middleware"] == ["llm_request"]
+    assert manifest["requires_env"] == []
     assert manifest["requires_hermes"] == ">=0.21.4"
     schema = manifest["config_schema"]
     assert schema["mode"]["default"] == "off"

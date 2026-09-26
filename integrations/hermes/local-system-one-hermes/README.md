@@ -1,19 +1,155 @@
-# local-system-one-hermes
+# Local System One for Hermes
 
-A reversible Local System One control-plane plugin for Hermes Agent.
+A reversible **System One / Laya Typed Decisions control layer for Hermes Agent**.
 
-The plugin does **not** replace Hermes' normal LLM. It runs a local decision layer before the provider request and can observe or, in explicitly acknowledged Canary mode, apply a very small set of audited deterministic policies.
+Use it when you want Hermes to make small, frequent routing decisions locally before the main LLM call, without replacing Hermes' normal provider or turning a small model into an all-powerful router.
 
-## Requirements
+Typical decisions include:
 
-- Hermes Agent `>=0.21.4`
-- Local System One HTTP service, normally at `http://127.0.0.1:8787`
+- whether a task needs public/current Web information;
+- whether a bounded task is eligible for a lower reasoning tier;
+- which decisions should remain observation-only until enough evidence exists.
 
-If Local System One is unavailable, the plugin fails open and Hermes keeps its original provider request.
+The plugin talks to a separate Local System One service over loopback HTTP. It is deliberately conservative: first install is **OFF**, Shadow changes nothing, Canary requires explicit acknowledgement, and any Local System One failure leaves the original Hermes request unchanged.
+
+## Before you install
+
+You need:
+
+- Hermes Agent `>=0.21.4`;
+- macOS / Apple Silicon for the validated Local System One runtime;
+- a running Local System One service, normally at `http://127.0.0.1:8787`.
+
+The Local System One runtime lives in the same public repository:
+
+```bash
+git clone https://github.com/NMTZ-z/system-one-benchmark-lab.git
+cd system-one-benchmark-lab
+
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+local-system-one --host 127.0.0.1 --port 8787
+```
+
+Check it before enabling the plugin:
+
+```bash
+curl http://127.0.0.1:8787/health
+```
+
+For the optional Apple Neural Engine backend, see the repository root README.
+
+## Install
+
+### Hermes Plugin Catalog
+
+Once this plugin is listed in the official Hermes Plugin Catalog:
+
+```bash
+hermes plugins install local-system-one-hermes
+```
+
+Catalog installs are pinned to the exact commit reviewed by Hermes maintainers.
+
+### Direct Git install
+
+Before catalog admission, or when deliberately installing a custom revision:
+
+```bash
+hermes plugins install \
+  NMTZ-z/system-one-benchmark-lab/integrations/hermes/local-system-one-hermes
+```
+
+Hermes treats direct Git installs as custom/unreviewed sources. For reproducibility, pin a full commit SHA with `--ref`.
+
+The repository also contains helper scripts for profile-aware installation and rollback:
+
+```bash
+scripts/install_hermes_system_one_plugin.sh systemoneeval
+scripts/hermes_system_one_status.sh systemoneeval
+```
+
+## Recommended first run: Shadow
+
+Start with a disposable or evaluation profile:
+
+```bash
+scripts/set_hermes_system_one_mode.sh systemoneeval shadow
+```
+
+Shadow mode:
+
+- calls the enabled Local System One gates;
+- records privacy-safe operational metadata;
+- **does not rewrite the Hermes provider request**.
+
+This is the recommended way to evaluate the plugin before allowing any request mutation.
+
+## Modes
+
+| Mode | Local System One calls | Changes Hermes provider request? | Recommended use |
+|---|---:|---:|---|
+| `off` | No | No | Default / fully inert |
+| `shadow` | Yes | **No** | Evaluation and calibration |
+| `canary` | Yes | Only narrow audited rules | Explicit experiments |
+
+### Off
+
+No Local System One HTTP calls and no Hermes request changes.
+
+```bash
+scripts/set_hermes_system_one_mode.sh systemoneeval off
+```
+
+### Shadow
+
+Observe recommendations without changing the provider request.
+
+```bash
+scripts/set_hermes_system_one_mode.sh systemoneeval shadow
+```
+
+### Canary
+
+Canary can mutate a provider request, so entering it requires explicit acknowledgement:
+
+```bash
+scripts/set_hermes_system_one_mode.sh systemoneeval canary --ack-canary
+```
+
+Leaving Canary for `shadow` or `off` automatically revokes the acknowledgement.
+
+If `mode=canary` is set without acknowledgement, the plugin degrades to Shadow behavior instead of mutating requests.
+
+## What Canary is allowed to do
+
+Canary only acts on audited **deterministic rules**. Model-probability recommendations remain observation-only.
+
+### Public-Web filter
+
+For audited hard no-Web rules, acknowledged Canary may hide only the directly advertised Hermes tools:
+
+- `web_search`
+- `web_extract`
+
+It does **not** disable terminal access, browser tooling, MCP/connectors, local files, or indirect network paths. It is not a network sandbox.
+
+### Reasoning downgrade
+
+Disabled by default.
+
+If you explicitly enable `canary_reasoning_downgrade_enabled`, audited hard-fast rules may change one first provider request from:
+
+```text
+reasoning_effort=high -> reasoning_effort=low
+```
+
+for `gemini-3.8-flash-tiered`.
+
+This remains experimental. A 32-pair Hermes benchmark preserved measured task quality but did **not** establish a reliable latency improvement, so the public plugin does not enable or advertise this as a guaranteed optimization.
 
 ## Safe defaults
-
-First install is intentionally inert:
 
 | Setting | Default |
 |---|---|
@@ -25,128 +161,80 @@ First install is intentionally inert:
 | `canary_reasoning_downgrade_enabled` | `false` |
 | `timeout_ms` | `500` |
 
-Hermes exposes these fields through the plugin settings UI because they are declared in `plugin.yaml`.
+Hermes exposes these settings through the plugin settings UI.
 
-## Install
+## Fail-open behavior
 
-From a Local System One checkout, default Hermes profile:
+Local System One is advisory infrastructure, not a dependency Hermes must survive.
 
-```bash
-scripts/install_hermes_system_one_plugin.sh
-```
+If the sidecar is unavailable, times out, or returns an incomplete recommendation:
 
-Named profile:
+- the plugin does not apply Canary mutations;
+- Hermes keeps its original provider request;
+- the main Hermes turn continues.
 
-```bash
-scripts/install_hermes_system_one_plugin.sh sisi
-```
-
-A first install enables the plugin code but leaves behavior mode `off`. Re-running the installer updates plugin code while preserving existing settings and enabled/disabled state.
-
-## Modes
-
-### Off
-
-No Local System One HTTP calls and no Hermes request changes.
-
-```bash
-scripts/set_hermes_system_one_mode.sh off
-# or
-scripts/set_hermes_system_one_mode.sh sisi off
-```
-
-### Shadow
-
-Calls enabled Local System One gates and records privacy-safe decision metadata. It never rewrites the provider request.
-
-```bash
-scripts/set_hermes_system_one_mode.sh shadow
-# or
-scripts/set_hermes_system_one_mode.sh sisi shadow
-```
-
-### Canary
-
-Canary can mutate a provider request, so activation requires an explicit acknowledgement every time you enter Canary:
-
-```bash
-scripts/set_hermes_system_one_mode.sh canary --ack-canary
-# or
-scripts/set_hermes_system_one_mode.sh sisi canary --ack-canary
-```
-
-Leaving Canary for `shadow` or `off` automatically revokes the acknowledgement.
-
-If `mode=canary` is set directly without acknowledgement, the plugin degrades to Shadow behavior (`shadow_canary_ack_required`) rather than mutating requests.
-
-## What Canary can do
-
-Canary only reacts to audited **deterministic rule** decisions. Model-probability recommendations remain Shadow-only.
-
-### Public-Web filter
-
-Enabled by default once acknowledged Canary is active.
-
-For audited hard no-Web rules it may hide only the directly advertised Hermes tools:
-
-- `web_search`
-- `web_extract`
-
-It does not disable local files, terminal, MCP/connectors, browser tooling, or indirect network capabilities.
-
-### Reasoning downgrade
-
-Disabled by default.
-
-If you explicitly enable `canary_reasoning_downgrade_enabled`, audited hard-fast rules may change a single first provider request from `reasoning_effort=high` to `low` for `gemini-3.8-flash-tiered`.
-
-This is experimental. A 32-pair Hermes benchmark preserved measured quality but did **not** prove a reliable latency speedup, so public releases must not enable it by default or advertise it as guaranteed performance optimization.
-
-## Independent gates
-
-Search Gate and Model Tier Gate can be disabled independently in Hermes plugin settings:
-
-- `search_gate_enabled`
-- `model_tier_gate_enabled`
-
-This lets users calibrate one control path without allowing latency or failure from the other path to participate in the decision.
-
-## Status
-
-```bash
-scripts/hermes_system_one_status.sh
-# or
-scripts/hermes_system_one_status.sh sisi
-```
-
-The status command shows plugin/profile location, configured values versus manifest defaults, effective runtime safety state, and Local System One health.
-
-## Uninstall / rollback
-
-```bash
-scripts/uninstall_hermes_system_one_plugin.sh
-# or
-scripts/uninstall_hermes_system_one_plugin.sh sisi
-```
-
-Uninstall performs the reversible cleanup path:
-
-1. switches behavior off when possible;
-2. disables and removes the Hermes plugin;
-3. removes the plugin config entry;
-4. removes Local System One plugin state metadata;
-5. leaves Hermes, other plugins, models, sessions, and agent files alone.
+This behavior has been tested with deliberate dead-service fault injection.
 
 ## Privacy
 
-Raw task text is not written into plugin state. Shadow/Canary state keeps only operational metadata such as request IDs, route reasons, probabilities/scores, latency, and names of tools changed by Canary.
+Raw task text is not written into plugin state.
 
-Historical benchmark replay data used during development remains private and git-ignored.
+Shadow/Canary state stores only operational metadata such as:
+
+- request IDs;
+- decision source / route reason;
+- probabilities or scores;
+- backend and latency;
+- names of tools changed by Canary.
+
+The Local System One service also avoids persisting raw request payloads by default.
+
+## Rollback / uninstall
+
+Return to Shadow or OFF at any time:
+
+```bash
+scripts/set_hermes_system_one_mode.sh systemoneeval shadow
+scripts/set_hermes_system_one_mode.sh systemoneeval off
+```
+
+Full removal:
+
+```bash
+scripts/uninstall_hermes_system_one_plugin.sh systemoneeval
+```
+
+Uninstall removes this plugin's configuration and state while leaving Hermes, other plugins, models, sessions and agent files alone.
+
+## Verification
+
+From the repository root:
+
+```bash
+python -m pytest -q \
+  tests/test_hermes_system_one_plugin.py \
+  tests/test_hermes_system_one_scripts.py
+
+hermes plugins validate integrations/hermes/local-system-one-hermes
+hermes plugins doctor integrations/hermes/local-system-one-hermes --ci
+```
+
+A disposable live lifecycle smoke test is also included:
+
+```bash
+scripts/smoke_hermes_system_one_live.sh systemoneeval
+```
+
+It exercises OFF, Shadow, acknowledged Canary, fail-open behavior and restoration.
 
 ## Current release posture
 
-- Off: production-safe default
-- Shadow: recommended evaluation mode
-- hard no-Web Canary: isolated/experimental but evidence-backed
-- reasoning downgrade Canary: experimental and disabled by default
-- model-probability Active routing: not supported
+- **OFF:** safe default and fully inert
+- **Shadow:** recommended evaluation mode
+- **hard no-Web Canary:** narrow, evidence-backed experiment
+- **reasoning downgrade Canary:** experimental and disabled by default
+- **model-probability Active routing:** not supported
+
+For architecture, benchmark evidence and the Laya/ANE runtime, see the main project:
+
+https://github.com/NMTZ-z/system-one-benchmark-lab

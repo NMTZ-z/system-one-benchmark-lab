@@ -1,6 +1,6 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.5.1:
+Safety invariant for v0.5.2:
 - mode=off: no Local System One network call and no behavior change.
 - mode=shadow: observe privacy-safe recommendations without rewriting requests.
 - mode=canary: request mutation requires explicit ``canary_acknowledged=true``.
@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.5.1"
+_PLUGIN_VERSION = "0.5.2"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
@@ -319,12 +319,11 @@ def register(ctx):
         },
     )
 
-    if effective_mode.startswith("off"):
-        return
-
     # Raw tasks are never persisted. Canary state stores only turn ids and rule reasons.
 
     def _observe_pre_llm_call(**kwargs):
+        if effective_mode.startswith("off"):
+            return
         original_user_message = _text_from_content(kwargs.get("user_message")).strip()
         task, task_source = _resolve_effective_task(kwargs)
         if not task:
@@ -431,10 +430,9 @@ def register(ctx):
 
     ctx.register_hook("pre_llm_call", _observe_pre_llm_call)
 
-    if effective_mode != "canary":
-        return
-
     def _canary_llm_request(**kwargs):
+        if effective_mode != "canary":
+            return
         # First provider call only. Retries/tool-loop follow-ups preserve Hermes' request.
         if kwargs.get("api_call_count") != 1:
             return

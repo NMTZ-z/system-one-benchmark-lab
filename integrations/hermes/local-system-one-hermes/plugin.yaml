@@ -1,18 +1,27 @@
 manifest_version: 2
 name: local-system-one-hermes
-version: 0.5.1
+version: 0.5.2
 description: >-
-  Reversible Local System One control-plane integration for Hermes. Safe defaults:
-  off mode on first install, Shadow-only model recommendations, explicit Canary
-  acknowledgement, and fail-open behavior on Local System One errors.
+  Local System One / Laya Typed Decisions control plane for Hermes Agent.
+  Reversible OFF/Shadow/Canary modes, explicit Canary acknowledgement,
+  and fail-open behavior when the local decision service is unavailable.
 author: local-system-one
 kind: standalone
 requires_hermes: ">=0.21.4"
 tags:
   - system-one
+  - laya
+  - typed-decision
   - control-plane
+  - routing
   - shadow
   - canary
+provides_tools: []
+provides_hooks:
+  - pre_llm_call
+provides_middleware:
+  - llm_request
+requires_env: []
 config_schema:
   mode:
     type: str
