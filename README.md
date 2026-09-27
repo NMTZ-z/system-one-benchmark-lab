@@ -175,6 +175,14 @@ The real validation path used:
 DeepSeek Harness -> Nova -> DeepSeek V4.1 Flash
 ```
 
+Community bundle install for the validated `headless` profile:
+
+```bash
+dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
+```
+
+The bundle installs in `off` mode by default; enabling Shadow or Canary is an explicit profile override.
+
 See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md) and the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md).
 
 ## Architecture

@@ -2,7 +2,26 @@
   "name": "local-system-one-dsh",
   "version": "0.1.0",
   "private": true,
-  "description": "Reversible Local System One Search Gate adapter for DeepSeek Harness",
+  "description": "Reversible Local System One Search Gate bundle for DeepSeek Harness",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "system-one",
+    "typed-decision",
+    "search-gate",
+    "cordis"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NMTZ-z/system-one-benchmark-lab.git",
+    "directory": "integrations/deepseek-harness/local-system-one-dsh"
+  },
+  "homepage": "https://github.com/NMTZ-z/system-one-benchmark-lab/tree/main/integrations/deepseek-harness/local-system-one-dsh",
+  "bugs": {
+    "url": "https://github.com/NMTZ-z/system-one-benchmark-lab/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -10,11 +29,26 @@
   },
   "files": [
     "dist",
+    "src",
     "README.md",
+    "cordis.patch.yml",
     "example"
   ],
   "engines": {
     "node": ">=22.19.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-agent": "0.1.7-rc.2"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
