@@ -1,0 +1,29 @@
+{
+  "name": "local-system-one-dsh",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reversible Local System One Search Gate adapter for DeepSeek Harness",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "example"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

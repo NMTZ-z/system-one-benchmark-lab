@@ -1,0 +1,10 @@
+# Replace the file URL with the absolute path to this adapter's built dist/index.js.
+- insert:
+    - id: local-system-one-dsh
+      name: 'file:///ABSOLUTE/PATH/system-one-benchmark-lab/integrations/deepseek-harness/local-system-one-dsh/dist/index.js'
+      config:
+        mode: shadow
+        service_url: http://127.0.0.1:8787
+        timeout_ms: 500
+        search_gate_enabled: true
+        canary_acknowledged: false
