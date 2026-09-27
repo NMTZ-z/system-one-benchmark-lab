@@ -1,0 +1,12 @@
+# Local System One community bundle for DeepSeek Harness.
+# Installation is deliberately inert. Override this row in the profile's
+# cordis.patch.yml to opt into Shadow or acknowledged Canary mode.
+- insert:
+    - id: local-system-one-dsh
+      name: local-system-one-dsh
+      config:
+        mode: off
+        service_url: http://127.0.0.1:8787
+        timeout_ms: 500
+        search_gate_enabled: true
+        canary_acknowledged: false

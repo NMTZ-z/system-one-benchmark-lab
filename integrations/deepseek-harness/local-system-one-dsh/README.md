@@ -1,5 +1,7 @@
 # local-system-one-dsh
 
+[![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
+
 Native DeepSeek Harness adapter for the Local System One Search Gate.
 
 Phase 1 is intentionally narrow: it decides whether a turn needs generic public Web access, observes the decision in Shadow mode, and can deny a small audited set of Web/Search tools in explicitly acknowledged Canary mode.
@@ -14,6 +16,8 @@ The first validated target is pinned to:
 - Apple Silicon validation host: arm64
 
 DeepSeek Harness is still a Developer Preview. Do not replace the pinned target with an unbounded `main` checkout when reproducing these results.
+
+The package also declares an exact optional DSH peer compatibility fence for `0.1.7-rc.2`. A later DSH prerelease should be revalidated before that range is widened.
 
 ## Architecture
 
@@ -126,7 +130,43 @@ Decisions are stored only in memory under session + turn identity. `turn/end` de
 
 No raw task, message list, system prompt, or transcript is stored in adapter state or adapter logs.
 
-## Build and test
+## Community bundle install
+
+DeepSeek Harness currently asks external contributors to distribute plugins in the community rather than submit them to the official monorepo. The standalone distribution lives on this repository's `dsh-plugin` branch and is shaped as a DSH profile bundle.
+
+Install it into the validated `headless` profile with:
+
+```bash
+dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
+```
+
+The bundle installs **OFF by default**. Installation alone therefore makes no Local System One request and changes no tool decision.
+
+To opt into Shadow, put a later override in the profile's `cordis.patch.yml`:
+
+```yaml
+- id: local-system-one-dsh
+  config:
+    mode: shadow
+    service_url: http://127.0.0.1:8787
+    timeout_ms: 500
+    search_gate_enabled: true
+    canary_acknowledged: false
+```
+
+A Cordis patch replaces the targeted row's whole `config`, so keep every field you rely on when overriding the bundle default.
+
+For Canary, change `mode` to `canary` **and** set `canary_acknowledged: true`. Without that explicit acknowledgement the adapter degrades to Shadow.
+
+Remove the bundle with the matching package-manager operation:
+
+```bash
+dsh plugin --profile headless remove local-system-one-dsh
+```
+
+The first community bundle is intentionally pinned to DSH `0.1.7-rc.2`. If DSH reports an incompatible-version refusal after an upgrade, do not grant a blanket exemption; use a revalidated plugin version instead.
+
+## Build and test from source
 
 ```bash
 cd integrations/deepseek-harness/local-system-one-dsh
@@ -136,11 +176,11 @@ npm test
 npm run build
 ```
 
-The package is private in Phase 1 and is not published to npm.
+The package is not published to npm in Phase 1. The `dsh-plugin` branch carries the prebuilt `dist/` output so GitHub installation does not require a dependency build script approval.
 
-## Load into DeepSeek Harness
+## Local development load
 
-Build the adapter, copy `example/cordis.patch.yml`, and replace its `file://` path with the absolute path to `dist/index.js`.
+For adapter development, build the package, copy `example/cordis.patch.yml`, and replace its `file://` path with the absolute path to `dist/index.js`.
 
 Then launch a pinned DeepSeek Harness checkout with the patch:
 
