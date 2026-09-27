@@ -12,7 +12,7 @@ Local System One is not another chatbot and does not replace your LLM. It sits *
 - Which backend should handle this decision?
 - Is a local ANE path healthy enough to use right now?
 
-The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, and a reversible **Hermes plugin**.
+The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes plugin**, and a native **DeepSeek Harness adapter**.
 
 ## Why this exists
 
@@ -157,10 +157,30 @@ The plugin is designed to **fail open**: if Local System One is unavailable or a
 
 See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/README.md) for the full lifecycle and safety constraints.
 
+## DeepSeek Harness integration
+
+The repository also includes a native adapter for the official DeepSeek Harness plugin lifecycle. The first validated target is pinned to `dsh-v0.1.7-rc.2` at commit `477b4f420553e8a52c2fbccc464d7561b239c443`.
+
+Phase 1 intentionally enables only the **Search Gate**:
+
+```text
+off -> shadow -> canary
+```
+
+The adapter calls Local System One over HTTP, evaluates once per user turn, and can deny only an exact audited set of public-Web tools when a deterministic hard no-Web rule has authority. Model-probability decisions remain Shadow-only. Connection failures and timeouts fail open, and turn-scoped state is cleared before the next turn.
+
+The real validation path used:
+
+```text
+DeepSeek Harness -> Nova -> DeepSeek V4.1 Flash
+```
+
+See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md) and the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md).
+
 ## Architecture
 
 ```text
-Agent / Hermes / MCP client
+Agent / Hermes / DeepSeek Harness / MCP client
           |
           v
   Local System One API
@@ -182,6 +202,7 @@ Main components:
 
 - `local_system_one/` — service, router, health gate, runtime adapters and workflows
 - `integrations/hermes/` — reversible Hermes native plugin
+- `integrations/deepseek-harness/` — reversible DeepSeek Harness Search Gate adapter
 - `scripts/` — local service, ANE build, launchd and plugin operations
 - `docs/` — design notes and product validation
 - `results/reports/` — frozen public benchmark reports
@@ -250,6 +271,8 @@ Start here depending on what you want to do:
 - [Notification Gate](docs/NOTIFICATION_GATE.md)
 - [MCP and launchd deployment](docs/MCP_DEPLOYMENT.md)
 - [Hermes plugin productization](docs/HERMES_PLUGIN_PRODUCTIZATION.md)
+- [DeepSeek Harness adapter](integrations/deepseek-harness/local-system-one-dsh/README.md)
+- [DeepSeek Harness validation report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md)
 - [Public release / reproducibility](docs/PUBLIC_RELEASE.md)
 - [Upstream provenance](references/UPSTREAM.md)
 

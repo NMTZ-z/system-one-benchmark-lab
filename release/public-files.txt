@@ -10,6 +10,7 @@ release/public-files.txt
 local_system_one/
 local_system_one/runtime/sources.py
 integrations/hermes/local-system-one-hermes/
+integrations/deepseek-harness/local-system-one-dsh/
 
 scripts/build_public_release.py
 scripts/build_typed421_ane.sh
