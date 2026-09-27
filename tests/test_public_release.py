@@ -36,6 +36,10 @@ def test_public_release_build_is_allowlisted_and_sanitized(tmp_path):
         output
         / "integrations/hermes/local-system-one-hermes/plugin.yaml"
     ).is_file()
+    assert (
+        output
+        / "integrations/deepseek-harness/local-system-one-dsh/README.md"
+    ).is_file()
     assert not (output / "private").exists()
     assert not (output / "models").exists()
     assert not (output / "results/raw").exists()
