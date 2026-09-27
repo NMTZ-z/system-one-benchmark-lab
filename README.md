@@ -1,316 +1,223 @@
-# Local System One
+# local-system-one-dsh
 
-**A local typed-decision control plane for Apple Silicon agents.**
+[![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
-让本地小模型负责 Agent 的高频控制决策，让 LLM 专注真正需要生成、规划和深度推理的工作。
+Native DeepSeek Harness adapter for the Local System One Search Gate.
 
-Local System One is not another chatbot and does not replace your LLM. It sits **before or around** an agent's main model and answers small but frequent questions such as:
+Phase 1 is intentionally narrow: it decides whether a turn needs generic public Web access, observes the decision in Shadow mode, and can deny a small audited set of Web/Search tools in explicitly acknowledged Canary mode.
 
-- Does this task need current Web information?
-- Can this request use a cheaper/faster reasoning tier?
-- Should this event stay silent, go to a digest, or interrupt the user now?
-- Which backend should handle this decision?
-- Is a local ANE path healthy enough to use right now?
+## Compatibility
 
-The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes plugin**, and a native **DeepSeek Harness adapter**.
+The first validated target is pinned to:
 
-## Why this exists
+- DeepSeek Harness: `dsh-v0.1.7-rc.2`
+- DeepSeek Harness commit: `477b4f420553e8a52c2fbccc464d7561b239c443`
+- Node.js: `>=22.19.0`
+- Apple Silicon validation host: arm64
 
-Large language models are good at generating and reasoning, but agents repeatedly spend those expensive calls on tiny routing decisions.
+DeepSeek Harness is still a Developer Preview. Do not replace the pinned target with an unbounded `main` checkout when reproducing these results.
 
-Local System One turns those decisions into a separate local control layer:
+The package also declares an exact optional DSH peer compatibility fence for `0.1.7-rc.2`. A later DSH prerelease should be revalidated before that range is widened.
 
-```text
-User / Agent
-     |
-     v
-Local System One
-     |
-     +-- hard rules
-     +-- typed-decision model
-     +-- policy / health gates
-     |
-     v
-LLM / tools / notification / routing action
-```
-
-The goal is not "use a small model for everything". The goal is to use a small local model **where a structured decision is enough**, while keeping the system reversible and fail-open.
-
-## What it can decide
-
-| Workflow | Question | Current status |
-|---|---|---|
-| **Search Gate** | Does this task need public/current Web information? | Functional. Deterministic hard rules can act; model-probability routing remains conservative/Shadow-first. |
-| **Model Tier Gate** | Can a bounded task use a faster reasoning tier? | Functional, but broad model-based routing remains experimental. |
-| **Notification Gate** | silent / digest / notify_now? | Functional MVP. |
-| **Choice / Score / Noul** | Generic typed decisions for your own control logic | Available through the HTTP API. |
-
-This distinction matters: the project deliberately separates **technical capability** from **what has enough evidence to activate automatically**.
-
-## Quick start
-
-### Requirements
-
-- macOS on Apple Silicon
-- Python 3.11–3.13
-- Internet access on first model download
-
-Clone and start the default MLX backend:
-
-```bash
-git clone https://github.com/NMTZ-z/system-one-benchmark-lab.git
-cd system-one-benchmark-lab
-
-python3.12 -m venv .venv
-. .venv/bin/activate
-python -m pip install -e .
-
-local-system-one --host 127.0.0.1 --port 8787
-```
-
-The default source alias is `laya-typed-decisions`. It resolves the validated checkpoint revision:
+## Architecture
 
 ```text
-convaiinnovations/laya-typed-decisions
-f9ab0b228f0fc0f14d873dbc99038f135c2da1b2
+DeepSeek Harness
+       |
+       v
+local-system-one-dsh
+       |
+       | HTTP
+       v
+Local System One Runtime
+       |
+       +-- Rules
+       +-- Laya policy
+       +-- MLX / ANE
 ```
 
-Check the service:
+The adapter is only an HTTP client. It does not import Laya, MLX, Core ML, Torch, or any Python runtime.
 
-```bash
-curl http://127.0.0.1:8787/health
+## Modes
+
+- `off`: no Local System One request and no tool mutation.
+- `shadow`: one Search Gate request on step 1 of each user turn; tools are never mutated.
+- `canary`: Shadow behavior plus deny authority for audited deterministic hard no-Web rules only.
+
+Canary additionally requires:
+
+```yaml
+canary_acknowledged: true
 ```
 
-Available endpoints include:
+If `mode: canary` is configured without acknowledgement, the adapter deliberately degrades to Shadow.
+
+## Configuration
+
+```yaml
+mode: shadow
+service_url: http://127.0.0.1:8787
+timeout_ms: 500
+search_gate_enabled: true
+canary_acknowledged: false
+```
+
+The configured service receives:
+
+```json
+{
+  "task": "<current user task>",
+  "request_id": "<ephemeral UUID>"
+}
+```
+
+The adapter never sends the full conversation transcript or system prompt.
+
+## Search Gate endpoint
+
+The adapter calls:
 
 ```text
-POST /v1/choice
-POST /v1/score
-POST /v1/noul
 POST /v1/workflows/search-gate
-POST /v1/workflows/model-tier-gate
-POST /v1/workflows/notification-gate
-GET  /health
-GET  /metrics
 ```
 
-The service binds to loopback by default and does not persist raw task text.
-
-## Optional Apple Neural Engine backend
-
-Install the ANE dependencies:
-
-```bash
-python -m pip install -e '.[ane]'
-```
-
-Build the validated fixed-shape L512 Core ML package locally:
-
-```bash
-scripts/build_typed421_ane.sh
-```
-
-Then start Local System One with that package:
-
-```bash
-local-system-one \
-  --ane-package artifacts/models/typed421-body512-fp16/model.mlpackage
-```
-
-The builder pins `laya-coreml` to:
+A valid response contains at least:
 
 ```text
-4619e0483f07adf39068532e85b42ec2347edb83
+decision
+decision_source
+reason
+probability_search
+backend
+latency_ms
+request_id
 ```
 
-Model weights and converted Core ML packages are intentionally **not redistributed** in this repository.
+Any connection error, timeout, HTTP error, or malformed response is fail-open.
 
-At runtime, the router does not blindly force ANE. It uses token length plus an ANE health gate and falls back to MLX when the accelerator path is unavailable, unhealthy, or unsuitable.
+## Canary authority
 
-## Hermes integration
+A Web/Search call can be denied only when all of the following are true:
 
-The repository includes a native Hermes plugin with three modes:
+1. effective mode is Canary;
+2. the tool name is in the verified public-Web allowlist;
+3. Search Gate returns `decision=no_search`;
+4. `decision_source=rule`;
+5. `backend=rule`;
+6. the reason is one of the audited hard no-Web reasons.
 
-```text
-off -> shadow -> canary
-```
+Audited reasons:
 
-First install is inert by default.
+- `bounded_transform_task`
+- `local_file_or_repo`
+- `connected_app_data`
 
-For an evaluation profile:
+Raw Laya/model probability never has active deny authority.
 
-```bash
-scripts/install_hermes_system_one_plugin.sh systemoneeval
-scripts/set_hermes_system_one_mode.sh systemoneeval shadow
-scripts/hermes_system_one_status.sh systemoneeval
-```
+The Phase 0 verified public-Web tool names are:
 
-Shadow mode observes decisions without changing the provider request. Canary requires explicit acknowledgement and remains deliberately narrow.
+- `web_search`
+- `web_fetch`
+- `mcp__tavily__tavily_search`
 
-Rollback is built in:
+This is intentionally an exact allowlist. Generic tools such as `bash`, local file tools, and arbitrary MCP tools are not blocked merely because they could indirectly reach a network.
 
-```bash
-scripts/uninstall_hermes_system_one_plugin.sh systemoneeval
-```
+## Turn scope
 
-The plugin is designed to **fail open**: if Local System One is unavailable or a recommendation is incomplete, Hermes keeps its original request unchanged.
+DeepSeek Harness invokes `agent/pre-step` again after tool results. The adapter therefore evaluates Search Gate only for `step === 1`.
 
-See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/README.md) for the full lifecycle and safety constraints.
+Decisions are stored only in memory under session + turn identity. `turn/end` deletes the decision, preventing a previous turn from influencing a later one.
 
-## DeepSeek Harness integration
+No raw task, message list, system prompt, or transcript is stored in adapter state or adapter logs.
 
-The repository also includes a native adapter for the official DeepSeek Harness plugin lifecycle. The first validated target is pinned to `dsh-v0.1.7-rc.2` at commit `477b4f420553e8a52c2fbccc464d7561b239c443`.
+## Community bundle install
 
-Phase 1 intentionally enables only the **Search Gate**:
+DeepSeek Harness currently asks external contributors to distribute plugins in the community rather than submit them to the official monorepo. The standalone distribution lives on this repository's `dsh-plugin` branch and is shaped as a DSH profile bundle.
 
-```text
-off -> shadow -> canary
-```
-
-The adapter calls Local System One over HTTP, evaluates once per user turn, and can deny only an exact audited set of public-Web tools when a deterministic hard no-Web rule has authority. Model-probability decisions remain Shadow-only. Connection failures and timeouts fail open, and turn-scoped state is cleared before the next turn.
-
-The real validation path used:
-
-```text
-DeepSeek Harness -> Nova -> DeepSeek V4.1 Flash
-```
-
-Community bundle install for the validated `headless` profile:
+Install it into the validated `headless` profile with:
 
 ```bash
 dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
 ```
 
-The bundle installs in `off` mode by default; enabling Shadow or Canary is an explicit profile override.
+The bundle installs **OFF by default**. Installation alone therefore makes no Local System One request and changes no tool decision.
 
-See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md) and the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md).
+To opt into Shadow, put a later override in the profile's `cordis.patch.yml`:
 
-## Architecture
-
-```text
-Agent / Hermes / DeepSeek Harness / MCP client
-          |
-          v
-  Local System One API
-          |
-          v
-   Decision Engine
-    /    |     \
- rules  policy  typed model
-          |
-          v
-       Router
-      /      \
-    MLX      L512 ANE
-     ^          |
-     +-- health/fallback
+```yaml
+- id: local-system-one-dsh
+  config:
+    mode: shadow
+    service_url: http://127.0.0.1:8787
+    timeout_ms: 500
+    search_gate_enabled: true
+    canary_acknowledged: false
 ```
 
-Main components:
+A Cordis patch replaces the targeted row's whole `config`, so keep every field you rely on when overriding the bundle default.
 
-- `local_system_one/` — service, router, health gate, runtime adapters and workflows
-- `integrations/hermes/` — reversible Hermes native plugin
-- `integrations/deepseek-harness/` — reversible DeepSeek Harness Search Gate adapter
-- `scripts/` — local service, ANE build, launchd and plugin operations
-- `docs/` — design notes and product validation
-- `results/reports/` — frozen public benchmark reports
+For Canary, change `mode` to `canary` **and** set `canary_acknowledged: true`. Without that explicit acknowledgement the adapter degrades to Shadow.
 
-## Verified results
+Remove the bundle with the matching package-manager operation:
 
-The repository grew out of a reproducible JEV/Laya/ANE evaluation program. A few results matter directly to the product:
-
-### Typed Decisions quality
-
-On the public 400-case / 2,000-decision benchmark:
-
-| Backend / model | Accuracy |
-|---|---:|
-| Laya Typed Decisions 421M MLX | **0.766** |
-| Jev 1.13.0 | **0.737** |
-
-These numbers describe this benchmark only; they are not a general model ranking.
-
-### L512 ANE engineering
-
-For the validated 421M fixed L512 path:
-
-- natural benchmark coverage: **1,966 / 2,000 decisions (98.3%)**
-- selected-decision agreement vs same-subset MLX: **99.8%**
-- representative gross system energy per decision: about **2.07× better than MLX**
-- L640 reaches 100% capacity coverage, but was not the best default latency/efficiency tradeoff
-
-The key result is **energy-efficient local inference with runtime health gating**, not a claim that ANE is universally faster for every request.
-
-### Reproducibility
-
-The public release path has been validated from an isolated sanitized bundle:
-
-- clean Python installation
-- pinned model acquisition
-- pinned `laya-coreml` checkout
-- fresh L512 conversion
-- Runtime startup probe
-- old-vs-rebuilt output parity checks
-
-See [Public release notes](docs/PUBLIC_RELEASE.md).
-
-## Current limitations
-
-This is an **alpha control-plane project**, not a universal autonomous router.
-
-Important limits:
-
-- Search model probabilities are **not** trusted as unrestricted final authority.
-- Model Tier broad automatic downgrade is **not** proven to provide a stable latency benefit.
-- The ANE backend uses a fixed L512 body and must fall back when requests do not fit or health checks fail.
-- Notification preferences are not personalized yet.
-- Hermes Canary is intentionally narrow and requires explicit acknowledgement.
-- A second physical Mac would strengthen cross-machine reproducibility evidence, although the clean public-path rebuild already passes on the development M4 Mac mini.
-
-Conservative defaults are intentional. A wrong routing decision can be more expensive than the small amount of compute it saves.
-
-## Documentation
-
-Start here depending on what you want to do:
-
-- [Local System One product and API](docs/LOCAL_SYSTEM_ONE_MVP.md)
-- [Search Gate](docs/SEARCH_GATE.md)
-- [Model Tier Gate](docs/MODEL_TIER_GATE.md)
-- [Notification Gate](docs/NOTIFICATION_GATE.md)
-- [MCP and launchd deployment](docs/MCP_DEPLOYMENT.md)
-- [Hermes plugin productization](docs/HERMES_PLUGIN_PRODUCTIZATION.md)
-- [DeepSeek Harness adapter](integrations/deepseek-harness/local-system-one-dsh/README.md)
-- [DeepSeek Harness validation report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md)
-- [Public release / reproducibility](docs/PUBLIC_RELEASE.md)
-- [Upstream provenance](references/UPSTREAM.md)
-
-For the underlying experiments:
-
-- [Jev Typed Decisions benchmark](results/reports/M4-Jev-1.13.0-Typed-Decisions-v0.1.md)
-- [Laya 421M quality benchmark](results/reports/M4-Typed-Decisions-Quality-Laya-v0.1.md)
-- [Core ML vs MLX parity](results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md)
-- [Phase 4 ANE engineering](results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md)
-
-## Project philosophy
-
-System One is useful here as an **agent control primitive**, not as a replacement for a general-purpose LLM.
-
-The practical pattern is:
-
-```text
-hard rule when certainty is available
-        ->
-small local probabilistic decision when useful
-        ->
-policy / confidence / health gate
-        ->
-LLM or action
+```bash
+dsh plugin --profile headless remove local-system-one-dsh
 ```
 
-That makes the control layer cheap, local, inspectable, reversible, and easy to disable.
+The first community bundle is intentionally pinned to DSH `0.1.7-rc.2`. If DSH reports an incompatible-version refusal after an upgrade, do not grant a blanket exemption; use a revalidated plugin version instead.
 
-## License
+## Build and test from source
 
-Local System One is released under the [Apache License 2.0](LICENSE).
+```bash
+cd integrations/deepseek-harness/local-system-one-dsh
+npm install
+npm run typecheck
+npm test
+npm run build
+```
 
-The project depends on and documents upstream work separately. See [references/UPSTREAM.md](references/UPSTREAM.md) for pinned revisions and provenance.
+The package is not published to npm in Phase 1. The `dsh-plugin` branch carries the prebuilt `dist/` output so GitHub installation does not require a dependency build script approval.
+
+## Local development load
+
+For adapter development, build the package, copy `example/cordis.patch.yml`, and replace its `file://` path with the absolute path to `dist/index.js`.
+
+Then launch a pinned DeepSeek Harness checkout with the patch:
+
+```bash
+dsh --profile headless --patch /path/to/local-system-one-dsh.patch.yml "your task"
+```
+
+Provider configuration remains separate from this adapter. For the validated Nova setup, keep credentials outside Git and use placeholders such as:
+
+```text
+${NOVA_API_KEY}
+${NOVA_BASE_URL}
+${NOVA_MODEL}
+```
+
+## Privacy
+
+Shadow and Canary send the current task to the configured Local System One endpoint.
+
+The default endpoint is loopback (`127.0.0.1`). If `service_url` is changed to a remote address, the current task is sent to that remote service. Do not describe a remote configuration as "fully local."
+
+Metadata logs contain decision fields only and intentionally omit task text.
+
+## Rollback
+
+Rollback is ordered and reversible:
+
+```text
+Canary
+  -> Shadow
+  -> Off
+  -> disable patch/plugin entry
+  -> remove adapter
+```
+
+Removing the adapter does not require reinstalling DeepSeek Harness. With the plugin absent, native DSH behavior is restored.
+
+## Out of scope for Phase 1
+
+This adapter does not implement Model Tier routing, Notification Gate, provider/model rewriting, reasoning-effort rewriting, custom agent loops, LLM stream mutation, or embedded Python runtimes.
