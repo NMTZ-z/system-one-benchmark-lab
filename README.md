@@ -104,13 +104,30 @@ Install the ANE dependencies:
 python -m pip install -e '.[ane]'
 ```
 
-Build the validated fixed-shape L512 Core ML package locally:
+Download the validated fixed-shape L512 Core ML package from Hugging Face:
+
+```bash
+hf download NMTZ/laya-typed-decisions-421m-coreml-ane \
+  --include 'L512/*' \
+  --local-dir artifacts/models/laya-typed421-ane
+```
+
+Then start Local System One with the downloaded package:
+
+```bash
+local-system-one \
+  --ane-package artifacts/models/laya-typed421-ane/L512/model.mlpackage
+```
+
+The Hugging Face release also includes the validated L192, L384 and L640 research variants. L512 remains the recommended default because it covered 1,966 / 2,000 frozen benchmark decisions while preserving 99.8% selected-decision agreement with the MLX reference.
+
+If you prefer to reproduce the conversion locally, build the same validated fixed-shape L512 package with:
 
 ```bash
 scripts/build_typed421_ane.sh
 ```
 
-Then start Local System One with that package:
+Then start Local System One with the locally built package:
 
 ```bash
 local-system-one \
@@ -123,7 +140,7 @@ The builder pins `laya-coreml` to:
 4619e0483f07adf39068532e85b42ec2347edb83
 ```
 
-Model weights and converted Core ML packages are intentionally **not redistributed** in this repository.
+The original 421M checkpoint is not duplicated by this project. The converted fixed-shape ANE artifacts are published separately at [`NMTZ/laya-typed-decisions-421m-coreml-ane`](https://huggingface.co/NMTZ/laya-typed-decisions-421m-coreml-ane), with provenance, SHA256 metadata and benchmark evidence. The Hugging Face packages are ANE transformer-body artifacts and still use the pinned upstream Laya checkpoint for tokenizer, embedding lookup and the host-side action head.
 
 At runtime, the router does not blindly force ANE. It uses token length plus an ANE health gate and falls back to MLX when the accelerator path is unavailable, unhealthy, or unsuitable.
 
