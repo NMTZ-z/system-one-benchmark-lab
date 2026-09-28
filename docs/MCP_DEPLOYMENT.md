@@ -39,13 +39,22 @@ Defaults:
 - host: 127.0.0.1;
 - port: 8787.
 
-Build the public L512 ANE package locally with:
+For a prebuilt validated L512 ANE package, download the Hugging Face release:
+
+~~~bash
+hf download NMTZ/laya-typed-decisions-421m-coreml-ane \
+  --include 'L512/*' \
+  --local-dir artifacts/models/laya-typed421-ane
+export LOCAL_SYSTEM_ONE_ANE_PACKAGE="$PWD/artifacts/models/laya-typed421-ane/L512/model.mlpackage"
+~~~
+
+Alternatively, reproduce the public L512 ANE package locally with:
 
 ~~~bash
 scripts/build_typed421_ane.sh
 ~~~
 
-The builder pins both the `laya-coreml` source revision and the original Typed Decisions checkpoint revision.
+The builder pins both the `laya-coreml` source revision and the original Typed Decisions checkpoint revision. The prebuilt Hugging Face artifact uses the same pinned provenance.
 
 Environment overrides:
 
