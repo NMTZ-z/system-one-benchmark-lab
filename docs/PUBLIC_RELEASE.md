@@ -56,25 +56,33 @@ Validated runtime dependencies are pinned to:
 
 The Git pin is deliberate: the validated `laya-coreml 0.1.1` in the research environment came from that source checkout and is not currently resolvable as a normal public-index package.
 
-The 421M model checkpoint and converted ANE package are deliberately not bundled. Users provide their local paths through `--source`, `--ane-package`, or the existing `LOCAL_SYSTEM_ONE_SOURCE` / `LOCAL_SYSTEM_ONE_ANE_PACKAGE` service variables.
+The GitHub source release deliberately does not bundle the original 421M checkpoint or large Core ML binaries. The validated fixed-shape ANE artifact family is published separately on Hugging Face at `NMTZ/laya-typed-decisions-421m-coreml-ane`. Users can download L512 directly, rebuild it locally, or provide their own paths through `--source`, `--ane-package`, or the existing `LOCAL_SYSTEM_ONE_SOURCE` / `LOCAL_SYSTEM_ONE_ANE_PACKAGE` service variables.
 
 For ordinary use, `--source` defaults to the `laya-typed-decisions` alias and pins the source checkpoint to `f9ab0b228f0fc0f14d873dbc99038f135c2da1b2`; MLX resolves that snapshot automatically.
 
-The L512 ANE package is reproducible locally:
+Download the recommended L512 artifact directly:
+
+~~~bash
+hf download NMTZ/laya-typed-decisions-421m-coreml-ane \
+  --include 'L512/*' \
+  --local-dir artifacts/models/laya-typed421-ane
+~~~
+
+The L512 ANE package remains reproducible locally:
 
 ~~~bash
 scripts/build_typed421_ane.sh
 ~~~
 
-That wrapper checks out `mizorewww/laya-coreml` at `4619e0483f07adf39068532e85b42ec2347edb83` and invokes the exact fixed-body converter used by the frozen Phase 4 artifact. This keeps the public project from redistributing the 421M checkpoint or the roughly 742 MB converted package while still giving users a pinned build path.
+That wrapper checks out `mizorewww/laya-coreml` at `4619e0483f07adf39068532e85b42ec2347edb83` and invokes the exact fixed-body converter used by the frozen Phase 4 artifact. The Hugging Face release publishes the resulting validated ANE body artifacts separately while the original 421M source checkpoint remains upstream.
 
 ## What is intentionally excluded
 
 The public bundle does not contain:
 
 - `private/` Hermes replay or blind-set material;
-- model weights;
-- Core ML build artifacts;
+- the original upstream model checkpoint;
+- large Core ML build artifacts inside the GitHub source bundle (validated ANE artifacts are distributed separately through Hugging Face);
 - raw Hermes evaluation logs;
 - historical experiment directories containing machine-specific paths;
 - credentials or `.env` files.
