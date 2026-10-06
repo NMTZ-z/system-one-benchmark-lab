@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ModelTierGateClient,
+  NotificationGateClient,
   SearchGateClient,
   parseModelTierDecision,
+  parseNotificationDecision,
   parseSearchDecision,
 } from '../src/client.js'
 import { apply } from '../src/index.js'
@@ -10,10 +12,11 @@ import {
   hasCanaryAuthority,
   hasModelTierCanaryAuthority,
   isVerifiedPublicWebTool,
+  isVerifiedReasoningDowngradeRoute,
   resolveConfig,
 } from '../src/policy.js'
 import { TurnDecisionState } from '../src/state.js'
-import type { ModelTierDecision, SearchDecision } from '../src/types.js'
+import type { ModelTierDecision, NotificationDecision, SearchDecision } from '../src/types.js'
 
 const hardRuleDecision: SearchDecision = {
   decision: 'no_search',
@@ -59,6 +62,18 @@ const modelFastDecision: ModelTierDecision = {
   request_id: 'req-model-fast',
 }
 
+const notificationDecision: NotificationDecision = {
+  delivery: 'digest',
+  notify_now: false,
+  decision_source: 'model',
+  reason: 'model_priority_digest',
+  priority_score: 2,
+  confidence: 0.8,
+  backend: 'mlx',
+  latency_ms: 12,
+  request_id: 'req-notify',
+}
+
 function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
@@ -69,6 +84,7 @@ function jsonResponse(value: unknown, status = 200): Response {
 function gateFetch(
   search: unknown = hardRuleDecision,
   modelTier: unknown = hardFastDecision,
+  notification: unknown = notificationDecision,
 ) {
   return vi.fn((url: string) => {
     if (url.endsWith('/v1/workflows/search-gate')) {
@@ -76,6 +92,9 @@ function gateFetch(
     }
     if (url.endsWith('/v1/workflows/model-tier-gate')) {
       return Promise.resolve(jsonResponse(modelTier))
+    }
+    if (url.endsWith('/v1/workflows/notification-gate')) {
+      return Promise.resolve(jsonResponse(notification))
     }
     return Promise.reject(new Error('unexpected URL'))
   })
@@ -162,6 +181,7 @@ describe('configuration and policy', () => {
     const config = resolveConfig({ mode: 'shadow' })
     expect(config.searchGateEnabled).toBe(true)
     expect(config.modelTierGateEnabled).toBe(true)
+    expect(config.notificationGateEnabled).toBe(true)
     expect(config.canaryWebFilterEnabled).toBe(true)
     expect(config.canaryReasoningDowngradeEnabled).toBe(false)
   })
@@ -192,6 +212,13 @@ describe('configuration and policy', () => {
     expect(
       hasModelTierCanaryAuthority({ ...hardFastDecision, backend: 'ane' }),
     ).toBe(false)
+  })
+
+  it('uses exact provider/model allowlists for reasoning downgrade', () => {
+    expect(isVerifiedReasoningDowngradeRoute('nova', 'deepseek-v4-flash')).toBe(true)
+    expect(isVerifiedReasoningDowngradeRoute('stepfun', 'step-5-preview')).toBe(true)
+    expect(isVerifiedReasoningDowngradeRoute('stepfun', 'step-5')).toBe(false)
+    expect(isVerifiedReasoningDowngradeRoute('other', 'step-5-preview')).toBe(false)
   })
 
   it('uses an exact verified public-Web tool allowlist', () => {
@@ -235,6 +262,14 @@ describe('HTTP clients', () => {
       .toThrow(/probability_strong/)
   })
 
+  it('parses the Notification Gate response contract', () => {
+    expect(parseNotificationDecision(notificationDecision)).toEqual(notificationDecision)
+    expect(() => parseNotificationDecision({ ...notificationDecision, delivery: 'later' }))
+      .toThrow(/delivery/)
+    expect(() => parseNotificationDecision({ ...notificationDecision, priority_score: 9 }))
+      .toThrow(/priority_score/)
+  })
+
   it('times out without returning Search or Model Tier decisions', async () => {
     vi.stubGlobal(
       'fetch',
@@ -247,8 +282,10 @@ describe('HTTP clients', () => {
 
     const search = new SearchGateClient('http://127.0.0.1:9', 5)
     const tier = new ModelTierGateClient('http://127.0.0.1:9', 5)
+    const notification = new NotificationGateClient('http://127.0.0.1:9', 5)
     await expect(search.decide('synthetic task', 'req-timeout')).rejects.toThrow()
     await expect(tier.decide('synthetic task', 'req-timeout')).rejects.toThrow()
+    await expect(notification.decide('event', 'req-timeout')).rejects.toThrow()
   })
 })
 
@@ -346,6 +383,79 @@ describe('DeepSeek Harness lifecycle integration', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(ctx.warnings.join('\n')).toContain('search gate unavailable')
     expect(ctx.info.join('\n')).toContain('bounded_transform')
+  })
+
+  it('Notification Shadow evaluates the final assistant event at turn end without logging raw text', async () => {
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, { mode: 'shadow' })
+    const raw = 'Deployment finished; review the result when convenient.'
+
+    await enterTurn(ctx, 's-notify', 1, 'deploy the service')
+    ctx.one('session/event')(
+      { id: 's-notify' },
+      {
+        type: 'assistant/message',
+        data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: raw }] } },
+      },
+    )
+    ctx.one('session/event')(
+      { id: 's-notify' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const notifyCall = fetchMock.mock.calls.find(call => String(call[0]).endsWith('/notification-gate'))
+    expect(notifyCall).toBeDefined()
+    const body = JSON.parse(String((notifyCall![1] as RequestInit).body))
+    expect(body.event).toBe(raw)
+    expect(body.blocking_failure).toBe(false)
+    expect(ctx.info.join('\n')).toContain('"gate":"notification"')
+    expect(ctx.info.join('\n')).not.toContain(raw)
+  })
+
+  it('Notification Gate can be disabled independently', async () => {
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, { mode: 'shadow', notification_gate_enabled: false })
+    await enterTurn(ctx, 's-notify-off', 1, 'task')
+    ctx.one('session/event')(
+      { id: 's-notify-off' },
+      { type: 'assistant/message', data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: 'done' }] } } },
+    )
+    ctx.one('session/event')(
+      { id: 's-notify-off' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.every(call => !String(call[0]).endsWith('/notification-gate'))).toBe(true)
+  })
+
+  it('Notification Shadow fails open on service errors', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith('/search-gate')) return Promise.resolve(jsonResponse(hardRuleDecision))
+      if (url.endsWith('/model-tier-gate')) return Promise.resolve(jsonResponse(hardFastDecision))
+      return Promise.reject(new Error('notification unavailable'))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, { mode: 'shadow' })
+    await enterTurn(ctx, 's-notify-fail', 1, 'task')
+    ctx.one('session/event')(
+      { id: 's-notify-fail' },
+      { type: 'assistant/message', data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: 'result' }] } } },
+    )
+    ctx.one('session/event')(
+      { id: 's-notify-fail' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(ctx.warnings.join('\n')).toContain('notification gate unavailable')
+    expect(ctx.warnings.join('\n')).not.toContain('notification unavailable')
   })
 
   it('unacknowledged Canary behaves as Shadow', async () => {
@@ -480,6 +590,30 @@ describe('DeepSeek Harness lifecycle integration', () => {
     expect(original.reasoningEffort).toBe('high')
     expect(result).not.toBe(original)
     expect(ctx.info.join('\n')).toContain('reasoning_effort_downgrade')
+  })
+
+  it('Model Tier Canary also downgrades the verified StepFun Step 5 Preview route', async () => {
+    vi.stubGlobal('fetch', gateFetch(hardRuleDecision, hardFastDecision))
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'canary',
+      canary_acknowledged: true,
+      canary_reasoning_downgrade_enabled: true,
+    })
+
+    await enterTurn(ctx, 's-tier-stepfun', 1, 'rewrite this bounded text')
+    const original = {
+      provider: 'stepfun',
+      model: 'step-5-preview',
+      reasoningEffort: 'high',
+      maxTokens: 4096,
+    }
+    const result = await ctx.one('agent/request')(
+      { agent: { session: { id: 's-tier-stepfun' } }, turn: 1, step: 1 },
+      async () => original,
+    )
+    expect(result).toEqual({ ...original, reasoningEffort: 'low' })
+    expect(original.reasoningEffort).toBe('high')
   })
 
   it('Model Tier probability-only fast never gains Active authority', async () => {

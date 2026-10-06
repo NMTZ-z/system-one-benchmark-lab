@@ -8,6 +8,7 @@
         timeout_ms: 500
         search_gate_enabled: true
         model_tier_gate_enabled: true
+        notification_gate_enabled: true
         canary_acknowledged: false
         canary_web_filter_enabled: true
         canary_reasoning_downgrade_enabled: false

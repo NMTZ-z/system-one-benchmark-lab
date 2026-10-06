@@ -44,6 +44,7 @@ class FakeContext:
             "timeout_ms": 500,
             "search_gate_enabled": True,
             "model_tier_gate_enabled": True,
+            "notification_gate_enabled": True,
             # Existing Canary unit cases are explicit acknowledged experiments.
             "canary_acknowledged": mode == "canary",
             "canary_web_filter_enabled": True,
@@ -75,7 +76,7 @@ def test_off_mode_registers_inert_declared_surfaces(monkeypatch):
     )
     ctx = FakeContext("off")
     plugin.register(ctx)
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "off"
     assert (
@@ -98,7 +99,7 @@ def test_boolean_false_is_off():
     plugin = load_plugin()
     ctx = FakeContext(False)
     plugin.register(ctx)
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "off"
 
@@ -107,7 +108,7 @@ def test_unknown_mode_fails_closed():
     plugin = load_plugin()
     ctx = FakeContext("active")
     plugin.register(ctx)
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "off_invalid_requested_mode"
 
@@ -142,7 +143,7 @@ def test_shadow_uses_original_message_and_never_injects(monkeypatch):
     monkeypatch.setattr(plugin, "_safe_recommendations", fake_recommendations)
     plugin.register(ctx)
 
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     result = ctx.hooks["pre_llm_call"](
         user_message="原始用户请求",
         conversation_history=[{"role": "user", "content": "expanded injected context"}],
@@ -222,7 +223,7 @@ def test_canary_without_acknowledgement_degrades_to_shadow():
     plugin = load_plugin()
     ctx = FakeContext("canary", canary_acknowledged=False)
     plugin.register(ctx)
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["requested_mode"] == "canary"
     assert ctx.state.values["status"]["mode"] == "shadow_canary_ack_required"
@@ -232,7 +233,7 @@ def test_acknowledged_canary_is_portable_across_profiles():
     plugin = load_plugin()
     ctx = ProductionFakeContext("canary")
     plugin.register(ctx)
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     assert set(ctx.middleware) == {"llm_request"}
     assert ctx.state.values["status"]["mode"] == "canary"
 
@@ -246,7 +247,7 @@ def test_canary_filters_only_exact_public_web_tools(monkeypatch):
         lambda *args, **kwargs: _bounded_transform_recommendation(),
     )
     plugin.register(ctx)
-    assert set(ctx.hooks) == {"pre_llm_call"}
+    assert set(ctx.hooks) == {"pre_llm_call", "post_llm_call", "on_session_end"}
     assert set(ctx.middleware) == {"llm_request"}
 
     ctx.hooks["pre_llm_call"](
@@ -626,20 +627,114 @@ def test_reasoning_canary_is_disabled_by_feature_switch(monkeypatch):
     assert request["reasoning_effort"] == "high"
 
 
+def test_notification_shadow_observes_final_event_without_persisting_raw_text(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("shadow")
+    seen = {}
+
+    def fake_notification(base_url, event, context, timeout, request_id, **kwargs):
+        seen.update({
+            "event": event,
+            "context": context,
+            "request_id": request_id,
+            "blocking_failure": kwargs.get("blocking_failure"),
+        })
+        return {
+            "ok": True,
+            "notification": {
+                "delivery": "digest",
+                "notify_now": False,
+                "decision_source": "model",
+                "reason": "model_priority_digest",
+                "priority_score": 2.0,
+                "confidence": 0.8,
+                "backend": "mlx",
+                "latency_ms": 12.0,
+            },
+            "error": None,
+            "shadow_latency_ms": 13.0,
+        }
+
+    monkeypatch.setattr(plugin, "_safe_notification", fake_notification)
+    plugin.register(ctx)
+    raw = "Deployment finished; review the result when convenient."
+    ctx.hooks["post_llm_call"](
+        session_id="s-notify", task_id="task", turn_id="turn-notify",
+        user_message="Deploy the service", assistant_response=raw,
+        conversation_history=[], model="test-model", platform="cli",
+    )
+    ctx.hooks["on_session_end"](
+        session_id="s-notify", task_id="task", turn_id="turn-notify",
+        completed=True, failed=False, interrupted=False,
+        turn_exit_reason="text_response(stop)", model="test-model", platform="cli",
+    )
+
+    assert seen["event"] == raw
+    assert seen["blocking_failure"] is False
+    last = ctx.state.values["last_notification_shadow"]
+    assert last["notification"]["delivery"] == "digest"
+    assert last["event_chars"] == len(raw)
+    assert raw not in str(ctx.state.values)
+
+
+def test_notification_shadow_marks_failed_turn_as_blocking_without_raw_response(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("shadow")
+    seen = {}
+
+    def fake_notification(base_url, event, context, timeout, request_id, **kwargs):
+        seen["event"] = event
+        seen["blocking_failure"] = kwargs.get("blocking_failure")
+        return {
+            "ok": True,
+            "notification": {
+                "delivery": "notify_now", "notify_now": True,
+                "decision_source": "rule", "reason": "blocking_failure",
+                "priority_score": 4.0, "confidence": 1.0,
+                "backend": "rule", "latency_ms": 0.0,
+            },
+            "error": None, "shadow_latency_ms": 0.2,
+        }
+
+    monkeypatch.setattr(plugin, "_safe_notification", fake_notification)
+    plugin.register(ctx)
+    ctx.hooks["on_session_end"](
+        session_id="s-failed", turn_id="turn-failed", completed=False, failed=True,
+        interrupted=False, turn_exit_reason="provider_error", model="test", platform="cli",
+    )
+    assert seen["blocking_failure"] is True
+    assert "failed" in seen["event"].lower()
+    assert ctx.state.values["last_notification_shadow"]["notification"]["reason"] == "blocking_failure"
+
+
+def test_notification_gate_can_be_disabled_independently(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("shadow", notification_gate_enabled=False)
+    monkeypatch.setattr(
+        plugin, "_safe_notification",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("notification gate disabled")),
+    )
+    plugin.register(ctx)
+    ctx.hooks["post_llm_call"](turn_id="n-off", assistant_response="raw", user_message="task")
+    ctx.hooks["on_session_end"](turn_id="n-off", completed=True, failed=False, interrupted=False)
+    assert "last_notification_shadow" not in ctx.state.values
+
+
 def test_plugin_manifest_has_safe_product_defaults():
     import yaml
 
     manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
     assert manifest["manifest_version"] == 2
-    assert manifest["version"] == "0.5.2"
+    assert manifest["version"] == "0.6.0"
     assert manifest["provides_tools"] == []
-    assert manifest["provides_hooks"] == ["pre_llm_call"]
+    assert manifest["provides_hooks"] == ["pre_llm_call", "post_llm_call", "on_session_end"]
     assert manifest["provides_middleware"] == ["llm_request"]
     assert manifest["requires_env"] == []
     assert manifest["requires_hermes"] == ">=0.21.4"
     schema = manifest["config_schema"]
     assert schema["mode"]["default"] == "off"
     assert schema["mode"]["choices"] == ["off", "shadow", "canary"]
+    assert schema["notification_gate_enabled"]["default"] is True
     assert schema["canary_acknowledged"]["default"] is False
     assert schema["canary_web_filter_enabled"]["default"] is True
     assert schema["canary_reasoning_downgrade_enabled"]["default"] is False

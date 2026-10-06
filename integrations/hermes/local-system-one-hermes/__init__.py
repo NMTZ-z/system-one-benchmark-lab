@@ -1,6 +1,6 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.5.2:
+Safety invariant for v0.6.0:
 - mode=off: no Local System One network call and no behavior change.
 - mode=shadow: observe privacy-safe recommendations without rewriting requests.
 - mode=canary: request mutation requires explicit ``canary_acknowledged=true``.
@@ -9,8 +9,8 @@ Safety invariant for v0.5.2:
 - Any Local System One error, timeout, incomplete decision, unsupported model,
   or disabled Canary feature fails open to the original Hermes request.
 
-Search and Model Tier observation can be enabled independently. Experimental
-reasoning downgrade is disabled by default.
+Search, Model Tier, and Notification observation can be enabled independently.
+Notification is Shadow-only in v0.6.0; experimental reasoning downgrade is disabled by default.
 """
 
 from __future__ import annotations
@@ -22,10 +22,11 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.5.2"
+_PLUGIN_VERSION = "0.6.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
+_MAX_NOTIFICATION_CHARS = 6000
 
 
 def _text_from_content(content: Any) -> str:
@@ -101,6 +102,42 @@ def _safe_recommendations(
             result["model_tier"] = _post_json(
                 base_url, "/v1/workflows/model-tier-gate", payload, timeout
             )
+        result["ok"] = True
+    except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
+        result["error"] = type(exc).__name__
+    result["shadow_latency_ms"] = (time.perf_counter() - started) * 1000.0
+    return result
+
+
+def _safe_notification(
+    base_url: str,
+    event: str,
+    context: dict[str, Any] | None,
+    timeout: float,
+    request_id: str,
+    *,
+    blocking_failure: bool = False,
+) -> dict[str, Any]:
+    """Observe Notification Gate without granting delivery authority.
+
+    Raw event text is sent only to the configured Local System One endpoint and is
+    never returned in this helper's metadata result.
+    """
+    started = time.perf_counter()
+    result: dict[str, Any] = {"ok": False, "notification": None, "error": None}
+    payload = {
+        "event": event[:_MAX_NOTIFICATION_CHARS],
+        "context": context or None,
+        "urgency": "auto",
+        "user_action_required": False,
+        "blocking_failure": bool(blocking_failure),
+        "routine_update": False,
+        "request_id": request_id,
+    }
+    try:
+        result["notification"] = _post_json(
+            base_url, "/v1/workflows/notification-gate", payload, timeout
+        )
         result["ok"] = True
     except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
         result["error"] = type(exc).__name__
@@ -284,6 +321,7 @@ def register(ctx):
     profile = _profile_name(ctx)
     search_enabled = _as_bool(ctx.get_config("search_gate_enabled", True), True)
     model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", True), True)
+    notification_enabled = _as_bool(ctx.get_config("notification_gate_enabled", True), True)
     canary_acknowledged = _as_bool(ctx.get_config("canary_acknowledged", False), False)
     canary_web_filter_enabled = _as_bool(
         ctx.get_config("canary_web_filter_enabled", True), True
@@ -312,6 +350,7 @@ def register(ctx):
             "timeout_ms": timeout_ms,
             "search_gate_enabled": search_enabled,
             "model_tier_gate_enabled": model_tier_enabled,
+            "notification_gate_enabled": notification_enabled,
             "canary_acknowledged": canary_acknowledged,
             "canary_web_filter_enabled": canary_web_filter_enabled,
             "canary_reasoning_downgrade_enabled": canary_reasoning_downgrade_enabled,
@@ -320,6 +359,88 @@ def register(ctx):
     )
 
     # Raw tasks are never persisted. Canary state stores only turn ids and rule reasons.
+    # Final assistant text for Notification Shadow lives only in this bounded process-local map
+    # between post_llm_call and on_session_end, then is deleted.
+    pending_notification_events: dict[str, dict[str, Any]] = {}
+
+    def _observe_post_llm_call(**kwargs):
+        if effective_mode.startswith("off") or not notification_enabled:
+            return
+        turn_id = str(kwargs.get("turn_id") or "")
+        response = _text_from_content(kwargs.get("assistant_response")).strip()
+        if not turn_id or not response:
+            return
+        pending_notification_events[turn_id] = {
+            "event": response[:_MAX_NOTIFICATION_CHARS],
+            "model": str(kwargs.get("model") or ""),
+            "platform": str(kwargs.get("platform") or ""),
+        }
+        while len(pending_notification_events) > 32:
+            pending_notification_events.pop(next(iter(pending_notification_events)))
+
+    ctx.register_hook("post_llm_call", _observe_post_llm_call)
+
+    def _observe_session_end(**kwargs):
+        if effective_mode.startswith("off") or not notification_enabled:
+            return
+        turn_id = str(kwargs.get("turn_id") or "")
+        candidate = pending_notification_events.pop(turn_id, None) if turn_id else None
+        failed = bool(kwargs.get("failed"))
+        interrupted = bool(kwargs.get("interrupted"))
+        if candidate is None:
+            if not (failed or interrupted):
+                return
+            event_text = (
+                "Agent turn failed before producing a final response."
+                if failed
+                else "Agent turn was interrupted before producing a final response."
+            )
+            candidate = {"event": event_text,
+                         "model": str(kwargs.get("model") or ""),
+                         "platform": str(kwargs.get("platform") or "")}
+
+        context = {
+            "model": candidate.get("model") or str(kwargs.get("model") or ""),
+            "platform": candidate.get("platform") or str(kwargs.get("platform") or ""),
+            "completed": bool(kwargs.get("completed")),
+            "failed": failed,
+            "interrupted": interrupted,
+            "turn_exit_reason": str(kwargs.get("turn_exit_reason") or ""),
+        }
+        decision = _safe_notification(
+            base_url, str(candidate["event"]), context, timeout, turn_id or "notification-shadow",
+            blocking_failure=failed,
+        )
+        event: dict[str, Any] = {
+            "ts": time.time(),
+            "request_id": turn_id or "notification-shadow",
+            "profile": profile,
+            "mode": effective_mode,
+            "ok": bool(decision.get("ok")),
+            "event_chars": len(str(candidate["event"])),
+            "shadow_latency_ms": round(float(decision.get("shadow_latency_ms", 0.0)), 3),
+            "error": decision.get("error"),
+        }
+        notification = decision.get("notification")
+        if isinstance(notification, dict):
+            event["notification"] = {
+                "delivery": notification.get("delivery"),
+                "notify_now": notification.get("notify_now"),
+                "decision_source": notification.get("decision_source"),
+                "reason": notification.get("reason"),
+                "priority_score": notification.get("priority_score"),
+                "confidence": notification.get("confidence"),
+                "backend": notification.get("backend"),
+                "latency_ms": notification.get("latency_ms"),
+            }
+        history = _state_get(ctx, "notification_shadow_history", [])
+        if not isinstance(history, list):
+            history = []
+        history.append(event)
+        _state_set(ctx, "notification_shadow_history", history[-_MAX_HISTORY:])
+        _state_set(ctx, "last_notification_shadow", event)
+
+    ctx.register_hook("on_session_end", _observe_session_end)
 
     def _observe_pre_llm_call(**kwargs):
         if effective_mode.startswith("off"):

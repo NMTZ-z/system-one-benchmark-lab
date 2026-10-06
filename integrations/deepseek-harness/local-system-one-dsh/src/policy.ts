@@ -22,6 +22,7 @@ export const AUDITED_HARD_FAST_REASONS = new Set([
 
 export const VERIFIED_REASONING_DOWNGRADE_ROUTES = new Set([
   'nova/deepseek-v4-flash',
+  'stepfun/step-5-preview',
 ])
 
 export const VERIFIED_PUBLIC_WEB_TOOLS = new Set([
@@ -60,6 +61,7 @@ export function resolveConfig(input: AdapterConfig = {}): ResolvedAdapterConfig 
     timeoutMs,
     searchGateEnabled: input.search_gate_enabled ?? true,
     modelTierGateEnabled: input.model_tier_gate_enabled ?? true,
+    notificationGateEnabled: input.notification_gate_enabled ?? true,
     canaryAcknowledged,
     canaryWebFilterEnabled: input.canary_web_filter_enabled ?? true,
     canaryReasoningDowngradeEnabled: input.canary_reasoning_downgrade_enabled ?? false,

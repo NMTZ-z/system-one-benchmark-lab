@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { ModelTierGateClient, SearchGateClient } from './client.js'
+import { ModelTierGateClient, NotificationGateClient, SearchGateClient } from './client.js'
 import {
   hasCanaryAuthority,
   hasModelTierCanaryAuthority,
@@ -14,6 +14,7 @@ import type {
   AgentRequestInputLike,
   LlmCallConfigLike,
   ModelTierDecision,
+  NotificationDecision,
   PreStepInputLike,
   SearchDecision,
   SessionEventLike,
@@ -23,6 +24,7 @@ import type {
 } from './types.js'
 
 export const name = 'local-system-one-dsh'
+const MAX_NOTIFICATION_CHARS = 6000
 
 function asSessionId(session: SessionLike | undefined): string | null {
   if (session?.id === undefined || session.id === null) return null
@@ -34,21 +36,52 @@ function asPositiveInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null
 }
 
+function contentText(content: unknown): string {
+  if (typeof content === 'string') return content.trim()
+  if (!Array.isArray(content)) return ''
+  const parts: string[] = []
+  for (const block of content) {
+    if (typeof block === 'string') {
+      const text = block.trim()
+      if (text) parts.push(text)
+      continue
+    }
+    if (typeof block !== 'object' || block === null) continue
+    const record = block as Record<string, unknown>
+    if (record.type === 'text' && typeof record.text === 'string') {
+      const text = record.text.trim()
+      if (text) parts.push(text)
+    }
+  }
+  return parts.join('\n').trim()
+}
+
 function taskText(messages: readonly UserMessageLike[] | undefined): string {
   if (!messages) return ''
   const parts: string[] = []
-
   for (const message of messages) {
     if (message.role !== undefined && message.role !== 'user') continue
-    for (const block of message.content ?? []) {
-      if (block.type === 'text' && typeof block.text === 'string') {
-        const text = block.text.trim()
-        if (text) parts.push(text)
-      }
-    }
+    const text = contentText(message.content)
+    if (text) parts.push(text)
   }
-
   return parts.join('\n').trim()
+}
+
+function assistantEventText(event: SessionEventLike): string {
+  const message = event.data?.message
+  if (typeof message !== 'object' || message === null) return ''
+  const content = (message as Record<string, unknown>).content
+  return contentText(content).slice(0, MAX_NOTIFICATION_CHARS)
+}
+
+function turnReasonKind(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) return null
+  const kind = (value as Record<string, unknown>).kind
+  return typeof kind === 'string' && kind.length > 0 ? kind : null
+}
+
+function turnKey(sessionId: string, turn: number): string {
+  return `${sessionId}:${turn}`
 }
 
 function errorType(error: unknown): string {
@@ -98,11 +131,37 @@ function logModelTierDecision(
   )
 }
 
+function logNotificationDecision(
+  ctx: DshContextLike,
+  mode: string,
+  decision: NotificationDecision,
+  eventChars: number,
+): void {
+  ctx.logger?.info?.(
+    `[local-system-one-dsh] ${JSON.stringify({
+      gate: 'notification',
+      mode,
+      request_id: decision.request_id,
+      delivery: decision.delivery,
+      notify_now: decision.notify_now,
+      decision_source: decision.decision_source,
+      reason: decision.reason,
+      priority_score: decision.priority_score,
+      confidence: decision.confidence,
+      backend: decision.backend,
+      latency_ms: decision.latency_ms,
+      event_chars: eventChars,
+    })}`,
+  )
+}
+
 export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): void {
   const config = resolveConfig(inputConfig)
   const state = new TurnDecisionState()
   const searchClient = new SearchGateClient(config.serviceUrl, config.timeoutMs)
   const modelTierClient = new ModelTierGateClient(config.serviceUrl, config.timeoutMs)
+  const notificationClient = new NotificationGateClient(config.serviceUrl, config.timeoutMs)
+  const notificationCandidates = new Map<string, string>()
 
   if (config.mode === 'canary' && config.effectiveMode === 'shadow') {
     ctx.logger?.warn?.(
@@ -113,7 +172,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
   ctx.on('session/event', (session: SessionLike, event: SessionEventLike) => {
     if (
       config.effectiveMode === 'off'
-      || (!config.searchGateEnabled && !config.modelTierGateEnabled)
+      || (!config.searchGateEnabled && !config.modelTierGateEnabled && !config.notificationGateEnabled)
     ) return
 
     const sessionId = asSessionId(session)
@@ -125,13 +184,48 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       return
     }
 
+    if (
+      config.notificationGateEnabled
+      && event.type === 'assistant/message'
+      && turn !== null
+    ) {
+      const text = assistantEventText(event)
+      if (text) notificationCandidates.set(turnKey(sessionId, turn), text)
+      return
+    }
+
     if (event.type === 'turn/end' && turn !== null) {
+      const candidateKey = turnKey(sessionId, turn)
+      let eventText = notificationCandidates.get(candidateKey) ?? ''
+      notificationCandidates.delete(candidateKey)
+      const reasonKind = turnReasonKind(event.data?.reason)
+      const blockingFailure = reasonKind === 'error' || reasonKind === 'failed'
+      if (!eventText && blockingFailure) {
+        eventText = 'Agent turn ended with a blocking failure before producing a final response.'
+      }
+      if (config.notificationGateEnabled && eventText) {
+        const requestId = randomUUID()
+        const context = { turn, reason_kind: reasonKind }
+        void notificationClient
+          .decide(eventText, requestId, context, blockingFailure)
+          .then(decision => logNotificationDecision(
+            ctx, config.effectiveMode, decision, eventText.length,
+          ))
+          .catch(error => {
+            ctx.logger?.warn?.(
+              `[local-system-one-dsh] notification gate unavailable; fail-open (${errorType(error)})`,
+            )
+          })
+      }
       state.clearTurn(sessionId, turn)
       return
     }
 
     if (event.type === 'session/end' || event.type === 'session/close') {
       state.clearSession(sessionId)
+      for (const key of notificationCandidates.keys()) {
+        if (key.startsWith(`${sessionId}:`)) notificationCandidates.delete(key)
+      }
     }
   })
 
@@ -281,8 +375,10 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
 export {
   ModelTierGateClient,
+  NotificationGateClient,
   SearchGateClient,
   parseModelTierDecision,
+  parseNotificationDecision,
   parseSearchDecision,
 } from './client.js'
 export {

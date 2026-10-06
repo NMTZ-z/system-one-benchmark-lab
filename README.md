@@ -176,7 +176,7 @@ See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/RE
 
 ## DeepSeek Harness integration
 
-The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Phase 7A upgrades it from Search-only Phase 1 to **Search Gate + Model Tier Gate** parity with the Hermes integration while preserving reversible, fail-open behavior.
+The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Phase 7A/7B upgrades it to **Search Gate + Model Tier Gate + Notification Gate (Shadow)** parity with the Hermes integration while preserving reversible, fail-open behavior.
 
 Validated DSH targets are deliberately exact:
 
@@ -185,13 +185,16 @@ Validated DSH targets are deliberately exact:
 0.2.1-alpha.1 @ 5badb15009ae1756c3afe0ae0cef1faafc290ccc
 ```
 
-The adapter supports independent Search and Model Tier Shadow observation once per user turn. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
+The adapter supports independent Search, Model Tier, and Notification observation. Search and Model Tier run at turn start; Notification observes the completed Agent event at turn end and remains Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
 
-The real provider-wire validation path used:
+Real provider-wire validation paths include:
 
 ```text
 DeepSeek Harness -> Nova -> DeepSeek V4.1 Flash
+DeepSeek Harness -> StepFun Step Plan -> step-5-preview
 ```
+
+The StepFun route completed native high/low requests and an automatic Local System One high-to-low Canary transition, including tool-loop restoration to high after the first provider call.
 
 The installation bundle remains inert in `off` mode. Connection errors, timeouts, malformed gate responses, unsupported provider/model routes, and any missing Canary authority fail open to native DSH behavior. Turn-scoped Search and Model Tier state is cleared at turn end.
 
@@ -300,6 +303,7 @@ Start here depending on what you want to do:
 - [DeepSeek Harness adapter](integrations/deepseek-harness/local-system-one-dsh/README.md)
 - [DeepSeek Harness validation report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md)
 - [DeepSeek Harness Phase 7A Model Tier parity](integrations/deepseek-harness/local-system-one-dsh/PHASE7A_MODEL_TIER_PARITY.md)
+- [Phase 7B Notification + StepFun validation](integrations/deepseek-harness/local-system-one-dsh/PHASE7B_NOTIFICATION_STEPFUN.md)
 - [Public release / reproducibility](docs/PUBLIC_RELEASE.md)
 - [Upstream provenance](references/UPSTREAM.md)
 

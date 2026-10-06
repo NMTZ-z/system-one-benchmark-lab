@@ -6,6 +6,7 @@ export interface AdapterConfig {
   timeout_ms?: number
   search_gate_enabled?: boolean
   model_tier_gate_enabled?: boolean
+  notification_gate_enabled?: boolean
   canary_acknowledged?: boolean
   canary_web_filter_enabled?: boolean
   canary_reasoning_downgrade_enabled?: boolean
@@ -18,6 +19,7 @@ export interface ResolvedAdapterConfig {
   timeoutMs: number
   searchGateEnabled: boolean
   modelTierGateEnabled: boolean
+  notificationGateEnabled: boolean
   canaryAcknowledged: boolean
   canaryWebFilterEnabled: boolean
   canaryReasoningDowngradeEnabled: boolean
@@ -39,6 +41,18 @@ export interface ModelTierDecision {
   reason: string
   difficulty_score: number
   probability_strong: number
+  confidence: number
+  backend: string
+  latency_ms: number
+  request_id: string | null
+}
+
+export interface NotificationDecision {
+  delivery: 'silent' | 'digest' | 'notify_now'
+  notify_now: boolean
+  decision_source: 'rule' | 'model'
+  reason: string
+  priority_score: number
   confidence: number
   backend: string
   latency_ms: number

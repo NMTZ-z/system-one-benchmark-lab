@@ -2,9 +2,9 @@
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
-Native DeepSeek Harness adapter for Local System One **Search Gate + Model Tier Gate**.
+Native DeepSeek Harness adapter for Local System One **Search Gate + Model Tier Gate + Notification Gate**.
 
-Version `0.2.0` keeps installation inert by default, observes both gates independently in Shadow mode, preserves the existing audited Search Canary, and adds an explicitly opt-in experimental Model Tier Canary for one verified Nova / DeepSeek route.
+Version `0.3.0` keeps installation inert by default, observes all three gates, preserves the audited Search Canary, and keeps Model Tier Canary explicitly opt-in. Phase 7B adds Notification Shadow and a second verified Model Tier route using StepFun Step Plan / `step-5-preview`.
 
 ## Compatibility
 
@@ -13,7 +13,7 @@ Phase 7A revalidated two exact DSH versions:
 | DSH | Commit | Validation |
 |---|---|---|
 | `dsh-v0.1.7-rc.2` / `0.1.7-rc.2` | `477b4f420553e8a52c2fbccc464d7561b239c443` | full Search + Model Tier lifecycle, successful provider E2E before the later Nova route degradation |
-| `dsh-v0.2.1-alpha.1` / `0.2.1-alpha.1` | `5badb15009ae1756c3afe0ae0cef1faafc290ccc` | plugin load, lifecycle hooks, Model Tier decision path, and provider-wire mutation verified; final provider completion currently blocked by the same Nova route error reproduced on rc2 |
+| `dsh-v0.2.1-alpha.1` / `0.2.1-alpha.1` | `5badb15009ae1756c3afe0ae0cef1faafc290ccc` | Search + Model Tier + Notification lifecycle verified; full provider completion and high/low/tool-loop Model Tier E2E passed through StepFun Step Plan / `step-5-preview` |
 
 Node.js: `>=22.19.0`. Validation host: Apple Silicon arm64.
 
@@ -39,6 +39,7 @@ Local System One Runtime
        |
        +-- Search Gate
        +-- Model Tier Gate
+       +-- Notification Gate
        +-- Rules / typed model / MLX / ANE
 ```
 
@@ -51,13 +52,14 @@ The adapter is an HTTP client. It does not import Laya, MLX, Core ML, Torch, or 
 | `mode` | `off` |
 | `search_gate_enabled` | `true` |
 | `model_tier_gate_enabled` | `true` |
+| `notification_gate_enabled` | `true` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
 | `timeout_ms` | `500` |
 
 - `off`: no Local System One request and no DSH mutation.
-- `shadow`: Search Gate and Model Tier Gate may be enabled independently. Both are evaluated once on step 1 of each user turn. DSH behavior is never changed.
+- `shadow`: Search Gate and Model Tier Gate are evaluated on step 1; Notification Gate observes the final assistant event at turn end. The three gates can be enabled independently. DSH behavior is never changed.
 - `canary`: Shadow behavior plus narrowly audited mutations. Canary requires `canary_acknowledged: true`; otherwise it degrades to Shadow.
 
 Example:
@@ -68,6 +70,7 @@ service_url: http://127.0.0.1:8787
 timeout_ms: 500
 search_gate_enabled: true
 model_tier_gate_enabled: true
+notification_gate_enabled: true
 canary_acknowledged: false
 canary_web_filter_enabled: true
 canary_reasoning_downgrade_enabled: false
@@ -125,7 +128,10 @@ Current active route allowlist:
 
 ```text
 nova/deepseek-v4-flash
+stepfun/step-5-preview
 ```
+
+`stepfun/step-5-preview` was wire-probed on DSH `0.2.1-alpha.1`: native `high` and native `low` both completed successfully, the real provider JSON carried `reasoning_effort=high/low`, and Local System One Canary automatically changed a deterministic bounded transform from high to low. A tool-loop probe then verified first call `low` followed by subsequent tool-result calls back at `high`.
 
 Current audited deterministic hard-fast reasons:
 
@@ -138,11 +144,25 @@ The mutation is copy-on-write and local to the first provider call of the turn. 
 
 The exact model ID `deepseek-v4.1-flash` is **not** in the active allowlist: the current Nova token plan returned `403 model is not available in the current token plan`, so it has not earned an active compatibility claim.
 
+## Notification Gate
+
+Endpoint:
+
+```text
+POST /v1/workflows/notification-gate
+```
+
+Notification is **Shadow-only** in `0.3.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
+
+The adapter logs only decision metadata (`delivery`, `notify_now`, source, reason, score, confidence, backend, latency and event length). It never logs the final response text. No push, webhook, message or other delivery action is taken even if Local System One returns `notify_now`.
+
+A real three-gate E2E on DSH `0.2.1-alpha.1` observed all three HTTP calls in one completed StepFun turn: `/search-gate`, `/model-tier-gate`, and `/notification-gate`.
+
 ## Turn scope and privacy
 
-DSH invokes `agent/pre-step` again after tool results, so both gates are evaluated only for `step === 1`.
+DSH invokes `agent/pre-step` again after tool results, so Search and Model Tier are evaluated only for `step === 1`. Notification is evaluated once at turn end after the final assistant event is known.
 
-Search and Model Tier decisions are kept separately under session + turn identity. `turn/end` deletes both. `session/end` / `session/close` clears remaining session state. No raw task, transcript, system prompt, credentials, or tool arguments are stored in adapter state or emitted by adapter logs.
+Search and Model Tier decisions are kept separately under session + turn identity. `turn/end` deletes both. `session/end` / `session/close` clears remaining session state. No raw task, final response, transcript, system prompt, credentials, or tool arguments are stored in adapter state or emitted by adapter logs. Search/Model Tier send the current task to the configured service; Notification sends the bounded final event. A remote `service_url` therefore carries those inputs off-device.
 
 ## Fail-open behavior
 
@@ -208,7 +228,7 @@ Then launch a supported DSH checkout:
 dsh --profile headless --patch /path/to/local-system-one-dsh.patch.yml "your task"
 ```
 
-Provider credentials remain outside Git. Validation used the existing Nova provider configuration without printing or storing the credential value.
+Provider credentials remain outside Git. Validation used existing Hermes-managed Nova and StepFun credentials without printing or storing either credential value. The successful Phase 7B provider path was `DSH -> StepFun Step Plan -> step-5-preview`.
 
 ## Rollback
 
@@ -224,10 +244,10 @@ Canary
 
 Removing the adapter restores native DSH behavior without reinstalling DSH or changing other profiles/providers.
 
-## Phase 7A report
+## Phase reports
 
-See [PHASE7A_MODEL_TIER_PARITY.md](PHASE7A_MODEL_TIER_PARITY.md) for the wire probe, parity matrix, provider-state caveat, Unified Adapter Contract notes, and GO/NO-GO decision.
+See [PHASE7A_MODEL_TIER_PARITY.md](PHASE7A_MODEL_TIER_PARITY.md) for Model Tier parity and [PHASE7B_NOTIFICATION_STEPFUN.md](PHASE7B_NOTIFICATION_STEPFUN.md) for Notification Shadow parity and StepFun provider-wire validation.
 
 ## Still out of scope
 
-Phase 7A does not add Completion Gate, Retry Gate, Action Risk Gate, Notification Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.
+Phase 7B does not add Active notification delivery, Completion Gate, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.

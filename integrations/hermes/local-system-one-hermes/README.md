@@ -8,6 +8,7 @@ Typical decisions include:
 
 - whether a task needs public/current Web information;
 - whether a bounded task is eligible for a lower reasoning tier;
+- whether a completed Agent turn should stay silent, join a digest, or merit an immediate notification;
 - which decisions should remain observation-only until enough evidence exists.
 
 The plugin talks to a separate Local System One service over loopback HTTP. It is deliberately conservative: first install is **OFF**, Shadow changes nothing, Canary requires explicit acknowledgement, and any Local System One failure leaves the original Hermes request unchanged.
@@ -81,8 +82,10 @@ scripts/set_hermes_system_one_mode.sh systemoneeval shadow
 Shadow mode:
 
 - calls the enabled Local System One gates;
+- observes Search and Model Tier before the provider request;
+- observes Notification after the final Agent response and turn lifecycle are known;
 - records privacy-safe operational metadata;
-- **does not rewrite the Hermes provider request**.
+- **does not rewrite the Hermes provider request or send notifications**.
 
 This is the recommended way to evaluate the plugin before allowing any request mutation.
 
@@ -149,6 +152,16 @@ for `gemini-3.8-flash-tiered`.
 
 This remains experimental. A 32-pair Hermes benchmark preserved measured task quality but did **not** establish a reliable latency improvement, so the public plugin does not enable or advertise this as a guaranteed optimization.
 
+## Notification Gate (Shadow only)
+
+Version `0.6.0` adds Notification Gate observation through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
+
+The persisted plugin state contains only metadata such as `delivery`, `notify_now`, reason, score, confidence, backend, latency and the event character count. The response text itself is not persisted.
+
+Notification has **no Active authority** in this release. A `notify_now` decision is evidence for evaluation only; the plugin does not send a push, message, webhook or other user-visible notification. Failed turns may set `blocking_failure=true` so the runtime can exercise its deterministic failure rule, but the result remains observation-only.
+
+A live `systemoneeval` Hermes smoke on this release produced all three gate decisions and a Notification result of `digest` from the ANE backend without changing delivery behavior.
+
 ## Safe defaults
 
 | Setting | Default |
@@ -156,6 +169,7 @@ This remains experimental. A 32-pair Hermes benchmark preserved measured task qu
 | `mode` | `off` |
 | `search_gate_enabled` | `true` |
 | `model_tier_gate_enabled` | `true` |
+| `notification_gate_enabled` | `true` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
@@ -185,7 +199,10 @@ Shadow/Canary state stores only operational metadata such as:
 - decision source / route reason;
 - probabilities or scores;
 - backend and latency;
-- names of tools changed by Canary.
+- names of tools changed by Canary;
+- Notification delivery/reason/score/confidence and event length, never the final response text.
+
+Search/Model Tier send the current task to the configured Local System One endpoint. Notification sends the final Agent event text plus lifecycle metadata. With the default loopback service this remains local; pointing `service_url` at a remote host sends those inputs to that remote service.
 
 The Local System One service also avoids persisting raw request payloads by default.
 
@@ -233,6 +250,7 @@ It exercises OFF, Shadow, acknowledged Canary, fail-open behavior and restoratio
 - **Shadow:** recommended evaluation mode
 - **hard no-Web Canary:** narrow, evidence-backed experiment
 - **reasoning downgrade Canary:** experimental and disabled by default
+- **Notification Gate:** Shadow-only; `silent` / `digest` / `notify_now` are observed but never delivered by the plugin
 - **model-probability Active routing:** not supported
 
 For architecture, benchmark evidence and the Laya/ANE runtime, see the main project:

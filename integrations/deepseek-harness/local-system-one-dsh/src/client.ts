@@ -1,4 +1,4 @@
-import type { ModelTierDecision, SearchDecision } from './types.js'
+import type { ModelTierDecision, NotificationDecision, SearchDecision } from './types.js'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -107,6 +107,46 @@ export function parseModelTierDecision(value: unknown): ModelTierDecision {
   }
 }
 
+export function parseNotificationDecision(value: unknown): NotificationDecision {
+  const contract = 'notification-gate'
+  if (!isRecord(value)) {
+    throw new Error(`invalid ${contract} response`)
+  }
+
+  const delivery = requiredString(value, 'delivery', contract)
+  if (!['silent', 'digest', 'notify_now'].includes(delivery)) {
+    throw new Error(`invalid ${contract} response field: delivery`)
+  }
+  const notifyNow = value.notify_now
+  if (typeof notifyNow !== 'boolean') {
+    throw new Error(`invalid ${contract} response field: notify_now`)
+  }
+  const decisionSource = requiredString(value, 'decision_source', contract)
+  if (decisionSource !== 'rule' && decisionSource !== 'model') {
+    throw new Error(`invalid ${contract} response field: decision_source`)
+  }
+  const priorityScore = requiredNumber(value, 'priority_score', contract)
+  if (priorityScore < 0 || priorityScore > 4) {
+    throw new Error('priority_score must be in [0, 4]')
+  }
+  const confidence = requiredNumber(value, 'confidence', contract)
+  if (confidence < 0 || confidence > 1) {
+    throw new Error('confidence must be in [0, 1]')
+  }
+
+  return {
+    delivery: delivery as NotificationDecision['delivery'],
+    notify_now: notifyNow,
+    decision_source: decisionSource,
+    reason: requiredString(value, 'reason', contract),
+    priority_score: priorityScore,
+    confidence,
+    backend: requiredString(value, 'backend', contract),
+    latency_ms: requiredNumber(value, 'latency_ms', contract),
+    request_id: requestId(value, contract),
+  }
+}
+
 class GateClient<T> {
   constructor(
     private readonly serviceUrl: string,
@@ -115,7 +155,7 @@ class GateClient<T> {
     private readonly parser: (value: unknown) => T,
   ) {}
 
-  async decide(task: string, requestIdValue: string): Promise<T> {
+  protected async post(payload: Record<string, unknown>): Promise<T> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
 
@@ -123,7 +163,7 @@ class GateClient<T> {
       const response = await fetch(`${this.serviceUrl}${this.path}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ task, request_id: requestIdValue }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       })
 
@@ -134,6 +174,10 @@ class GateClient<T> {
     } finally {
       clearTimeout(timeout)
     }
+  }
+
+  async decide(task: string, requestIdValue: string): Promise<T> {
+    return this.post({ task, request_id: requestIdValue })
   }
 }
 
@@ -146,5 +190,28 @@ export class SearchGateClient extends GateClient<SearchDecision> {
 export class ModelTierGateClient extends GateClient<ModelTierDecision> {
   constructor(serviceUrl: string, timeoutMs: number) {
     super(serviceUrl, timeoutMs, '/v1/workflows/model-tier-gate', parseModelTierDecision)
+  }
+}
+
+export class NotificationGateClient extends GateClient<NotificationDecision> {
+  constructor(serviceUrl: string, timeoutMs: number) {
+    super(serviceUrl, timeoutMs, '/v1/workflows/notification-gate', parseNotificationDecision)
+  }
+
+  async decide(
+    event: string,
+    requestIdValue: string,
+    context: Record<string, unknown> | null = null,
+    blockingFailure = false,
+  ): Promise<NotificationDecision> {
+    return this.post({
+      event,
+      context,
+      urgency: 'auto',
+      user_action_required: false,
+      blocking_failure: blockingFailure,
+      routine_update: false,
+      request_id: requestIdValue,
+    })
   }
 }
