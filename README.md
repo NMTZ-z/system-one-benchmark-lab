@@ -176,31 +176,35 @@ See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/RE
 
 ## DeepSeek Harness integration
 
-The repository also includes a native adapter for the official DeepSeek Harness plugin lifecycle. The first validated target is pinned to `dsh-v0.1.7-rc.2` at commit `477b4f420553e8a52c2fbccc464d7561b239c443`.
+The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Phase 7A/7B upgrades it to **Search Gate + Model Tier Gate + Notification Gate (Shadow)** parity with the Hermes integration while preserving reversible, fail-open behavior.
 
-Phase 1 intentionally enables only the **Search Gate**:
+Validated DSH targets are deliberately exact:
 
 ```text
-off -> shadow -> canary
+0.1.7-rc.2  @ 477b4f420553e8a52c2fbccc464d7561b239c443
+0.2.1-alpha.1 @ 5badb15009ae1756c3afe0ae0cef1faafc290ccc
 ```
 
-The adapter calls Local System One over HTTP, evaluates once per user turn, and can deny only an exact audited set of public-Web tools when a deterministic hard no-Web rule has authority. Model-probability decisions remain Shadow-only. Connection failures and timeouts fail open, and turn-scoped state is cleared before the next turn.
+The adapter supports independent Search, Model Tier, and Notification observation. Search and Model Tier run at turn start; Notification observes the completed Agent event at turn end and remains Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
 
-The real validation path used:
+Real provider-wire validation paths include:
 
 ```text
 DeepSeek Harness -> Nova -> DeepSeek V4.1 Flash
+DeepSeek Harness -> StepFun Step Plan -> step-5-preview
 ```
 
-Community bundle install for the validated `headless` profile:
+The StepFun route completed native high/low requests and an automatic Local System One high-to-low Canary transition, including tool-loop restoration to high after the first provider call.
+
+The installation bundle remains inert in `off` mode. Connection errors, timeouts, malformed gate responses, unsupported provider/model routes, and any missing Canary authority fail open to native DSH behavior. Turn-scoped Search and Model Tier state is cleared at turn end.
+
+Community bundle install for a supported `headless` profile:
 
 ```bash
 dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
 ```
 
-The bundle installs in `off` mode by default; enabling Shadow or Canary is an explicit profile override.
-
-See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md) and the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md).
+See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md), the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md), and the [Phase 7A Model Tier parity report](integrations/deepseek-harness/local-system-one-dsh/PHASE7A_MODEL_TIER_PARITY.md).
 
 ## Architecture
 
@@ -298,6 +302,8 @@ Start here depending on what you want to do:
 - [Hermes plugin productization](docs/HERMES_PLUGIN_PRODUCTIZATION.md)
 - [DeepSeek Harness adapter](integrations/deepseek-harness/local-system-one-dsh/README.md)
 - [DeepSeek Harness validation report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md)
+- [DeepSeek Harness Phase 7A Model Tier parity](integrations/deepseek-harness/local-system-one-dsh/PHASE7A_MODEL_TIER_PARITY.md)
+- [Phase 7B Notification + StepFun validation](integrations/deepseek-harness/local-system-one-dsh/PHASE7B_NOTIFICATION_STEPFUN.md)
 - [Public release / reproducibility](docs/PUBLIC_RELEASE.md)
 - [Upstream provenance](references/UPSTREAM.md)
 

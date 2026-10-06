@@ -105,8 +105,12 @@ d=json.load(open(sys.argv[1], encoding="utf-8"))
 e=d.get("last_shadow") or {}
 assert e.get("ok") is True, e
 assert (d.get("status") or {}).get("mode") == "shadow", d.get("status")
+n=d.get("last_notification_shadow") or {}
+assert n.get("ok") is True, n
+assert int(n.get("event_chars", 0)) > 0, n
+assert (n.get("notification") or {}).get("delivery") in {"silent", "digest", "notify_now"}, n
 PY
-echo "PASS shadow: decision observed without mutation"
+echo "PASS shadow: Search/Model Tier observed; Notification Shadow observed; no mutation"
 
 "$ROOT/scripts/set_hermes_system_one_mode.sh" "$PROFILE" canary --ack-canary >/dev/null
 hermes -p "$PROFILE" -z "把“今天下午三点我们需要召开一次项目会议”改写得更简洁。" >/dev/null
