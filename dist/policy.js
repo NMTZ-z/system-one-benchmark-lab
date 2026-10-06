@@ -5,6 +5,14 @@ export const AUDITED_HARD_NO_WEB_REASONS = new Set([
     'local_file_or_repo',
     'connected_app_data',
 ]);
+export const AUDITED_HARD_FAST_REASONS = new Set([
+    'bounded_transform',
+    'bounded_structured_transform',
+]);
+export const VERIFIED_REASONING_DOWNGRADE_ROUTES = new Set([
+    'nova/deepseek-v4-flash',
+    'stepfun/step-5-preview',
+]);
 export const VERIFIED_PUBLIC_WEB_TOOLS = new Set([
     'web_search',
     'web_fetch',
@@ -34,7 +42,11 @@ export function resolveConfig(input = {}) {
         serviceUrl: normalizeServiceUrl(input.service_url ?? DEFAULT_SERVICE_URL),
         timeoutMs,
         searchGateEnabled: input.search_gate_enabled ?? true,
+        modelTierGateEnabled: input.model_tier_gate_enabled ?? true,
+        notificationGateEnabled: input.notification_gate_enabled ?? true,
         canaryAcknowledged,
+        canaryWebFilterEnabled: input.canary_web_filter_enabled ?? true,
+        canaryReasoningDowngradeEnabled: input.canary_reasoning_downgrade_enabled ?? false,
     };
 }
 export function isVerifiedPublicWebTool(name) {
@@ -45,5 +57,14 @@ export function hasCanaryAuthority(decision) {
         && decision.decision_source === 'rule'
         && decision.backend === 'rule'
         && AUDITED_HARD_NO_WEB_REASONS.has(decision.reason));
+}
+export function isVerifiedReasoningDowngradeRoute(provider, model) {
+    return VERIFIED_REASONING_DOWNGRADE_ROUTES.has(`${provider}/${model}`);
+}
+export function hasModelTierCanaryAuthority(decision) {
+    return (decision.tier === 'fast'
+        && decision.decision_source === 'rule'
+        && decision.backend === 'rule'
+        && AUDITED_HARD_FAST_REASONS.has(decision.reason));
 }
 //# sourceMappingURL=policy.js.map

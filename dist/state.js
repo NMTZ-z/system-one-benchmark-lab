@@ -3,34 +3,60 @@ function key(sessionId, turn) {
 }
 export class TurnDecisionState {
     activeTurns = new Map();
-    decisions = new Map();
+    searchDecisions = new Map();
+    modelTierDecisions = new Map();
     beginTurn(sessionId, turn) {
         this.activeTurns.set(sessionId, turn);
     }
-    setDecision(sessionId, turn, decision) {
+    setSearchDecision(sessionId, turn, decision) {
         this.activeTurns.set(sessionId, turn);
-        this.decisions.set(key(sessionId, turn), decision);
+        this.searchDecisions.set(key(sessionId, turn), decision);
+    }
+    setModelTierDecision(sessionId, turn, decision) {
+        this.activeTurns.set(sessionId, turn);
+        this.modelTierDecisions.set(key(sessionId, turn), decision);
+    }
+    getCurrentSearchDecision(sessionId) {
+        const turn = this.activeTurns.get(sessionId);
+        return turn === undefined ? undefined : this.searchDecisions.get(key(sessionId, turn));
+    }
+    getCurrentModelTierDecision(sessionId) {
+        const turn = this.activeTurns.get(sessionId);
+        return turn === undefined ? undefined : this.modelTierDecisions.get(key(sessionId, turn));
+    }
+    getModelTierDecision(sessionId, turn) {
+        return this.modelTierDecisions.get(key(sessionId, turn));
+    }
+    // Backward-compatible Search Gate aliases retained for Phase 1 consumers/tests.
+    setDecision(sessionId, turn, decision) {
+        this.setSearchDecision(sessionId, turn, decision);
     }
     getCurrentDecision(sessionId) {
-        const turn = this.activeTurns.get(sessionId);
-        return turn === undefined ? undefined : this.decisions.get(key(sessionId, turn));
+        return this.getCurrentSearchDecision(sessionId);
     }
     clearTurn(sessionId, turn) {
-        this.decisions.delete(key(sessionId, turn));
+        const decisionKey = key(sessionId, turn);
+        this.searchDecisions.delete(decisionKey);
+        this.modelTierDecisions.delete(decisionKey);
         if (this.activeTurns.get(sessionId) === turn) {
             this.activeTurns.delete(sessionId);
         }
     }
     clearSession(sessionId) {
         this.activeTurns.delete(sessionId);
-        for (const decisionKey of this.decisions.keys()) {
+        for (const decisionKey of this.searchDecisions.keys()) {
             if (decisionKey.startsWith(`${sessionId}:`)) {
-                this.decisions.delete(decisionKey);
+                this.searchDecisions.delete(decisionKey);
+            }
+        }
+        for (const decisionKey of this.modelTierDecisions.keys()) {
+            if (decisionKey.startsWith(`${sessionId}:`)) {
+                this.modelTierDecisions.delete(decisionKey);
             }
         }
     }
     decisionCount() {
-        return this.decisions.size;
+        return this.searchDecisions.size + this.modelTierDecisions.size;
     }
 }
 //# sourceMappingURL=state.js.map
