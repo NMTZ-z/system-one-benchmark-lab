@@ -5,7 +5,10 @@ export interface AdapterConfig {
   service_url?: string
   timeout_ms?: number
   search_gate_enabled?: boolean
+  model_tier_gate_enabled?: boolean
   canary_acknowledged?: boolean
+  canary_web_filter_enabled?: boolean
+  canary_reasoning_downgrade_enabled?: boolean
 }
 
 export interface ResolvedAdapterConfig {
@@ -14,7 +17,10 @@ export interface ResolvedAdapterConfig {
   serviceUrl: string
   timeoutMs: number
   searchGateEnabled: boolean
+  modelTierGateEnabled: boolean
   canaryAcknowledged: boolean
+  canaryWebFilterEnabled: boolean
+  canaryReasoningDowngradeEnabled: boolean
 }
 
 export interface SearchDecision {
@@ -27,7 +33,23 @@ export interface SearchDecision {
   request_id: string | null
 }
 
+export interface ModelTierDecision {
+  tier: 'fast' | 'strong'
+  decision_source: 'rule' | 'model'
+  reason: string
+  difficulty_score: number
+  probability_strong: number
+  confidence: number
+  backend: string
+  latency_ms: number
+  request_id: string | null
+}
+
 export interface StoredSearchDecision extends SearchDecision {
+  observed_at_ms: number
+}
+
+export interface StoredModelTierDecision extends ModelTierDecision {
   observed_at_ms: number
 }
 
@@ -54,6 +76,22 @@ export interface PreStepInputLike {
   messages?: readonly UserMessageLike[]
   turn?: unknown
   step?: unknown
+}
+
+export interface AgentRequestInputLike {
+  agent?: AgentLike
+  turn?: unknown
+  step?: unknown
+}
+
+export interface LlmCallConfigLike {
+  provider?: unknown
+  model?: unknown
+  reasoningEffort?: unknown
+  temperature?: unknown
+  maxTokens?: unknown
+  stop?: unknown
+  [key: string]: unknown
 }
 
 export interface ToolExecutionLike {

@@ -1,4 +1,10 @@
-import type { AdapterConfig, AdapterMode, ResolvedAdapterConfig, SearchDecision } from './types.js'
+import type {
+  AdapterConfig,
+  AdapterMode,
+  ModelTierDecision,
+  ResolvedAdapterConfig,
+  SearchDecision,
+} from './types.js'
 
 const DEFAULT_SERVICE_URL = 'http://127.0.0.1:8787'
 const DEFAULT_TIMEOUT_MS = 500
@@ -7,6 +13,15 @@ export const AUDITED_HARD_NO_WEB_REASONS = new Set([
   'bounded_transform_task',
   'local_file_or_repo',
   'connected_app_data',
+])
+
+export const AUDITED_HARD_FAST_REASONS = new Set([
+  'bounded_transform',
+  'bounded_structured_transform',
+])
+
+export const VERIFIED_REASONING_DOWNGRADE_ROUTES = new Set([
+  'nova/deepseek-v4-flash',
 ])
 
 export const VERIFIED_PUBLIC_WEB_TOOLS = new Set([
@@ -44,7 +59,10 @@ export function resolveConfig(input: AdapterConfig = {}): ResolvedAdapterConfig 
     serviceUrl: normalizeServiceUrl(input.service_url ?? DEFAULT_SERVICE_URL),
     timeoutMs,
     searchGateEnabled: input.search_gate_enabled ?? true,
+    modelTierGateEnabled: input.model_tier_gate_enabled ?? true,
     canaryAcknowledged,
+    canaryWebFilterEnabled: input.canary_web_filter_enabled ?? true,
+    canaryReasoningDowngradeEnabled: input.canary_reasoning_downgrade_enabled ?? false,
   }
 }
 
@@ -58,5 +76,18 @@ export function hasCanaryAuthority(decision: SearchDecision): boolean {
     && decision.decision_source === 'rule'
     && decision.backend === 'rule'
     && AUDITED_HARD_NO_WEB_REASONS.has(decision.reason)
+  )
+}
+
+export function isVerifiedReasoningDowngradeRoute(provider: string, model: string): boolean {
+  return VERIFIED_REASONING_DOWNGRADE_ROUTES.has(`${provider}/${model}`)
+}
+
+export function hasModelTierCanaryAuthority(decision: ModelTierDecision): boolean {
+  return (
+    decision.tier === 'fast'
+    && decision.decision_source === 'rule'
+    && decision.backend === 'rule'
+    && AUDITED_HARD_FAST_REASONS.has(decision.reason)
   )
 }
