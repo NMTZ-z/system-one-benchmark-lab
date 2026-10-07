@@ -40,6 +40,8 @@ def test_public_release_build_is_allowlisted_and_sanitized(tmp_path):
         output
         / "integrations/deepseek-harness/local-system-one-dsh/README.md"
     ).is_file()
+    assert (output / "contracts/adapter-contract-v1.schema.json").is_file()
+    assert (output / "docs/ADAPTER_CONTRACT.md").is_file()
     assert not (output / "private").exists()
     assert not (output / "models").exists()
     assert not (output / "results/raw").exists()

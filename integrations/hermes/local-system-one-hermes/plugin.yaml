@@ -1,6 +1,6 @@
 manifest_version: 2
 name: local-system-one-hermes
-version: 0.6.0
+version: 0.7.0
 description: >-
   Local System One / Laya Typed Decisions control plane for Hermes Agent.
   Reversible OFF/Shadow/Canary modes, explicit Canary acknowledgement,
@@ -61,7 +61,7 @@ config_schema:
     label: Notification Gate (Shadow)
     description: >-
       Observe whether a completed Agent turn should be silent, digested, or notified.
-      Phase 7B is observation-only and never sends a notification itself.
+      Notification is observation-only and never sends a notification itself.
   canary_acknowledged:
     type: bool
     default: false

@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { ModelTierGateClient, NotificationGateClient, SearchGateClient } from './client.js'
 import {
+  ADAPTER_CONTRACT_VERSION,
+  actionOutcome,
+  failureActionReason,
+  telemetryRecord,
+  toDecisionEnvelope,
+} from './contract.js'
+import {
   hasCanaryAuthority,
   hasModelTierCanaryAuthority,
   isVerifiedPublicWebTool,
@@ -10,6 +17,7 @@ import {
 import { TurnDecisionState } from './state.js'
 import type {
   AdapterConfig,
+  AdapterMode,
   DshContextLike,
   AgentRequestInputLike,
   LlmCallConfigLike,
@@ -24,6 +32,7 @@ import type {
 } from './types.js'
 
 export const name = 'local-system-one-dsh'
+export const version = '0.4.0'
 const MAX_NOTIFICATION_CHARS = 6000
 
 function asSessionId(session: SessionLike | undefined): string | null {
@@ -91,67 +100,96 @@ function errorType(error: unknown): string {
 
 function logSearchDecision(
   ctx: DshContextLike,
-  mode: string,
+  mode: AdapterMode,
   decision: SearchDecision,
 ): void {
   ctx.logger?.info?.(
-    `[local-system-one-dsh] ${JSON.stringify({
-      gate: 'search',
+    `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
+      version,
       mode,
-      request_id: decision.request_id,
-      decision: decision.decision,
-      decision_source: decision.decision_source,
-      reason: decision.reason,
-      probability_search: decision.probability_search,
-      backend: decision.backend,
-      latency_ms: decision.latency_ms,
-    })}`,
+      toDecisionEnvelope('search', decision),
+      actionOutcome('observed', 'shadow_or_pre_action_observation'),
+    ))}`,
   )
 }
 
 function logModelTierDecision(
   ctx: DshContextLike,
-  mode: string,
+  mode: AdapterMode,
   decision: ModelTierDecision,
 ): void {
   ctx.logger?.info?.(
-    `[local-system-one-dsh] ${JSON.stringify({
-      gate: 'model_tier',
+    `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
+      version,
       mode,
-      request_id: decision.request_id,
-      tier: decision.tier,
-      decision_source: decision.decision_source,
-      reason: decision.reason,
-      difficulty_score: decision.difficulty_score,
-      probability_strong: decision.probability_strong,
-      confidence: decision.confidence,
-      backend: decision.backend,
-      latency_ms: decision.latency_ms,
-    })}`,
+      toDecisionEnvelope('model_tier', decision),
+      actionOutcome('observed', 'shadow_or_pre_action_observation'),
+    ))}`,
   )
 }
 
 function logNotificationDecision(
   ctx: DshContextLike,
-  mode: string,
+  mode: AdapterMode,
   decision: NotificationDecision,
   eventChars: number,
 ): void {
   ctx.logger?.info?.(
-    `[local-system-one-dsh] ${JSON.stringify({
-      gate: 'notification',
+    `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
+      version,
       mode,
-      request_id: decision.request_id,
-      delivery: decision.delivery,
-      notify_now: decision.notify_now,
-      decision_source: decision.decision_source,
-      reason: decision.reason,
-      priority_score: decision.priority_score,
-      confidence: decision.confidence,
-      backend: decision.backend,
-      latency_ms: decision.latency_ms,
-      event_chars: eventChars,
+      toDecisionEnvelope('notification', decision),
+      actionOutcome('observed', 'notification_shadow_only'),
+      { event_chars: eventChars },
+    ))}`,
+  )
+}
+
+function logFailOpen(
+  ctx: DshContextLike,
+  mode: AdapterMode,
+  gate: 'search' | 'model_tier' | 'notification',
+  error: unknown,
+): void {
+  ctx.logger?.info?.(
+    `[local-system-one-dsh] ${JSON.stringify({
+      adapter_contract_version: ADAPTER_CONTRACT_VERSION,
+      platform: 'deepseek_harness',
+      adapter_version: version,
+      gate,
+      mode,
+      decision: null,
+      decision_source: null,
+      reason: null,
+      backend: null,
+      latency_ms: null,
+      action_status: 'failed_open',
+      action_reason: failureActionReason(error),
+      request_id: null,
     })}`,
+  )
+}
+
+function logAction(
+  ctx: DshContextLike,
+  mode: AdapterMode,
+  gate: 'search' | 'model_tier',
+  decision: SearchDecision | ModelTierDecision,
+  status: 'applied' | 'skipped' | 'failed_open' | 'unsupported',
+  reason: string,
+  extra: Record<string, unknown> = {},
+): void {
+  const envelope = gate === 'search'
+    ? toDecisionEnvelope('search', decision as SearchDecision)
+    : toDecisionEnvelope('model_tier', decision as ModelTierDecision)
+  ctx.logger?.info?.(
+    `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
+      version,
+      mode,
+      envelope,
+      actionOutcome(status, reason),
+      extra,
+    ))}`,
   )
 }
 
@@ -212,6 +250,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
             ctx, config.effectiveMode, decision, eventText.length,
           ))
           .catch(error => {
+            logFailOpen(ctx, config.effectiveMode, 'notification', error)
             ctx.logger?.warn?.(
               `[local-system-one-dsh] notification gate unavailable; fail-open (${errorType(error)})`,
             )
@@ -261,6 +300,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
           })
           logSearchDecision(ctx, config.effectiveMode, decision)
         } catch (error) {
+          logFailOpen(ctx, config.effectiveMode, 'search', error)
           ctx.logger?.warn?.(
             `[local-system-one-dsh] search gate unavailable; fail-open (${errorType(error)})`,
           )
@@ -276,6 +316,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
           })
           logModelTierDecision(ctx, config.effectiveMode, decision)
         } catch (error) {
+          logFailOpen(ctx, config.effectiveMode, 'model_tier', error)
           ctx.logger?.warn?.(
             `[local-system-one-dsh] model tier gate unavailable; fail-open (${errorType(error)})`,
           )
@@ -311,26 +352,58 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
           const provider = typeof original?.provider === 'string' ? original.provider : ''
           const model = typeof original?.model === 'string' ? original.model : ''
           if (!provider || !model || !isVerifiedReasoningDowngradeRoute(provider, model)) {
+            logAction(
+              ctx,
+              config.effectiveMode,
+              'model_tier',
+              decision,
+              'unsupported',
+              'unsupported_provider_or_model',
+              { provider, model },
+            )
             return original
           }
-          if (original.reasoningEffort !== 'high') return original
+          if (original.reasoningEffort !== 'high') {
+            logAction(
+              ctx,
+              config.effectiveMode,
+              'model_tier',
+              decision,
+              'skipped',
+              'original_reasoning_not_high',
+              { provider, model },
+            )
+            return original
+          }
 
           const updated: LlmCallConfigLike = { ...original, reasoningEffort: 'low' }
-          ctx.logger?.info?.(
-            `[local-system-one-dsh] ${JSON.stringify({
-              gate: 'model_tier',
-              mode: 'canary',
-              action: 'reasoning_effort_downgrade',
-              provider,
-              model,
-              from: 'high',
-              to: 'low',
-              reason: decision.reason,
-              request_id: decision.request_id,
-            })}`,
+          logAction(
+            ctx,
+            config.effectiveMode,
+            'model_tier',
+            decision,
+            'applied',
+            'verified_reasoning_mapping',
+            { provider, model, reasoning_effort_before: 'high', reasoning_effort_after: 'low' },
           )
           return updated
         } catch (error) {
+          const step = asPositiveInteger(input.step)
+          const turn = asPositiveInteger(input.turn)
+          const sessionId = asSessionId(input.agent?.session)
+          const decision = turn !== null && sessionId
+            ? state.getModelTierDecision(sessionId, turn)
+            : undefined
+          if (decision) {
+            logAction(
+              ctx,
+              config.effectiveMode,
+              'model_tier',
+              decision,
+              'failed_open',
+              'mutation_exception',
+            )
+          }
           ctx.logger?.warn?.(
             `[local-system-one-dsh] model tier mutation unavailable; fail-open (${errorType(error)})`,
           )
@@ -351,28 +424,73 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
         || !config.searchGateEnabled
         || !config.canaryWebFilterEnabled
       ) return next()
+      try {
+        const toolName = typeof execution.name === 'string' ? execution.name : ''
+        if (!toolName || !isVerifiedPublicWebTool(toolName)) {
+          return next()
+        }
 
-      const toolName = typeof execution.name === 'string' ? execution.name : ''
-      if (!toolName || !isVerifiedPublicWebTool(toolName)) {
+        const sessionId = asSessionId(execution.agent?.session)
+        if (!sessionId) return next()
+
+        const decision = state.getCurrentSearchDecision(sessionId)
+        if (!decision || !hasCanaryAuthority(decision)) {
+          if (decision) {
+            logAction(
+              ctx,
+              config.effectiveMode,
+              'search',
+              decision,
+              'skipped',
+              'no_active_authority',
+              { tool: toolName },
+            )
+          }
+          return next()
+        }
+
+        logAction(
+          ctx,
+          config.effectiveMode,
+          'search',
+          decision,
+          'applied',
+          'verified_public_web_tool_denied',
+          { tool: toolName },
+        )
+        return {
+          kind: 'deny',
+          reason: `Local System One hard no-Web rule: ${decision.reason}`,
+        }
+      } catch (error) {
+        const sessionId = asSessionId(execution.agent?.session)
+        const decision = sessionId ? state.getCurrentSearchDecision(sessionId) : undefined
+        if (decision) {
+          logAction(
+            ctx,
+            config.effectiveMode,
+            'search',
+            decision,
+            'failed_open',
+            'mutation_exception',
+          )
+        }
+        ctx.logger?.warn?.(
+          `[local-system-one-dsh] search mutation unavailable; fail-open (${errorType(error)})`,
+        )
         return next()
-      }
-
-      const sessionId = asSessionId(execution.agent?.session)
-      if (!sessionId) return next()
-
-      const decision = state.getCurrentSearchDecision(sessionId)
-      if (!decision || !hasCanaryAuthority(decision)) {
-        return next()
-      }
-
-      return {
-        kind: 'deny',
-        reason: `Local System One hard no-Web rule: ${decision.reason}`,
       }
     },
   )
 }
 
+export {
+  ADAPTER_CONTRACT_VERSION,
+  actionOutcome,
+  failureActionReason,
+  telemetryRecord,
+  toDecisionEnvelope,
+} from './contract.js'
 export {
   ModelTierGateClient,
   NotificationGateClient,

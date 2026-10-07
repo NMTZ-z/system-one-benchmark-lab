@@ -13,6 +13,13 @@ Typical decisions include:
 
 The plugin talks to a separate Local System One service over loopback HTTP. It is deliberately conservative: first install is **OFF**, Shadow changes nothing, Canary requires explicit acknowledgement, and any Local System One failure leaves the original Hermes request unchanged.
 
+Hermes `0.7.0` implements **Adapter Contract v1**. The Runtime owns abstract
+decisions such as `Search=no_search` and `ModelTier=fast`; this plugin owns the
+Hermes-specific lifecycle, tool/provider mapping, Canary authority, rollback, and
+fail-open behavior. Platform details such as `reasoning_effort` and exact Hermes
+tool names are intentionally not part of the Runtime contract. See
+[`docs/ADAPTER_CONTRACT.md`](../../../docs/ADAPTER_CONTRACT.md).
+
 ## Before you install
 
 You need:
@@ -154,7 +161,7 @@ This remains experimental. A 32-pair Hermes benchmark preserved measured task qu
 
 ## Notification Gate (Shadow only)
 
-Version `0.6.0` adds Notification Gate observation through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
+Version `0.7.0` retains Notification Gate observation through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
 
 The persisted plugin state contains only metadata such as `delivery`, `notify_now`, reason, score, confidence, backend, latency and the event character count. The response text itself is not persisted.
 
@@ -183,7 +190,9 @@ Local System One is advisory infrastructure, not a dependency Hermes must surviv
 
 If the sidecar is unavailable, times out, or returns an incomplete recommendation:
 
-- the plugin does not apply Canary mutations;
+- the affected Gate does not receive Canary authority;
+- a healthy independent Gate can still be observed or applied under its own safety checks;
+- any mutation exception restores the original Hermes request;
 - Hermes keeps its original provider request;
 - the main Hermes turn continues.
 
@@ -229,6 +238,7 @@ From the repository root:
 
 ```bash
 python -m pytest -q \
+  tests/test_adapter_contract.py \
   tests/test_hermes_system_one_plugin.py \
   tests/test_hermes_system_one_scripts.py
 
