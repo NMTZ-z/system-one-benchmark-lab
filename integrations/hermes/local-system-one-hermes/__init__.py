@@ -1,6 +1,6 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.6.0:
+Safety invariant for v0.7.0:
 - mode=off: no Local System One network call and no behavior change.
 - mode=shadow: observe privacy-safe recommendations without rewriting requests.
 - mode=canary: request mutation requires explicit ``canary_acknowledged=true``.
@@ -22,7 +22,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.6.0"
+_PLUGIN_VERSION = "0.7.0"
+_ADAPTER_CONTRACT_VERSION = "1.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
@@ -87,24 +88,40 @@ def _safe_recommendations(
 ) -> dict[str, Any]:
     started = time.perf_counter()
     result: dict[str, Any] = {
-        "ok": False,
+        # ``ok`` is retained for backward compatibility and means every enabled
+        # gate succeeded. Canary authority below is intentionally gate-local.
+        "ok": True,
         "search": None,
         "model_tier": None,
         "error": None,
+        "search_ok": not search_enabled,
+        "model_tier_ok": not model_tier_enabled,
+        "search_error": None,
+        "model_tier_error": None,
     }
     payload = {"task": task, "context": context or None, "request_id": request_id}
-    try:
-        if search_enabled:
+    if search_enabled:
+        try:
             result["search"] = _post_json(
                 base_url, "/v1/workflows/search-gate", payload, timeout
             )
-        if model_tier_enabled:
+            result["search_ok"] = True
+        except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
+            error = type(exc).__name__
+            result["search_error"] = error
+            result["ok"] = False
+            result["error"] = result["error"] or error
+    if model_tier_enabled:
+        try:
             result["model_tier"] = _post_json(
                 base_url, "/v1/workflows/model-tier-gate", payload, timeout
             )
-        result["ok"] = True
-    except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
-        result["error"] = type(exc).__name__
+            result["model_tier_ok"] = True
+        except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
+            error = type(exc).__name__
+            result["model_tier_error"] = error
+            result["ok"] = False
+            result["error"] = result["error"] or error
     result["shadow_latency_ms"] = (time.perf_counter() - started) * 1000.0
     return result
 
@@ -381,9 +398,14 @@ def register(ctx):
     ctx.register_hook("post_llm_call", _observe_post_llm_call)
 
     def _observe_session_end(**kwargs):
+        turn_id = str(kwargs.get("turn_id") or "")
+        if turn_id:
+            pending = _state_get(ctx, "canary_pending", {})
+            if isinstance(pending, dict) and turn_id in pending:
+                pending.pop(turn_id, None)
+                _state_set(ctx, "canary_pending", pending)
         if effective_mode.startswith("off") or not notification_enabled:
             return
-        turn_id = str(kwargs.get("turn_id") or "")
         candidate = pending_notification_events.pop(turn_id, None) if turn_id else None
         failed = bool(kwargs.get("failed"))
         interrupted = bool(kwargs.get("interrupted"))
@@ -414,6 +436,9 @@ def register(ctx):
         event: dict[str, Any] = {
             "ts": time.time(),
             "request_id": turn_id or "notification-shadow",
+            "adapter_contract_version": _ADAPTER_CONTRACT_VERSION,
+            "platform": "hermes",
+            "adapter_version": _PLUGIN_VERSION,
             "profile": profile,
             "mode": effective_mode,
             "ok": bool(decision.get("ok")),
@@ -432,6 +457,13 @@ def register(ctx):
                 "confidence": notification.get("confidence"),
                 "backend": notification.get("backend"),
                 "latency_ms": notification.get("latency_ms"),
+                "action_status": "observed",
+                "action_reason": "notification_shadow_only",
+            }
+        else:
+            event["notification"] = {
+                "action_status": "failed_open",
+                "action_reason": f"runtime_{decision.get('error') or 'invalid_response'}",
             }
         history = _state_get(ctx, "notification_shadow_history", [])
         if not isinstance(history, list):
@@ -466,10 +498,13 @@ def register(ctx):
         event = {
             "ts": time.time(),
             "request_id": request_id,
+            "adapter_contract_version": _ADAPTER_CONTRACT_VERSION,
+            "platform": "hermes",
+            "adapter_version": _PLUGIN_VERSION,
             "profile": profile,
             "mode": effective_mode,
             "model": str(kwargs.get("model") or ""),
-            "platform": str(kwargs.get("platform") or ""),
+            "host_platform": str(kwargs.get("platform") or ""),
             "is_first_turn": bool(kwargs.get("is_first_turn")),
             "task_chars": len(task),
             "task_source": task_source,
@@ -486,6 +521,14 @@ def register(ctx):
                 "reason": search.get("reason"),
                 "probability_search": search.get("probability_search"),
                 "backend": search.get("backend"),
+                "latency_ms": search.get("latency_ms"),
+                "action_status": "observed",
+                "action_reason": "shadow_or_pre_action_observation",
+            }
+        elif search_enabled:
+            event["search"] = {
+                "action_status": "failed_open",
+                "action_reason": f"runtime_{decision.get('search_error') or decision.get('error') or 'invalid_response'}",
             }
         tier = decision.get("model_tier")
         if isinstance(tier, dict):
@@ -496,6 +539,14 @@ def register(ctx):
                 "difficulty_score": tier.get("difficulty_score"),
                 "probability_strong": tier.get("probability_strong"),
                 "backend": tier.get("backend"),
+                "latency_ms": tier.get("latency_ms"),
+                "action_status": "observed",
+                "action_reason": "shadow_or_pre_action_observation",
+            }
+        elif model_tier_enabled:
+            event["model_tier"] = {
+                "action_status": "failed_open",
+                "action_reason": f"runtime_{decision.get('model_tier_error') or decision.get('error') or 'invalid_response'}",
             }
 
         history = _state_get(ctx, "shadow_history", [])
@@ -518,7 +569,7 @@ def register(ctx):
         model_tier_reason = None
         if (
             canary_web_filter_enabled
-            and bool(decision.get("ok"))
+            and bool(decision.get("search_ok", decision.get("ok")))
             and isinstance(search, dict)
             and search.get("decision") == "no_search"
             and search.get("decision_source") == "rule"
@@ -527,7 +578,7 @@ def register(ctx):
             search_reason = str(search.get("reason"))
         if (
             canary_reasoning_downgrade_enabled
-            and bool(decision.get("ok"))
+            and bool(decision.get("model_tier_ok", decision.get("ok")))
             and isinstance(tier, dict)
             and tier.get("tier") == "fast"
             and tier.get("decision_source") == "rule"
@@ -584,29 +635,68 @@ def register(ctx):
         effort_before = None
         effort_after = None
         changed = False
-
         search_reason = candidate.get("search_reason")
-        if search_reason:
-            filtered, removed = _filter_public_web_tools(updated)
-            if filtered is not None:
-                updated = filtered
-                changed = True
-
         model_tier_reason = candidate.get("model_tier_reason")
-        if model_tier_reason:
-            downgraded, effort_before, effort_after = _downgrade_reasoning_effort(
-                updated
-            )
-            if downgraded is not None:
-                updated = downgraded
-                changed = True
+        search_action = {"status": "skipped", "reason": "no_eligible_decision"}
+        model_tier_action = {"status": "skipped", "reason": "no_eligible_decision"}
+        try:
+            if search_reason:
+                filtered, removed = _filter_public_web_tools(updated)
+                if filtered is not None:
+                    updated = filtered
+                    changed = True
+                    search_action = {
+                        "status": "applied",
+                        "reason": "verified_public_web_tools_filtered",
+                    }
+                else:
+                    search_action = {"status": "skipped", "reason": "no_matching_web_tool"}
+
+            if model_tier_reason:
+                downgraded, effort_before, effort_after = _downgrade_reasoning_effort(
+                    updated
+                )
+                if downgraded is not None:
+                    updated = downgraded
+                    changed = True
+                    model_tier_action = {
+                        "status": "applied",
+                        "reason": "verified_reasoning_mapping",
+                    }
+                elif updated.get("model") != "gemini-3.8-flash-tiered":
+                    model_tier_action = {
+                        "status": "unsupported",
+                        "reason": "unsupported_provider_or_model",
+                    }
+                else:
+                    model_tier_action = {
+                        "status": "skipped",
+                        "reason": "original_reasoning_not_high",
+                    }
+        except Exception:  # noqa: BLE001 - mutation boundary must preserve Hermes behavior
+            search_action = {
+                "status": "failed_open",
+                "reason": "mutation_exception",
+            } if search_reason else search_action
+            model_tier_action = {
+                "status": "failed_open",
+                "reason": "mutation_exception",
+            } if model_tier_reason else model_tier_action
+            changed = False
+            updated = request
 
         event = {
             "ts": time.time(),
             "turn_id": turn_id,
+            "adapter_contract_version": _ADAPTER_CONTRACT_VERSION,
+            "platform": "hermes",
+            "adapter_version": _PLUGIN_VERSION,
             "profile": profile,
+            "mode": effective_mode,
             "search_reason": search_reason,
             "model_tier_reason": model_tier_reason,
+            "search_action": search_action,
+            "model_tier_action": model_tier_action,
             "removed_tools": removed,
             "reasoning_effort_before": effort_before,
             "reasoning_effort_after": effort_after,

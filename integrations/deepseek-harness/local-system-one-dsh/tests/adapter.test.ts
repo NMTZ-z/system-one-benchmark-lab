@@ -7,6 +7,11 @@ import {
   parseNotificationDecision,
   parseSearchDecision,
 } from '../src/client.js'
+import {
+  ADAPTER_CONTRACT_VERSION,
+  failureActionReason,
+  toDecisionEnvelope,
+} from '../src/contract.js'
 import { apply } from '../src/index.js'
 import {
   hasCanaryAuthority,
@@ -248,6 +253,26 @@ describe('turn-scoped state', () => {
 })
 
 describe('HTTP clients', () => {
+  it('normalizes Search and Model Tier into the same versioned adapter contract', () => {
+    const search = toDecisionEnvelope('search', hardRuleDecision)
+    const tier = toDecisionEnvelope('model_tier', hardFastDecision)
+    expect(search.adapter_contract_version).toBe(ADAPTER_CONTRACT_VERSION)
+    expect(tier.adapter_contract_version).toBe(ADAPTER_CONTRACT_VERSION)
+    expect(search.decision).toEqual({ value: 'no_search', probability_search: 0 })
+    expect(tier.decision).toEqual({
+      value: 'fast',
+      difficulty_score: 0,
+      probability_strong: 0,
+    })
+  })
+
+  it('classifies fail-open reasons without exposing error text', () => {
+    expect(failureActionReason(new DOMException('aborted', 'AbortError'))).toBe('runtime_timeout')
+    expect(failureActionReason(new Error('/search-gate HTTP 503'))).toBe('runtime_http_error')
+    expect(failureActionReason(new Error('invalid search-gate response field: decision')))
+      .toBe('malformed_response')
+  })
+
   it('parses the Search Gate response contract', () => {
     expect(parseSearchDecision(hardRuleDecision)).toEqual(hardRuleDecision)
     expect(() => parseSearchDecision({ ...hardRuleDecision, decision_source: 'guess' }))
@@ -496,6 +521,8 @@ describe('DeepSeek Harness lifecycle integration', () => {
       async () => 'local-ok',
     )
     expect(localResult).toBe('local-ok')
+    expect(ctx.info.join('\n')).toContain('"action_status":"applied"')
+    expect(ctx.info.join('\n')).toContain('"action_reason":"verified_public_web_tool_denied"')
   })
 
   it('Search Canary feature switch can disable mutation without disabling observation', async () => {
@@ -549,6 +576,8 @@ describe('DeepSeek Harness lifecycle integration', () => {
     expect(ctx.warnings.join('\n')).toContain('search gate unavailable')
     expect(ctx.warnings.join('\n')).toContain('model tier gate unavailable')
     expect(ctx.warnings.join('\n')).not.toContain('service unavailable')
+    expect(ctx.info.join('\n')).toContain('"action_status":"failed_open"')
+    expect(ctx.info.join('\n')).toContain('"action_reason":"runtime_error"')
   })
 
   it('malformed Model Tier response fails open without breaking Search Canary', async () => {
@@ -563,6 +592,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     )
     expect(result).toMatchObject({ kind: 'deny' })
     expect(ctx.warnings.join('\n')).toContain('model tier gate unavailable')
+    expect(ctx.info.join('\n')).toContain('"action_reason":"malformed_response"')
   })
 
   it('Model Tier Canary downgrades only deterministic hard-fast on the verified route', async () => {
@@ -589,7 +619,8 @@ describe('DeepSeek Harness lifecycle integration', () => {
     expect(result).toEqual({ ...original, reasoningEffort: 'low' })
     expect(original.reasoningEffort).toBe('high')
     expect(result).not.toBe(original)
-    expect(ctx.info.join('\n')).toContain('reasoning_effort_downgrade')
+    expect(ctx.info.join('\n')).toContain('"action_status":"applied"')
+    expect(ctx.info.join('\n')).toContain('"action_reason":"verified_reasoning_mapping"')
   })
 
   it('Model Tier Canary also downgrades the verified StepFun Step 5 Preview route', async () => {
@@ -654,6 +685,8 @@ describe('DeepSeek Harness lifecycle integration', () => {
       )
       expect(result).toBe(original)
     }
+    expect(ctx.info.join('\n')).toContain('"action_status":"unsupported"')
+    expect(ctx.info.join('\n')).toContain('"action_reason":"unsupported_provider_or_model"')
   })
 
   it('Model Tier Canary preserves non-high user reasoning settings', async () => {

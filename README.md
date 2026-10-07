@@ -12,7 +12,7 @@ Local System One is not another chatbot and does not replace your LLM. It sits *
 - Which backend should handle this decision?
 - Is a local ANE path healthy enough to use right now?
 
-The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes plugin**, and a native **DeepSeek Harness adapter**.
+The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes adapter**, and a native **DeepSeek Harness adapter**. The Runtime is the platform-independent decision plane; each Adapter owns how an abstract decision is safely mapped onto its platform.
 
 ## Why this exists
 
@@ -144,6 +144,28 @@ The original 421M checkpoint is not duplicated by this project. The converted fi
 
 At runtime, the router does not blindly force ANE. It uses token length plus an ANE health gate and falls back to MLX when the accelerator path is unavailable, unhealthy, or unsuitable.
 
+## Unified Adapter Contract
+
+Hermes and DeepSeek Harness now implement **Adapter Contract v1**. The shared
+contract defines decision semantics, modes, action outcomes, fail-open meaning,
+and comparable privacy-safe telemetry without standardizing platform internals.
+
+```text
+Local System One Runtime
+        |
+        v
+Decision Contract v1
+   /             \
+Hermes Adapter   DSH Adapter
+```
+
+`ModelTier=fast` is a portable decision. `reasoning_effort=low`, a provider/model
+allowlist, or a concrete Web tool name is not. Those stay inside the relevant
+Adapter.
+
+See [Adapter Contract v1](docs/ADAPTER_CONTRACT.md) and the
+[machine-readable schema](contracts/adapter-contract-v1.schema.json).
+
 ## Hermes integration
 
 The repository includes a native Hermes plugin with three modes:
@@ -176,7 +198,7 @@ See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/RE
 
 ## DeepSeek Harness integration
 
-The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Phase 7A/7B upgrades it to **Search Gate + Model Tier Gate + Notification Gate (Shadow)** parity with the Hermes integration while preserving reversible, fail-open behavior.
+The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Parity work brought it to **Search Gate + Model Tier Gate + Notification Gate (Shadow)** coverage with the Hermes integration; Unified Adapter Contract Phase 7B now gives both platforms one versioned semantic contract while preserving platform-specific execution and reversible, fail-open behavior.
 
 Validated DSH targets are deliberately exact:
 
@@ -231,7 +253,7 @@ Main components:
 
 - `local_system_one/` — service, router, health gate, runtime adapters and workflows
 - `integrations/hermes/` — reversible Hermes native plugin
-- `integrations/deepseek-harness/` — reversible DeepSeek Harness Search Gate adapter
+- `integrations/deepseek-harness/` — reversible DeepSeek Harness multi-Gate adapter
 - `scripts/` — local service, ANE build, launchd and plugin operations
 - `docs/` — design notes and product validation
 - `results/reports/` — frozen public benchmark reports
@@ -295,6 +317,7 @@ Conservative defaults are intentional. A wrong routing decision can be more expe
 Start here depending on what you want to do:
 
 - [Local System One product and API](docs/LOCAL_SYSTEM_ONE_MVP.md)
+- [Unified Adapter Contract v1](docs/ADAPTER_CONTRACT.md)
 - [Search Gate](docs/SEARCH_GATE.md)
 - [Model Tier Gate](docs/MODEL_TIER_GATE.md)
 - [Notification Gate](docs/NOTIFICATION_GATE.md)
