@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { ModelTierGateClient, NotificationGateClient, SearchGateClient } from './client.js'
+import {
+  CompletionGateClient,
+  ModelTierGateClient,
+  NotificationGateClient,
+  SearchGateClient,
+} from './client.js'
 import {
   ADAPTER_CONTRACT_VERSION,
   actionOutcome,
@@ -18,6 +23,8 @@ import { TurnDecisionState } from './state.js'
 import type {
   AdapterConfig,
   AdapterMode,
+  CompletionDecision,
+  CompletionExecutionState,
   DshContextLike,
   AgentRequestInputLike,
   LlmCallConfigLike,
@@ -32,8 +39,16 @@ import type {
 } from './types.js'
 
 export const name = 'local-system-one-dsh'
-export const version = '0.4.0'
+export const version = '0.5.0'
+const MAX_COMPLETION_TASK_CHARS = 4000
 const MAX_NOTIFICATION_CHARS = 6000
+
+interface CompletionCandidate {
+  task?: string
+  currentResult?: string
+  toolsUsed: number
+  toolFailures: number
+}
 
 function asSessionId(session: SessionLike | undefined): string | null {
   if (session?.id === undefined || session.id === null) return null
@@ -87,6 +102,13 @@ function turnReasonKind(value: unknown): string | null {
   if (typeof value !== 'object' || value === null) return null
   const kind = (value as Record<string, unknown>).kind
   return typeof kind === 'string' && kind.length > 0 ? kind : null
+}
+
+function toolResultFailed(event: SessionEventLike): boolean {
+  if (typeof event.data?.error === 'object' && event.data.error !== null) return true
+  const message = event.data?.message
+  if (typeof message !== 'object' || message === null) return false
+  return (message as Record<string, unknown>).isError === true
 }
 
 function turnKey(sessionId: string, turn: number): string {
@@ -145,10 +167,28 @@ function logNotificationDecision(
   )
 }
 
+function logCompletionDecision(
+  ctx: DshContextLike,
+  mode: AdapterMode,
+  decision: CompletionDecision,
+  taskChars: number,
+  resultChars: number,
+): void {
+  ctx.logger?.info?.(
+    `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
+      version,
+      mode,
+      toDecisionEnvelope('completion', decision),
+      actionOutcome('observed', 'completion_shadow_only'),
+      { task_chars: taskChars, result_chars: resultChars },
+    ))}`,
+  )
+}
+
 function logFailOpen(
   ctx: DshContextLike,
   mode: AdapterMode,
-  gate: 'search' | 'model_tier' | 'notification',
+  gate: 'search' | 'model_tier' | 'notification' | 'completion',
   error: unknown,
 ): void {
   ctx.logger?.info?.(
@@ -199,7 +239,9 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
   const searchClient = new SearchGateClient(config.serviceUrl, config.timeoutMs)
   const modelTierClient = new ModelTierGateClient(config.serviceUrl, config.timeoutMs)
   const notificationClient = new NotificationGateClient(config.serviceUrl, config.timeoutMs)
+  const completionClient = new CompletionGateClient(config.serviceUrl, config.timeoutMs)
   const notificationCandidates = new Map<string, string>()
+  const completionCandidates = new Map<string, CompletionCandidate>()
 
   if (config.mode === 'canary' && config.effectiveMode === 'shadow') {
     ctx.logger?.warn?.(
@@ -210,7 +252,12 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
   ctx.on('session/event', (session: SessionLike, event: SessionEventLike) => {
     if (
       config.effectiveMode === 'off'
-      || (!config.searchGateEnabled && !config.modelTierGateEnabled && !config.notificationGateEnabled)
+      || (
+        !config.searchGateEnabled
+        && !config.modelTierGateEnabled
+        && !config.notificationGateEnabled
+        && !config.completionGateEnabled
+      )
     ) return
 
     const sessionId = asSessionId(session)
@@ -223,12 +270,27 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
     }
 
     if (
-      config.notificationGateEnabled
+      (config.notificationGateEnabled || config.completionGateEnabled)
       && event.type === 'assistant/message'
       && turn !== null
     ) {
       const text = assistantEventText(event)
-      if (text) notificationCandidates.set(turnKey(sessionId, turn), text)
+      const key = turnKey(sessionId, turn)
+      if (text && config.notificationGateEnabled) notificationCandidates.set(key, text)
+      if (text && config.completionGateEnabled) {
+        const candidate = completionCandidates.get(key) ?? { toolsUsed: 0, toolFailures: 0 }
+        candidate.currentResult = text
+        completionCandidates.set(key, candidate)
+      }
+      return
+    }
+
+    if (config.completionGateEnabled && event.type === 'tool/result' && turn !== null) {
+      const candidate = completionCandidates.get(turnKey(sessionId, turn))
+      if (candidate) {
+        candidate.toolsUsed += 1
+        if (toolResultFailed(event)) candidate.toolFailures += 1
+      }
       return
     }
 
@@ -236,8 +298,10 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       const candidateKey = turnKey(sessionId, turn)
       let eventText = notificationCandidates.get(candidateKey) ?? ''
       notificationCandidates.delete(candidateKey)
+      const completionCandidate = completionCandidates.get(candidateKey)
+      completionCandidates.delete(candidateKey)
       const reasonKind = turnReasonKind(event.data?.reason)
-      const blockingFailure = reasonKind === 'error' || reasonKind === 'failed'
+      const blockingFailure = reasonKind !== null && reasonKind !== 'completed'
       if (!eventText && blockingFailure) {
         eventText = 'Agent turn ended with a blocking failure before producing a final response.'
       }
@@ -256,6 +320,52 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
             )
           })
       }
+      if (config.completionGateEnabled) {
+        if (completionCandidate?.task) {
+          const currentResult = completionCandidate.currentResult
+            ?? 'Agent turn ended before producing a final result.'
+          const executionState: CompletionExecutionState = {
+            tools_used: completionCandidate.toolsUsed,
+            tool_failures: completionCandidate.toolFailures,
+            blocking_failure: blockingFailure,
+            required_step_missing: !completionCandidate.currentResult,
+          }
+          const requestId = randomUUID()
+          void completionClient
+            .decide(completionCandidate.task, currentResult, executionState, requestId)
+            .then(decision => logCompletionDecision(
+              ctx,
+              config.effectiveMode,
+              decision,
+              completionCandidate.task?.length ?? 0,
+              currentResult.length,
+            ))
+            .catch(error => {
+              logFailOpen(ctx, config.effectiveMode, 'completion', error)
+              ctx.logger?.warn?.(
+                `[local-system-one-dsh] completion gate unavailable; fail-open (${errorType(error)})`,
+              )
+            })
+        } else {
+          ctx.logger?.info?.(
+            `[local-system-one-dsh] ${JSON.stringify({
+              adapter_contract_version: ADAPTER_CONTRACT_VERSION,
+              platform: 'deepseek_harness',
+              adapter_version: version,
+              gate: 'completion',
+              mode: config.effectiveMode,
+              decision: null,
+              decision_source: null,
+              reason: null,
+              backend: null,
+              latency_ms: null,
+              action_status: 'unsupported',
+              action_reason: 'task_unavailable_at_turn_boundary',
+              request_id: null,
+            })}`,
+          )
+        }
+      }
       state.clearTurn(sessionId, turn)
       return
     }
@@ -264,6 +374,9 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       state.clearSession(sessionId)
       for (const key of notificationCandidates.keys()) {
         if (key.startsWith(`${sessionId}:`)) notificationCandidates.delete(key)
+      }
+      for (const key of completionCandidates.keys()) {
+        if (key.startsWith(`${sessionId}:`)) completionCandidates.delete(key)
       }
     }
   })
@@ -276,7 +389,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
     ): Promise<unknown> => {
       if (
         config.effectiveMode === 'off'
-        || (!config.searchGateEnabled && !config.modelTierGateEnabled)
+        || (!config.searchGateEnabled && !config.modelTierGateEnabled && !config.completionGateEnabled)
       ) return next()
 
       const step = asPositiveInteger(input.step)
@@ -289,6 +402,13 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       state.beginTurn(sessionId, turn)
       const task = taskText(input.messages)
       if (!task) return next()
+      if (config.completionGateEnabled) {
+        completionCandidates.set(turnKey(sessionId, turn), {
+          task: task.slice(0, MAX_COMPLETION_TASK_CHARS),
+          toolsUsed: 0,
+          toolFailures: 0,
+        })
+      }
       const requestId = randomUUID()
 
       if (config.searchGateEnabled) {
@@ -493,8 +613,10 @@ export {
 } from './contract.js'
 export {
   ModelTierGateClient,
+  CompletionGateClient,
   NotificationGateClient,
   SearchGateClient,
+  parseCompletionDecision,
   parseModelTierDecision,
   parseNotificationDecision,
   parseSearchDecision,

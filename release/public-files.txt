@@ -32,6 +32,7 @@ docs/ADAPTER_CONTRACT.md
 docs/SEARCH_GATE.md
 docs/MODEL_TIER_GATE.md
 docs/NOTIFICATION_GATE.md
+docs/COMPLETION_GATE.md
 docs/MCP_DEPLOYMENT.md
 docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md
 docs/HERMES_SYSTEM_ONE_CALIBRATION.md
@@ -50,12 +51,17 @@ results/reports/M4-Typed-Decisions-421M-CoreML-vs-MLX-Quality-Parity-v0.1.md
 results/reports/M4-Jev-1.13.0-Typed-Decisions-v0.1.md
 results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md
 results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md
+results/reports/Phase8A-Completion-Gate-v0.1.md
+results/processed/completion-gate-v0.1.json
+
+benchmarks/completion/
 
 tests/test_local_system_one.py
 tests/test_adapter_contract.py
 tests/test_search_gate.py
 tests/test_model_tier_gate.py
 tests/test_notification_gate.py
+tests/test_completion_gate.py
 tests/test_hermes_system_one_plugin.py
 tests/test_hermes_system_one_scripts.py
 tests/test_public_release.py

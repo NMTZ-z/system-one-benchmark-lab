@@ -9,6 +9,7 @@ Local System One is not another chatbot and does not replace your LLM. It sits *
 - Does this task need current Web information?
 - Can this request use a cheaper/faster reasoning tier?
 - Should this event stay silent, go to a digest, or interrupt the user now?
+- Is this task actually complete, or should the Agent continue or verify first?
 - Which backend should handle this decision?
 - Is a local ANE path healthy enough to use right now?
 
@@ -43,6 +44,7 @@ The goal is not "use a small model for everything". The goal is to use a small l
 | **Search Gate** | Does this task need public/current Web information? | Functional. Deterministic hard rules can act; model-probability routing remains conservative/Shadow-first. |
 | **Model Tier Gate** | Can a bounded task use a faster reasoning tier? | Functional, but broad model-based routing remains experimental. |
 | **Notification Gate** | silent / digest / notify_now? | Functional MVP. |
+| **Completion Gate** | complete / continue / verify? | **Shadow-only in Phase 8A.** Conservative benchmark completed; Active auto-stop is NO-GO. |
 | **Choice / Score / Noul** | Generic typed decisions for your own control logic | Available through the HTTP API. |
 
 This distinction matters: the project deliberately separates **technical capability** from **what has enough evidence to activate automatically**.
@@ -90,6 +92,7 @@ POST /v1/noul
 POST /v1/workflows/search-gate
 POST /v1/workflows/model-tier-gate
 POST /v1/workflows/notification-gate
+POST /v1/workflows/completion-gate
 GET  /health
 GET  /metrics
 ```
@@ -165,6 +168,9 @@ Adapter.
 
 See [Adapter Contract v1](docs/ADAPTER_CONTRACT.md) and the
 [machine-readable schema](contracts/adapter-contract-v1.schema.json).
+Completion is a backward-compatible Contract v1 extension; see
+[Completion Gate](docs/COMPLETION_GATE.md) for semantics, bounded context,
+benchmark evidence, and the Active NO-GO decision.
 
 ## Hermes integration
 
@@ -198,7 +204,7 @@ See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/RE
 
 ## DeepSeek Harness integration
 
-The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Parity work brought it to **Search Gate + Model Tier Gate + Notification Gate (Shadow)** coverage with the Hermes integration; Unified Adapter Contract Phase 7B now gives both platforms one versioned semantic contract while preserving platform-specific execution and reversible, fail-open behavior.
+The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. It now covers **Search Gate + Model Tier Gate + Notification Gate (Shadow) + Completion Gate (Shadow)** alongside Hermes; Unified Adapter Contract v1 gives both platforms one versioned semantic contract while preserving platform-specific execution and reversible, fail-open behavior.
 
 Validated DSH targets are deliberately exact:
 
@@ -207,7 +213,7 @@ Validated DSH targets are deliberately exact:
 0.2.1-alpha.1 @ 5badb15009ae1756c3afe0ae0cef1faafc290ccc
 ```
 
-The adapter supports independent Search, Model Tier, and Notification observation. Search and Model Tier run at turn start; Notification observes the completed Agent event at turn end and remains Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
+The adapter supports independent Search, Model Tier, Notification, and Completion observation. Search and Model Tier run at turn start; Notification and Completion observe the completed Agent turn and remain Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
 
 Real provider-wire validation paths include:
 

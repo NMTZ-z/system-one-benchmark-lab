@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ModelTierGateClient,
+  CompletionGateClient,
   NotificationGateClient,
   SearchGateClient,
   parseModelTierDecision,
+  parseCompletionDecision,
   parseNotificationDecision,
   parseSearchDecision,
 } from '../src/client.js'
@@ -21,7 +23,12 @@ import {
   resolveConfig,
 } from '../src/policy.js'
 import { TurnDecisionState } from '../src/state.js'
-import type { ModelTierDecision, NotificationDecision, SearchDecision } from '../src/types.js'
+import type {
+  CompletionDecision,
+  ModelTierDecision,
+  NotificationDecision,
+  SearchDecision,
+} from '../src/types.js'
 
 const hardRuleDecision: SearchDecision = {
   decision: 'no_search',
@@ -79,6 +86,19 @@ const notificationDecision: NotificationDecision = {
   request_id: 'req-notify',
 }
 
+const completionDecision: CompletionDecision = {
+  decision: 'complete',
+  decision_source: 'model',
+  reason: 'model_complete',
+  probability_complete: 0.9,
+  probability_verify: 0.08,
+  probability_continue: 0.02,
+  confidence: 0.9,
+  backend: 'mlx',
+  latency_ms: 10,
+  request_id: 'req-complete',
+}
+
 function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
@@ -90,6 +110,7 @@ function gateFetch(
   search: unknown = hardRuleDecision,
   modelTier: unknown = hardFastDecision,
   notification: unknown = notificationDecision,
+  completion: unknown = completionDecision,
 ) {
   return vi.fn((url: string) => {
     if (url.endsWith('/v1/workflows/search-gate')) {
@@ -100,6 +121,9 @@ function gateFetch(
     }
     if (url.endsWith('/v1/workflows/notification-gate')) {
       return Promise.resolve(jsonResponse(notification))
+    }
+    if (url.endsWith('/v1/workflows/completion-gate')) {
+      return Promise.resolve(jsonResponse(completion))
     }
     return Promise.reject(new Error('unexpected URL'))
   })
@@ -187,6 +211,7 @@ describe('configuration and policy', () => {
     expect(config.searchGateEnabled).toBe(true)
     expect(config.modelTierGateEnabled).toBe(true)
     expect(config.notificationGateEnabled).toBe(true)
+    expect(config.completionGateEnabled).toBe(true)
     expect(config.canaryWebFilterEnabled).toBe(true)
     expect(config.canaryReasoningDowngradeEnabled).toBe(false)
   })
@@ -295,6 +320,18 @@ describe('HTTP clients', () => {
       .toThrow(/priority_score/)
   })
 
+  it('parses and normalizes the Completion Gate response contract', () => {
+    expect(parseCompletionDecision(completionDecision)).toEqual(completionDecision)
+    expect(toDecisionEnvelope('completion', completionDecision).decision).toEqual({
+      value: 'complete',
+      probability_complete: 0.9,
+      probability_verify: 0.08,
+      probability_continue: 0.02,
+    })
+    expect(() => parseCompletionDecision({ ...completionDecision, decision: 'stop' }))
+      .toThrow(/decision/)
+  })
+
   it('times out without returning Search or Model Tier decisions', async () => {
     vi.stubGlobal(
       'fetch',
@@ -308,9 +345,11 @@ describe('HTTP clients', () => {
     const search = new SearchGateClient('http://127.0.0.1:9', 5)
     const tier = new ModelTierGateClient('http://127.0.0.1:9', 5)
     const notification = new NotificationGateClient('http://127.0.0.1:9', 5)
+    const completion = new CompletionGateClient('http://127.0.0.1:9', 5)
     await expect(search.decide('synthetic task', 'req-timeout')).rejects.toThrow()
     await expect(tier.decide('synthetic task', 'req-timeout')).rejects.toThrow()
     await expect(notification.decide('event', 'req-timeout')).rejects.toThrow()
+    await expect(completion.decide('task', 'result', {}, 'req-timeout')).rejects.toThrow()
   })
 })
 
@@ -414,7 +453,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const fetchMock = gateFetch()
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow' })
+    apply(ctx, { mode: 'shadow', completion_gate_enabled: false })
     const raw = 'Deployment finished; review the result when convenient.'
 
     await enterTurn(ctx, 's-notify', 1, 'deploy the service')
@@ -445,7 +484,11 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const fetchMock = gateFetch()
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow', notification_gate_enabled: false })
+    apply(ctx, {
+      mode: 'shadow',
+      notification_gate_enabled: false,
+      completion_gate_enabled: false,
+    })
     await enterTurn(ctx, 's-notify-off', 1, 'task')
     ctx.one('session/event')(
       { id: 's-notify-off' },
@@ -468,7 +511,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow' })
+    apply(ctx, { mode: 'shadow', completion_gate_enabled: false })
     await enterTurn(ctx, 's-notify-fail', 1, 'task')
     ctx.one('session/event')(
       { id: 's-notify-fail' },
@@ -481,6 +524,79 @@ describe('DeepSeek Harness lifecycle integration', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(ctx.warnings.join('\n')).toContain('notification gate unavailable')
     expect(ctx.warnings.join('\n')).not.toContain('notification unavailable')
+  })
+
+  it('Completion Shadow observes turn/end once, includes bounded state, and never mutates', async () => {
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'shadow',
+      search_gate_enabled: false,
+      model_tier_gate_enabled: false,
+      notification_gate_enabled: false,
+      completion_gate_enabled: true,
+    })
+    const task = 'Create the artifact and validate it.'
+    const result = 'Artifact created and checks passed.'
+    await enterTurn(ctx, 's-completion', 1, task)
+    await ctx.one('session/event')(
+      { id: 's-completion' },
+      { type: 'tool/result', data: { turn: 1, step: 1, message: { isError: false } } },
+    )
+    await ctx.one('session/event')(
+      { id: 's-completion' },
+      { type: 'assistant/message', data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: result }] } } },
+    )
+    await ctx.one('session/event')(
+      { id: 's-completion' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const call = fetchMock.mock.calls[0]!
+    expect(String(call[0])).toContain('/completion-gate')
+    const body = JSON.parse(String((call[1] as RequestInit).body))
+    expect(body.task).toBe(task)
+    expect(body.current_result).toBe(result)
+    expect(body.execution_state).toEqual({
+      tools_used: 1,
+      tool_failures: 0,
+      blocking_failure: false,
+      required_step_missing: false,
+    })
+    expect(ctx.info.join('\n')).toContain('"gate":"completion"')
+    expect(ctx.info.join('\n')).toContain('"action_status":"observed"')
+    expect(ctx.info.join('\n')).not.toContain(task)
+    expect(ctx.info.join('\n')).not.toContain(result)
+    expect(ctx.count('agent/request')).toBe(0)
+  })
+
+  it('Completion Shadow fails open when the runtime is dead', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('dead completion runtime')))
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'shadow',
+      search_gate_enabled: false,
+      model_tier_gate_enabled: false,
+      notification_gate_enabled: false,
+      completion_gate_enabled: true,
+    })
+    await enterTurn(ctx, 's-completion-dead', 1, 'task')
+    await ctx.one('session/event')(
+      { id: 's-completion-dead' },
+      { type: 'assistant/message', data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: 'result' }] } } },
+    )
+    await ctx.one('session/event')(
+      { id: 's-completion-dead' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(ctx.warnings.join('\n')).toContain('completion gate unavailable')
+    expect(ctx.warnings.join('\n')).not.toContain('dead completion runtime')
+    expect(ctx.info.join('\n')).toContain('"gate":"completion"')
+    expect(ctx.info.join('\n')).toContain('"action_status":"failed_open"')
   })
 
   it('unacknowledged Canary behaves as Shadow', async () => {

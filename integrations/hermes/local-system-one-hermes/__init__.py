@@ -1,6 +1,6 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.7.0:
+Safety invariant for v0.8.0:
 - mode=off: no Local System One network call and no behavior change.
 - mode=shadow: observe privacy-safe recommendations without rewriting requests.
 - mode=canary: request mutation requires explicit ``canary_acknowledged=true``.
@@ -9,8 +9,8 @@ Safety invariant for v0.7.0:
 - Any Local System One error, timeout, incomplete decision, unsupported model,
   or disabled Canary feature fails open to the original Hermes request.
 
-Search, Model Tier, and Notification observation can be enabled independently.
-Notification is Shadow-only in v0.6.0; experimental reasoning downgrade is disabled by default.
+Search, Model Tier, Notification, and Completion observation can be enabled independently.
+Notification and Completion are Shadow-only; experimental reasoning downgrade is disabled by default.
 """
 
 from __future__ import annotations
@@ -22,12 +22,13 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.7.0"
+_PLUGIN_VERSION = "0.8.0"
 _ADAPTER_CONTRACT_VERSION = "1.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
 _MAX_NOTIFICATION_CHARS = 6000
+_MAX_COMPLETION_RESULT_CHARS = 6000
 
 
 def _text_from_content(content: Any) -> str:
@@ -154,6 +155,34 @@ def _safe_notification(
     try:
         result["notification"] = _post_json(
             base_url, "/v1/workflows/notification-gate", payload, timeout
+        )
+        result["ok"] = True
+    except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
+        result["error"] = type(exc).__name__
+    result["shadow_latency_ms"] = (time.perf_counter() - started) * 1000.0
+    return result
+
+
+def _safe_completion(
+    base_url: str,
+    task: str,
+    current_result: str,
+    execution_state: dict[str, Any],
+    timeout: float,
+    request_id: str,
+) -> dict[str, Any]:
+    """Observe Completion Gate without granting stop/continue authority."""
+    started = time.perf_counter()
+    result: dict[str, Any] = {"ok": False, "completion": None, "error": None}
+    payload = {
+        "task": task[:_MAX_TASK_CHARS],
+        "current_result": current_result[:_MAX_COMPLETION_RESULT_CHARS],
+        "execution_state": execution_state,
+        "request_id": request_id,
+    }
+    try:
+        result["completion"] = _post_json(
+            base_url, "/v1/workflows/completion-gate", payload, timeout
         )
         result["ok"] = True
     except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
@@ -339,6 +368,7 @@ def register(ctx):
     search_enabled = _as_bool(ctx.get_config("search_gate_enabled", True), True)
     model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", True), True)
     notification_enabled = _as_bool(ctx.get_config("notification_gate_enabled", True), True)
+    completion_enabled = _as_bool(ctx.get_config("completion_gate_enabled", True), True)
     canary_acknowledged = _as_bool(ctx.get_config("canary_acknowledged", False), False)
     canary_web_filter_enabled = _as_bool(
         ctx.get_config("canary_web_filter_enabled", True), True
@@ -368,6 +398,7 @@ def register(ctx):
             "search_gate_enabled": search_enabled,
             "model_tier_gate_enabled": model_tier_enabled,
             "notification_gate_enabled": notification_enabled,
+            "completion_gate_enabled": completion_enabled,
             "canary_acknowledged": canary_acknowledged,
             "canary_web_filter_enabled": canary_web_filter_enabled,
             "canary_reasoning_downgrade_enabled": canary_reasoning_downgrade_enabled,
@@ -379,6 +410,157 @@ def register(ctx):
     # Final assistant text for Notification Shadow lives only in this bounded process-local map
     # between post_llm_call and on_session_end, then is deleted.
     pending_notification_events: dict[str, dict[str, Any]] = {}
+
+    # Completion context is bounded and process-local. Raw task/result content is
+    # consumed at the real Hermes session boundary and never written to plugin state.
+    pending_completion: dict[str, dict[str, Any]] = {}
+
+    def _completion_keys(kwargs: dict[str, Any]) -> list[str]:
+        keys: list[str] = []
+        for field in ("turn_id", "task_id", "session_id"):
+            value = kwargs.get(field)
+            if value is not None and str(value):
+                key = f"{field}:{value}"
+                if key not in keys:
+                    keys.append(key)
+        return keys
+
+    def _completion_record(kwargs: dict[str, Any], *, create: bool) -> dict[str, Any] | None:
+        keys = _completion_keys(kwargs)
+        record = next((pending_completion.get(key) for key in keys if key in pending_completion), None)
+        if record is None and create and keys:
+            record = {"tools_used": 0, "tool_failures": 0}
+        if record is not None:
+            for key in keys:
+                pending_completion[key] = record
+        while len(pending_completion) > 96:
+            pending_completion.pop(next(iter(pending_completion)))
+        return record
+
+    def _completion_cleanup(record: dict[str, Any] | None) -> None:
+        if record is None:
+            return
+        for key in [key for key, value in pending_completion.items() if value is record]:
+            pending_completion.pop(key, None)
+
+    def _tool_result_failed(value: Any) -> bool:
+        record = value
+        if isinstance(value, str):
+            try:
+                record = json.loads(value)
+            except (ValueError, TypeError):
+                return False
+        if not isinstance(record, dict):
+            return False
+        if record.get("success") is False or record.get("ok") is False:
+            return True
+        if str(record.get("status") or "").lower() in {"error", "failed", "failure"}:
+            return True
+        return bool(record.get("error"))
+
+    def _completion_pre_llm(**kwargs):
+        if effective_mode.startswith("off") or not completion_enabled:
+            return
+        task, _task_source = _resolve_effective_task(kwargs)
+        if not task:
+            return
+        record = _completion_record(kwargs, create=True)
+        if record is not None:
+            record["task"] = task[:_MAX_TASK_CHARS]
+
+    def _completion_post_llm(**kwargs):
+        if effective_mode.startswith("off") or not completion_enabled:
+            return
+        response = _text_from_content(kwargs.get("assistant_response")).strip()
+        if not response:
+            return
+        record = _completion_record(kwargs, create=True)
+        if record is not None:
+            record["current_result"] = response[:_MAX_COMPLETION_RESULT_CHARS]
+
+    def _completion_post_tool(**kwargs):
+        if effective_mode.startswith("off") or not completion_enabled:
+            return
+        record = _completion_record(kwargs, create=True)
+        if record is None:
+            return
+        record["tools_used"] = int(record.get("tools_used", 0)) + 1
+        if _tool_result_failed(kwargs.get("result")):
+            record["tool_failures"] = int(record.get("tool_failures", 0)) + 1
+
+    def _completion_session_end(**kwargs):
+        if effective_mode.startswith("off") or not completion_enabled:
+            return
+        record = _completion_record(kwargs, create=False)
+        failed = bool(kwargs.get("failed"))
+        interrupted = bool(kwargs.get("interrupted"))
+        request_id = str(
+            kwargs.get("turn_id") or kwargs.get("task_id") or kwargs.get("session_id") or "completion-shadow"
+        )
+        task = str(record.get("task") or "") if record else ""
+        current_result = str(record.get("current_result") or "") if record else ""
+        execution_state = {
+            "tools_used": int(record.get("tools_used", 0)) if record else 0,
+            "tool_failures": int(record.get("tool_failures", 0)) if record else 0,
+            "blocking_failure": failed or interrupted,
+            "required_step_missing": not bool(current_result),
+        }
+
+        event: dict[str, Any] = {
+            "ts": time.time(),
+            "request_id": request_id,
+            "adapter_contract_version": _ADAPTER_CONTRACT_VERSION,
+            "platform": "hermes",
+            "adapter_version": _PLUGIN_VERSION,
+            "profile": profile,
+            "gate": "completion",
+            "mode": effective_mode,
+            "task_chars": len(task),
+            "result_chars": len(current_result),
+        }
+        if not task:
+            event["action_status"] = "unsupported"
+            event["action_reason"] = "task_unavailable_at_session_boundary"
+        else:
+            if not current_result:
+                current_result = "Agent turn ended before producing a final result."
+            observed = _safe_completion(
+                base_url,
+                task,
+                current_result,
+                execution_state,
+                timeout,
+                request_id,
+            )
+            event["shadow_latency_ms"] = round(float(observed.get("shadow_latency_ms", 0.0)), 3)
+            event["error"] = observed.get("error")
+            completion = observed.get("completion")
+            if isinstance(completion, dict):
+                event.update({
+                    "decision": completion.get("decision"),
+                    "decision_source": completion.get("decision_source"),
+                    "reason": completion.get("reason"),
+                    "backend": completion.get("backend"),
+                    "latency_ms": completion.get("latency_ms"),
+                    "confidence": completion.get("confidence"),
+                    "action_status": "observed",
+                    "action_reason": "completion_shadow_only",
+                })
+            else:
+                event["action_status"] = "failed_open"
+                event["action_reason"] = f"runtime_{observed.get('error') or 'invalid_response'}"
+        history = _state_get(ctx, "completion_shadow_history", [])
+        if not isinstance(history, list):
+            history = []
+        history.append(event)
+        _state_set(ctx, "completion_shadow_history", history[-_MAX_HISTORY:])
+        _state_set(ctx, "last_completion_shadow", event)
+        _completion_cleanup(record)
+
+    ctx.register_hook("pre_llm_call", _completion_pre_llm)
+    ctx.register_hook("post_llm_call", _completion_post_llm)
+    ctx.register_hook("post_tool_call", _completion_post_tool)
+    ctx.register_hook("on_session_end", _completion_session_end)
 
     def _observe_post_llm_call(**kwargs):
         if effective_mode.startswith("off") or not notification_enabled:

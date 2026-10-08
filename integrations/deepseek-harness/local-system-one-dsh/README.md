@@ -2,9 +2,9 @@
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
-Native DeepSeek Harness adapter for Local System One **Search Gate + Model Tier Gate + Notification Gate**.
+Native DeepSeek Harness adapter for Local System One **Search Gate + Model Tier Gate + Notification Gate + Completion Gate**.
 
-Version `0.4.0` implements **Adapter Contract v1** while keeping installation inert by default, observing all three gates, preserving the audited Search Canary, and keeping Model Tier Canary explicitly opt-in. The earlier parity work added Notification Shadow and a second verified Model Tier route using StepFun Step Plan / `step-5-preview`.
+Version `0.5.0` implements **Adapter Contract v1** while keeping installation inert by default, observing all four gates, preserving the audited Search Canary, and keeping Model Tier Canary explicitly opt-in. Completion is Shadow-only and never stops or restarts the DSH loop.
 
 ## Compatibility
 
@@ -40,6 +40,7 @@ Local System One Runtime
        +-- Search Gate
        +-- Model Tier Gate
        +-- Notification Gate
+       +-- Completion Gate
        +-- Rules / typed model / MLX / ANE
 ```
 
@@ -75,13 +76,14 @@ machine-readable schema at
 | `search_gate_enabled` | `true` |
 | `model_tier_gate_enabled` | `true` |
 | `notification_gate_enabled` | `true` |
+| `completion_gate_enabled` | `true` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
 | `timeout_ms` | `500` |
 
 - `off`: no Local System One request and no DSH mutation.
-- `shadow`: Search Gate and Model Tier Gate are evaluated on step 1; Notification Gate observes the final assistant event at turn end. The three gates can be enabled independently. DSH behavior is never changed.
+- `shadow`: Search Gate and Model Tier Gate are evaluated on step 1; Notification Gate and Completion Gate observe the final turn at `turn/end`. The four gates can be enabled independently. DSH behavior is never changed.
 - `canary`: Shadow behavior plus narrowly audited mutations. Canary requires `canary_acknowledged: true`; otherwise it degrades to Shadow.
 
 Example:
@@ -93,6 +95,7 @@ timeout_ms: 500
 search_gate_enabled: true
 model_tier_gate_enabled: true
 notification_gate_enabled: true
+completion_gate_enabled: true
 canary_acknowledged: false
 canary_web_filter_enabled: true
 canary_reasoning_downgrade_enabled: false
@@ -174,17 +177,40 @@ Endpoint:
 POST /v1/workflows/notification-gate
 ```
 
-Notification is **Shadow-only** in `0.4.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
+Notification remains **Shadow-only** in `0.5.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
 
 The adapter logs only decision metadata (`delivery`, `notify_now`, source, reason, score, confidence, backend, latency and event length). It never logs the final response text. No push, webhook, message or other delivery action is taken even if Local System One returns `notify_now`.
 
 A real three-gate E2E on DSH `0.2.1-alpha.1` observed all three HTTP calls in one completed StepFun turn: `/search-gate`, `/model-tier-gate`, and `/notification-gate`.
 
+## Completion Gate
+
+Endpoint:
+
+```text
+POST /v1/workflows/completion-gate
+```
+
+Completion is **Shadow-only** in `0.5.0`. The adapter captures the bounded task on
+the first `agent/pre-step`, observes the latest `assistant/message`, counts
+`tool/result` failures, and submits one compact Completion request at `turn/end`.
+It clears the ephemeral record at turn/session cleanup.
+
+The semantic result is `complete`, `continue`, or `verify`. DSH receives no stop,
+retry, or tool-suppression mutation from this Gate. Telemetry records only
+decision metadata and task/result character counts, never the raw text. Dead or
+malformed Runtime responses fail open to native DSH behavior.
+
+The first public 120-case benchmark recorded zero premature completions but also
+zero complete recall under the current conservative threshold. Active stop is
+therefore explicitly **NO-GO** for Phase 8A. See
+[`docs/COMPLETION_GATE.md`](../../../docs/COMPLETION_GATE.md).
+
 ## Turn scope and privacy
 
-DSH invokes `agent/pre-step` again after tool results, so Search and Model Tier are evaluated only for `step === 1`. Notification is evaluated once at turn end after the final assistant event is known.
+DSH invokes `agent/pre-step` again after tool results, so Search and Model Tier are evaluated only for `step === 1`. Notification and Completion are evaluated once at turn end after the final assistant event is known.
 
-Search and Model Tier decisions are kept separately under session + turn identity. `turn/end` deletes both. `session/end` / `session/close` clears remaining session state. No raw task, final response, transcript, system prompt, credentials, or tool arguments are stored in adapter state or emitted by adapter logs. Search/Model Tier send the current task to the configured service; Notification sends the bounded final event. A remote `service_url` therefore carries those inputs off-device.
+Search and Model Tier decisions are kept separately under session + turn identity. Completion uses bounded ephemeral session + turn state and is cleared at `turn/end`; `session/end` / `session/close` clears remaining state. No raw task, final response, transcript, system prompt, credentials, or tool arguments are emitted by adapter logs. Search/Model Tier send the current task to the configured service; Notification sends the bounded final event; Completion sends the bounded task/result plus structured execution counters. A remote `service_url` therefore carries those inputs off-device.
 
 ## Fail-open behavior
 
@@ -272,4 +298,4 @@ See [PHASE7A_MODEL_TIER_PARITY.md](PHASE7A_MODEL_TIER_PARITY.md) for Model Tier 
 
 ## Still out of scope
 
-Unified Adapter Contract Phase 7B does not add Active notification delivery, Completion Gate, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.
+Phase 8A does not add Active notification delivery, Active Completion stopping, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.

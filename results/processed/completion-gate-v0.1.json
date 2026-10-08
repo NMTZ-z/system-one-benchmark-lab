@@ -1,0 +1,1440 @@
+{
+  "benchmark": "completion-gate-v0.1",
+  "runner": "current CompletionGate + live generic choice backend",
+  "choice_endpoint": "http://127.0.0.1:8787/v1/choice",
+  "backend_override": "ane",
+  "gold_file": "benchmarks/completion/gold_v0.1.jsonl",
+  "cases_total": 120,
+  "source_counts": {
+    "real": 30,
+    "synthetic": 90
+  },
+  "label_counts_by_source": {
+    "real": {
+      "complete": 10,
+      "continue": 10,
+      "verify": 10
+    },
+    "synthetic": {
+      "complete": 30,
+      "continue": 30,
+      "verify": 30
+    }
+  },
+  "elapsed_ms": 3712.879416998476,
+  "metrics_by_source": {
+    "real": {
+      "cases": 30,
+      "accuracy": 0.6333333333333333,
+      "macro_f1": 0.5308432371250708,
+      "per_class": {
+        "complete": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 10
+        },
+        "continue": {
+          "precision": 1.0,
+          "recall": 0.9,
+          "f1": 0.9473684210526316,
+          "support": 10
+        },
+        "verify": {
+          "precision": 0.47619047619047616,
+          "recall": 1.0,
+          "f1": 0.6451612903225806,
+          "support": 10
+        }
+      },
+      "confusion_matrix": {
+        "complete": {
+          "complete": 0,
+          "continue": 0,
+          "verify": 10
+        },
+        "continue": {
+          "complete": 0,
+          "continue": 9,
+          "verify": 1
+        },
+        "verify": {
+          "complete": 0,
+          "continue": 0,
+          "verify": 10
+        }
+      },
+      "premature_completion_rate": 0.0,
+      "premature_completion_count": 0,
+      "non_complete_support": 20
+    },
+    "synthetic": {
+      "cases": 90,
+      "accuracy": 0.6333333333333333,
+      "macro_f1": 0.5308432371250708,
+      "per_class": {
+        "complete": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 30
+        },
+        "continue": {
+          "precision": 1.0,
+          "recall": 0.9,
+          "f1": 0.9473684210526316,
+          "support": 30
+        },
+        "verify": {
+          "precision": 0.47619047619047616,
+          "recall": 1.0,
+          "f1": 0.6451612903225806,
+          "support": 30
+        }
+      },
+      "confusion_matrix": {
+        "complete": {
+          "complete": 0,
+          "continue": 0,
+          "verify": 30
+        },
+        "continue": {
+          "complete": 0,
+          "continue": 27,
+          "verify": 3
+        },
+        "verify": {
+          "complete": 0,
+          "continue": 0,
+          "verify": 30
+        }
+      },
+      "premature_completion_rate": 0.0,
+      "premature_completion_count": 0,
+      "non_complete_support": 60
+    }
+  },
+  "predictions": [
+    {
+      "id": "real-complete-01",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 144.49058286845684,
+      "confidence": 0.1718
+    },
+    {
+      "id": "real-complete-02",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 65.32579194754362,
+      "confidence": 0.1437
+    },
+    {
+      "id": "real-complete-03",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 66.44624983891845,
+      "confidence": 0.1546
+    },
+    {
+      "id": "real-complete-04",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 58.92475019209087,
+      "confidence": 0.1641
+    },
+    {
+      "id": "real-complete-05",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 55.64079084433615,
+      "confidence": 0.121
+    },
+    {
+      "id": "real-complete-06",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.50620811805129,
+      "confidence": 0.1377
+    },
+    {
+      "id": "real-complete-07",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.21295908652246,
+      "confidence": 0.1101
+    },
+    {
+      "id": "real-complete-08",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.1870829872787,
+      "confidence": 0.0442
+    },
+    {
+      "id": "real-complete-09",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.147291066125035,
+      "confidence": 0.1103
+    },
+    {
+      "id": "real-complete-10",
+      "source": "real",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.11137507669628,
+      "confidence": 0.1119
+    },
+    {
+      "id": "real-continue-01",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-02",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-03",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-04",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-05",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-06",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_checks_incomplete",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-07",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-08",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-09",
+      "source": "real",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-continue-10",
+      "source": "real",
+      "label": "continue",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.19550004787743,
+      "confidence": 0.021
+    },
+    {
+      "id": "real-verify-01",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-02",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-03",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-04",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-05",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.18358400836587,
+      "confidence": 0.0658
+    },
+    {
+      "id": "real-verify-06",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-07",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-08",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.06525016203523,
+      "confidence": 0.0599
+    },
+    {
+      "id": "real-verify-09",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "real-verify-10",
+      "source": "real",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 52.998249884694815,
+      "confidence": 0.0341
+    },
+    {
+      "id": "synthetic-complete-01",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.12441708520055,
+      "confidence": 0.1793
+    },
+    {
+      "id": "synthetic-complete-02",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.14470804296434,
+      "confidence": 0.1833
+    },
+    {
+      "id": "synthetic-complete-03",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 54.62995800189674,
+      "confidence": 0.1911
+    },
+    {
+      "id": "synthetic-complete-04",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.03049995563924,
+      "confidence": 0.1641
+    },
+    {
+      "id": "synthetic-complete-05",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 52.998000057414174,
+      "confidence": 0.1772
+    },
+    {
+      "id": "synthetic-complete-06",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.223334020003676,
+      "confidence": 0.1935
+    },
+    {
+      "id": "synthetic-complete-07",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.1784170307219,
+      "confidence": 0.1693
+    },
+    {
+      "id": "synthetic-complete-08",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.03554097190499,
+      "confidence": 0.1733
+    },
+    {
+      "id": "synthetic-complete-09",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.02629200741649,
+      "confidence": 0.1905
+    },
+    {
+      "id": "synthetic-complete-10",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.097750060260296,
+      "confidence": 0.1689
+    },
+    {
+      "id": "synthetic-complete-11",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.12404199503362,
+      "confidence": 0.1728
+    },
+    {
+      "id": "synthetic-complete-12",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.1536671333015,
+      "confidence": 0.1895
+    },
+    {
+      "id": "synthetic-complete-13",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.04254102520645,
+      "confidence": 0.1473
+    },
+    {
+      "id": "synthetic-complete-14",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.03391697816551,
+      "confidence": 0.1655
+    },
+    {
+      "id": "synthetic-complete-15",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.04454197175801,
+      "confidence": 0.1866
+    },
+    {
+      "id": "synthetic-complete-16",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.53316618129611,
+      "confidence": 0.1585
+    },
+    {
+      "id": "synthetic-complete-17",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.37100010365248,
+      "confidence": 0.1657
+    },
+    {
+      "id": "synthetic-complete-18",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.1555840279907,
+      "confidence": 0.1873
+    },
+    {
+      "id": "synthetic-complete-19",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 55.59520795941353,
+      "confidence": 0.1492
+    },
+    {
+      "id": "synthetic-complete-20",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 55.34133408218622,
+      "confidence": 0.1698
+    },
+    {
+      "id": "synthetic-complete-21",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.393667098134756,
+      "confidence": 0.1872
+    },
+    {
+      "id": "synthetic-complete-22",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.155000088736415,
+      "confidence": 0.1568
+    },
+    {
+      "id": "synthetic-complete-23",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.030791925266385,
+      "confidence": 0.1722
+    },
+    {
+      "id": "synthetic-complete-24",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.08924987912178,
+      "confidence": 0.1896
+    },
+    {
+      "id": "synthetic-complete-25",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.12708392739296,
+      "confidence": 0.1659
+    },
+    {
+      "id": "synthetic-complete-26",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.13954199664295,
+      "confidence": 0.1704
+    },
+    {
+      "id": "synthetic-complete-27",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 52.935375133529305,
+      "confidence": 0.1901
+    },
+    {
+      "id": "synthetic-complete-28",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.05445799604058,
+      "confidence": 0.1596
+    },
+    {
+      "id": "synthetic-complete-29",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.06800012476742,
+      "confidence": 0.1712
+    },
+    {
+      "id": "synthetic-complete-30",
+      "source": "synthetic",
+      "label": "complete",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_complete_below_safety_threshold",
+      "backend": "ane",
+      "latency_ms": 53.07091702707112,
+      "confidence": 0.1892
+    },
+    {
+      "id": "synthetic-continue-01",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-02",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-03",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-04",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-05",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "explicit_test_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-06",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-07",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-08",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-09",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-10",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_artifact_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-11",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-12",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-13",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-14",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-15",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "blocking_failure",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-16",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-17",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-18",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-19",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-20",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "rule",
+      "reason": "required_step_missing",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-continue-21",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 53.11291688121855,
+      "confidence": 0.0054
+    },
+    {
+      "id": "synthetic-continue-22",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 53.0330000910908,
+      "confidence": 0.0198
+    },
+    {
+      "id": "synthetic-continue-23",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 52.95995809137821,
+      "confidence": 0.014
+    },
+    {
+      "id": "synthetic-continue-24",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 52.93945921584964,
+      "confidence": 0.0055
+    },
+    {
+      "id": "synthetic-continue-25",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 53.71324997395277,
+      "confidence": 0.0203
+    },
+    {
+      "id": "synthetic-continue-26",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.72650013305247,
+      "confidence": 0.0155
+    },
+    {
+      "id": "synthetic-continue-27",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 53.36516699753702,
+      "confidence": 0.0041
+    },
+    {
+      "id": "synthetic-continue-28",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 53.215333027765155,
+      "confidence": 0.0201
+    },
+    {
+      "id": "synthetic-continue-29",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.031666902825236,
+      "confidence": 0.0164
+    },
+    {
+      "id": "synthetic-continue-30",
+      "source": "synthetic",
+      "label": "continue",
+      "prediction": "continue",
+      "decision_source": "model",
+      "reason": "model_continue",
+      "backend": "ane",
+      "latency_ms": 53.02887479774654,
+      "confidence": 0.0069
+    },
+    {
+      "id": "synthetic-verify-01",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-02",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-03",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-04",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-05",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-06",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-07",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-08",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-09",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-10",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "final_state_not_verified",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-11",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-12",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-13",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-14",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-15",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-16",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-17",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-18",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-19",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-20",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "rule",
+      "reason": "conflicting_evidence",
+      "backend": "rule",
+      "latency_ms": 0.0,
+      "confidence": 1.0
+    },
+    {
+      "id": "synthetic-verify-21",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.088707849383354,
+      "confidence": 0.0813
+    },
+    {
+      "id": "synthetic-verify-22",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.072000155225396,
+      "confidence": 0.1187
+    },
+    {
+      "id": "synthetic-verify-23",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.03324991837144,
+      "confidence": 0.0434
+    },
+    {
+      "id": "synthetic-verify-24",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 52.95874993316829,
+      "confidence": 0.0885
+    },
+    {
+      "id": "synthetic-verify-25",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.00095910206437,
+      "confidence": 0.1113
+    },
+    {
+      "id": "synthetic-verify-26",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 52.96379188075662,
+      "confidence": 0.0441
+    },
+    {
+      "id": "synthetic-verify-27",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.01150004379451,
+      "confidence": 0.0906
+    },
+    {
+      "id": "synthetic-verify-28",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.13920811749995,
+      "confidence": 0.1129
+    },
+    {
+      "id": "synthetic-verify-29",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.114833077415824,
+      "confidence": 0.0423
+    },
+    {
+      "id": "synthetic-verify-30",
+      "source": "synthetic",
+      "label": "verify",
+      "prediction": "verify",
+      "decision_source": "model",
+      "reason": "model_verify",
+      "backend": "ane",
+      "latency_ms": 53.18341590464115,
+      "confidence": 0.0905
+    }
+  ],
+  "privacy": "no task/current_result bodies persisted in benchmark output"
+}
