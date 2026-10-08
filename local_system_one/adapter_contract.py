@@ -14,12 +14,12 @@ from typing import Any, Literal
 
 ADAPTER_CONTRACT_VERSION = "1.0"
 
-GateName = Literal["search", "model_tier", "notification"]
+GateName = Literal["search", "model_tier", "notification", "completion"]
 AdapterMode = Literal["off", "shadow", "canary"]
 DecisionSource = Literal["rule", "model"]
 ActionStatus = Literal["observed", "applied", "skipped", "failed_open", "unsupported"]
 
-_GATES = {"search", "model_tier", "notification"}
+_GATES = {"search", "model_tier", "notification", "completion"}
 _ACTION_STATUSES = {"observed", "applied", "skipped", "failed_open", "unsupported"}
 
 
@@ -223,6 +223,34 @@ def _validate_gate_decision(gate: str, decision: dict[str, Any]) -> dict[str, An
             ),
         }
 
+    if gate == "completion":
+        allowed = {
+            "value",
+            "probability_complete",
+            "probability_verify",
+            "probability_continue",
+        }
+        unknown = set(decision) - allowed
+        if unknown:
+            raise AdapterContractError(
+                f"unknown Completion decision field(s): {sorted(unknown)!r}"
+            )
+        value = _string(decision.get("value"), "decision.value")
+        if value not in {"complete", "continue", "verify"}:
+            raise AdapterContractError(f"invalid Completion decision: {value}")
+        return {
+            "value": value,
+            "probability_complete": _probability(
+                decision.get("probability_complete"), "decision.probability_complete"
+            ),
+            "probability_verify": _probability(
+                decision.get("probability_verify"), "decision.probability_verify"
+            ),
+            "probability_continue": _probability(
+                decision.get("probability_continue"), "decision.probability_continue"
+            ),
+        }
+
     raise AdapterContractError(f"unknown gate: {gate}")
 
 
@@ -261,6 +289,13 @@ def envelope_from_runtime(gate: GateName, payload: Any) -> DecisionEnvelope:
             "value": record.get("delivery"),
             "notify_now": record.get("notify_now"),
             "priority_score": record.get("priority_score"),
+        }
+    elif gate == "completion":
+        common["decision"] = {
+            "value": record.get("decision"),
+            "probability_complete": record.get("probability_complete"),
+            "probability_verify": record.get("probability_verify"),
+            "probability_continue": record.get("probability_continue"),
         }
     else:  # pragma: no cover - typing prevents normal callers from reaching this.
         raise AdapterContractError(f"unknown gate: {gate}")

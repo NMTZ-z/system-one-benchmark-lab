@@ -72,7 +72,7 @@
         "request_id": {"type": ["string", "null"]},
         "gate": {
           "type": "string",
-          "enum": ["search", "model_tier", "notification"]
+          "enum": ["search", "model_tier", "notification", "completion"]
         },
         "decision": {"type": "object"},
         "decision_source": {"type": "string", "enum": ["rule", "model"]},
@@ -136,6 +136,29 @@
               }
             }
           }
+        },
+        {
+          "if": {"properties": {"gate": {"const": "completion"}}},
+          "then": {
+            "properties": {
+              "decision": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "probability_complete",
+                  "probability_verify",
+                  "probability_continue"
+                ],
+                "properties": {
+                  "value": {"type": "string", "enum": ["complete", "continue", "verify"]},
+                  "probability_complete": {"type": "number", "minimum": 0, "maximum": 1},
+                  "probability_verify": {"type": "number", "minimum": 0, "maximum": 1},
+                  "probability_continue": {"type": "number", "minimum": 0, "maximum": 1}
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -155,7 +178,7 @@
         "adapter_contract_version": {"const": "1.0"},
         "platform": {"type": "string", "minLength": 1},
         "adapter_version": {"type": "string", "minLength": 1},
-        "gate": {"type": "string", "enum": ["search", "model_tier", "notification"]},
+        "gate": {"type": "string", "enum": ["search", "model_tier", "notification", "completion"]},
         "mode": {"$ref": "#/$defs/mode"},
         "decision": {},
         "decision_source": {"type": ["string", "null"]},

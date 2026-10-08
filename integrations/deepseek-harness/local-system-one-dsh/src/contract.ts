@@ -1,12 +1,13 @@
 import type {
   AdapterMode,
+  CompletionDecision,
   ModelTierDecision,
   NotificationDecision,
   SearchDecision,
 } from './types.js'
 
 export const ADAPTER_CONTRACT_VERSION = '1.0'
-export type GateName = 'search' | 'model_tier' | 'notification'
+export type GateName = 'search' | 'model_tier' | 'notification' | 'completion'
 export type ActionStatus = 'observed' | 'applied' | 'skipped' | 'failed_open' | 'unsupported'
 
 export interface ActionOutcome {
@@ -26,11 +27,12 @@ export interface DecisionEnvelope {
   confidence?: number
 }
 
-export type RuntimeDecision = SearchDecision | ModelTierDecision | NotificationDecision
+export type RuntimeDecision = SearchDecision | ModelTierDecision | NotificationDecision | CompletionDecision
 
 export function toDecisionEnvelope(gate: 'search', decision: SearchDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: 'model_tier', decision: ModelTierDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: 'notification', decision: NotificationDecision): DecisionEnvelope
+export function toDecisionEnvelope(gate: 'completion', decision: CompletionDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: GateName, decision: RuntimeDecision): DecisionEnvelope {
   const common = {
     adapter_contract_version: ADAPTER_CONTRACT_VERSION,
@@ -66,14 +68,28 @@ export function toDecisionEnvelope(gate: GateName, decision: RuntimeDecision): D
       confidence: value.confidence,
     }
   }
-  const value = decision as NotificationDecision
+  if (gate === 'notification') {
+    const value = decision as NotificationDecision
+    return {
+      ...common,
+      gate,
+      decision: {
+        value: value.delivery,
+        notify_now: value.notify_now,
+        priority_score: value.priority_score,
+      },
+      confidence: value.confidence,
+    }
+  }
+  const value = decision as CompletionDecision
   return {
     ...common,
-    gate: 'notification',
+    gate: 'completion',
     decision: {
-      value: value.delivery,
-      notify_now: value.notify_now,
-      priority_score: value.priority_score,
+      value: value.decision,
+      probability_complete: value.probability_complete,
+      probability_verify: value.probability_verify,
+      probability_continue: value.probability_continue,
     },
     confidence: value.confidence,
   }

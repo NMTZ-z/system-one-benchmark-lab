@@ -1,6 +1,6 @@
 manifest_version: 2
 name: local-system-one-hermes
-version: 0.7.0
+version: 0.8.0
 description: >-
   Local System One / Laya Typed Decisions control plane for Hermes Agent.
   Reversible OFF/Shadow/Canary modes, explicit Canary acknowledgement,
@@ -20,6 +20,7 @@ provides_tools: []
 provides_hooks:
   - pre_llm_call
   - post_llm_call
+  - post_tool_call
   - on_session_end
 provides_middleware:
   - llm_request
@@ -62,6 +63,13 @@ config_schema:
     description: >-
       Observe whether a completed Agent turn should be silent, digested, or notified.
       Notification is observation-only and never sends a notification itself.
+  completion_gate_enabled:
+    type: bool
+    default: true
+    label: Completion Gate (Shadow)
+    description: >-
+      Observe whether a turn appears complete, should continue, or needs verification.
+      Completion is observation-only and never terminates or restarts the Hermes loop.
   canary_acknowledged:
     type: bool
     default: false

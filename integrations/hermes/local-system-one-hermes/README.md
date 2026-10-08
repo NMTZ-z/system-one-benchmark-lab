@@ -9,11 +9,12 @@ Typical decisions include:
 - whether a task needs public/current Web information;
 - whether a bounded task is eligible for a lower reasoning tier;
 - whether a completed Agent turn should stay silent, join a digest, or merit an immediate notification;
+- whether the completed turn appears complete, should continue, or needs verification before any future stop authority could be considered;
 - which decisions should remain observation-only until enough evidence exists.
 
 The plugin talks to a separate Local System One service over loopback HTTP. It is deliberately conservative: first install is **OFF**, Shadow changes nothing, Canary requires explicit acknowledgement, and any Local System One failure leaves the original Hermes request unchanged.
 
-Hermes `0.7.0` implements **Adapter Contract v1**. The Runtime owns abstract
+Hermes adapter `0.8.0` implements **Adapter Contract v1**. The Runtime owns abstract
 decisions such as `Search=no_search` and `ModelTier=fast`; this plugin owns the
 Hermes-specific lifecycle, tool/provider mapping, Canary authority, rollback, and
 fail-open behavior. Platform details such as `reasoning_effort` and exact Hermes
@@ -91,6 +92,7 @@ Shadow mode:
 - calls the enabled Local System One gates;
 - observes Search and Model Tier before the provider request;
 - observes Notification after the final Agent response and turn lifecycle are known;
+- observes Completion once at the session boundary using bounded task/result state;
 - records privacy-safe operational metadata;
 - **does not rewrite the Hermes provider request or send notifications**.
 
@@ -161,13 +163,34 @@ This remains experimental. A 32-pair Hermes benchmark preserved measured task qu
 
 ## Notification Gate (Shadow only)
 
-Version `0.7.0` retains Notification Gate observation through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
+Version `0.8.0` retains Notification Gate observation through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
 
 The persisted plugin state contains only metadata such as `delivery`, `notify_now`, reason, score, confidence, backend, latency and the event character count. The response text itself is not persisted.
 
 Notification has **no Active authority** in this release. A `notify_now` decision is evidence for evaluation only; the plugin does not send a push, message, webhook or other user-visible notification. Failed turns may set `blocking_failure=true` so the runtime can exercise its deterministic failure rule, but the result remains observation-only.
 
 A live `systemoneeval` Hermes smoke on this release produced all three gate decisions and a Notification result of `digest` from the ANE backend without changing delivery behavior.
+
+## Completion Gate (Shadow only)
+
+Version `0.8.0` adds Completion observation without granting stop authority. The
+plugin captures a bounded task at `pre_llm_call`, bounded final result at
+`post_llm_call`, tool/failure counts through `post_tool_call`, and evaluates once
+at the real `on_session_end` boundary.
+
+The Runtime returns `complete`, `continue`, or `verify`. The plugin only records
+the semantic result. It never terminates the Hermes loop, suppresses a tool call,
+skips verification, or emits a final answer.
+
+Raw task/result text lives only in bounded process-local state until the session
+boundary. Persisted Completion telemetry contains decision metadata and character
+counts, not the text itself. If the Runtime is unavailable, the observation is
+recorded as `failed_open` and native Hermes behavior continues unchanged.
+
+The first 120-case benchmark produced a `0.00%` premature-completion rate but also
+`0.00` complete recall under the current conservative threshold. That is useful
+Shadow evidence, not evidence for Active stopping. See
+[`docs/COMPLETION_GATE.md`](../../../docs/COMPLETION_GATE.md).
 
 ## Safe defaults
 
@@ -177,6 +200,7 @@ A live `systemoneeval` Hermes smoke on this release produced all three gate deci
 | `search_gate_enabled` | `true` |
 | `model_tier_gate_enabled` | `true` |
 | `notification_gate_enabled` | `true` |
+| `completion_gate_enabled` | `true` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
@@ -210,6 +234,7 @@ Shadow/Canary state stores only operational metadata such as:
 - backend and latency;
 - names of tools changed by Canary;
 - Notification delivery/reason/score/confidence and event length, never the final response text.
+- Completion decision/reason/confidence and task/result lengths, never the task or final response text.
 
 Search/Model Tier send the current task to the configured Local System One endpoint. Notification sends the final Agent event text plus lifecycle metadata. With the default loopback service this remains local; pointing `service_url` at a remote host sends those inputs to that remote service.
 
@@ -261,6 +286,7 @@ It exercises OFF, Shadow, acknowledged Canary, fail-open behavior and restoratio
 - **hard no-Web Canary:** narrow, evidence-backed experiment
 - **reasoning downgrade Canary:** experimental and disabled by default
 - **Notification Gate:** Shadow-only; `silent` / `digest` / `notify_now` are observed but never delivered by the plugin
+- **Completion Gate:** Shadow-only; `complete` / `continue` / `verify` are observed but never terminate Hermes
 - **model-probability Active routing:** not supported
 
 For architecture, benchmark evidence and the Laya/ANE runtime, see the main project:

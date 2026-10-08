@@ -64,7 +64,7 @@ def test_malformed_decision_and_unknown_gate_are_rejected():
         validate_decision_envelope(malformed)
 
     unknown = search_envelope()
-    unknown["gate"] = "completion"
+    unknown["gate"] = "retry"
     with pytest.raises(AdapterContractError, match="unknown gate"):
         validate_decision_envelope(unknown)
 
@@ -119,6 +119,54 @@ def test_runtime_search_and_model_tier_responses_normalize_to_same_contract():
     assert search.adapter_contract_version == tier.adapter_contract_version == "1.0"
     assert search.request_id == tier.request_id == "same-turn"
     assert "ane_health" not in (search.metadata or {})
+
+
+def test_valid_completion_decision_envelope_and_runtime_normalization():
+    runtime = {
+        "workflow": "completion_gate",
+        "decision": "verify",
+        "decision_source": "model",
+        "reason": "model_verify",
+        "probability_complete": 0.2,
+        "probability_verify": 0.7,
+        "probability_continue": 0.1,
+        "confidence": 0.7,
+        "backend": "mlx",
+        "route_reason": "short_input",
+        "token_count": 128,
+        "latency_ms": 12.0,
+        "request_id": "completion-1",
+    }
+    value = envelope_from_runtime("completion", runtime)
+    assert value.adapter_contract_version == "1.0"
+    assert value.gate == "completion"
+    assert value.decision == {
+        "value": "verify",
+        "probability_complete": 0.2,
+        "probability_verify": 0.7,
+        "probability_continue": 0.1,
+    }
+    assert value.request_id == "completion-1"
+
+
+def test_invalid_completion_value_is_rejected():
+    value = {
+        "adapter_contract_version": ADAPTER_CONTRACT_VERSION,
+        "request_id": None,
+        "gate": "completion",
+        "decision": {
+            "value": "stop",
+            "probability_complete": 1.0,
+            "probability_verify": 0.0,
+            "probability_continue": 0.0,
+        },
+        "decision_source": "rule",
+        "reason": "invalid-test",
+        "backend": "rule",
+        "latency_ms": 0.0,
+    }
+    with pytest.raises(AdapterContractError, match="invalid Completion decision"):
+        validate_decision_envelope(value)
 
 
 def test_action_outcome_has_closed_status_vocabulary():

@@ -7,6 +7,7 @@ export interface AdapterConfig {
   search_gate_enabled?: boolean
   model_tier_gate_enabled?: boolean
   notification_gate_enabled?: boolean
+  completion_gate_enabled?: boolean
   canary_acknowledged?: boolean
   canary_web_filter_enabled?: boolean
   canary_reasoning_downgrade_enabled?: boolean
@@ -20,6 +21,7 @@ export interface ResolvedAdapterConfig {
   searchGateEnabled: boolean
   modelTierGateEnabled: boolean
   notificationGateEnabled: boolean
+  completionGateEnabled: boolean
   canaryAcknowledged: boolean
   canaryWebFilterEnabled: boolean
   canaryReasoningDowngradeEnabled: boolean
@@ -57,6 +59,34 @@ export interface NotificationDecision {
   backend: string
   latency_ms: number
   request_id: string | null
+}
+
+export interface CompletionDecision {
+  decision: 'complete' | 'continue' | 'verify'
+  decision_source: 'rule' | 'model'
+  reason: string
+  probability_complete: number
+  probability_verify: number
+  probability_continue: number
+  confidence: number
+  backend: string
+  latency_ms: number
+  request_id: string | null
+}
+
+export interface CompletionExecutionState {
+  tools_used?: number
+  tool_failures?: number
+  tests_run?: number
+  tests_passed?: number
+  artifacts_created?: number
+  required_checks_completed?: boolean
+  required_artifact_missing?: boolean
+  required_step_missing?: boolean
+  blocking_failure?: boolean
+  conflicting_evidence?: boolean
+  verification_required?: boolean
+  final_state_verified?: boolean
 }
 
 export interface StoredSearchDecision extends SearchDecision {

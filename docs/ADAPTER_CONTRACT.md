@@ -73,8 +73,10 @@ The Runtime does **not** own platform execution authority. A result such as
 `tier=fast` never means "set reasoning effort to low". It means only that the
 Runtime considers the task eligible for the abstract fast tier.
 
-The existing Runtime HTTP API is unchanged in v1. Adapters normalize current
-workflow responses into the contract at their boundary.
+Phase 8A adds `/v1/workflows/completion-gate` as a backward-compatible v1
+extension. Adapters normalize workflow responses into the contract at their
+boundary; adding the new semantic Gate does not introduce platform-specific
+fields or break existing v1 envelopes.
 
 ## 4. Adapter responsibility
 
@@ -134,6 +136,12 @@ notification:
   value = silent | digest | notify_now
   notify_now
   priority_score
+
+completion:
+  value = complete | continue | verify
+  probability_complete
+  probability_verify
+  probability_continue
 ```
 
 There is intentionally no `reasoning_effort`, provider/model identifier, or Web
@@ -296,26 +304,28 @@ Adapter observation records.
 
 ## 12. Hermes mapping
 
-Hermes v0.7.0 keeps native Hermes behavior and lifecycle code:
+Hermes v0.8.0 keeps native Hermes behavior and lifecycle code:
 
 | Decision | Current Adapter mapping |
 |---|---|
 | `Search=no_search` + audited deterministic reason | acknowledged Canary may hide exact `web_search` / `web_extract` entries |
 | `ModelTier=fast` + audited deterministic reason | optional verified mapping may change the first supported request from high to low reasoning effort |
 | `Notification=*` | Shadow observation only |
+| `Completion=*` | Shadow observation at `on_session_end`; never terminates the loop |
 
 Hermes-specific tool names, provider request fields, profile state, and middleware
 remain outside the common contract.
 
 ## 13. DeepSeek Harness mapping
 
-DSH v0.4.0 keeps DSH-specific hooks and provider request types:
+DSH v0.5.0 keeps DSH-specific hooks and provider request types:
 
 | Decision | Current Adapter mapping |
 |---|---|
 | `Search=no_search` + audited deterministic reason | acknowledged Canary may deny exact verified public-Web tools |
 | `ModelTier=fast` + audited deterministic reason | optional verified provider/model routes may change first-call `reasoningEffort` from high to low |
 | `Notification=*` | Shadow observation only |
+| `Completion=*` | Shadow observation at `turn/end`; never terminates the loop |
 
 Provider/model allowlists and DSH tool names remain Adapter policy, not Runtime
 contract fields.

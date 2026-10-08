@@ -1,4 +1,10 @@
-import type { ModelTierDecision, NotificationDecision, SearchDecision } from './types.js'
+import type {
+  CompletionDecision,
+  CompletionExecutionState,
+  ModelTierDecision,
+  NotificationDecision,
+  SearchDecision,
+} from './types.js'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -147,6 +153,45 @@ export function parseNotificationDecision(value: unknown): NotificationDecision 
   }
 }
 
+export function parseCompletionDecision(value: unknown): CompletionDecision {
+  const contract = 'completion-gate'
+  if (!isRecord(value)) {
+    throw new Error(`invalid ${contract} response`)
+  }
+  const decision = requiredString(value, 'decision', contract)
+  if (!['complete', 'continue', 'verify'].includes(decision)) {
+    throw new Error(`invalid ${contract} response field: decision`)
+  }
+  const decisionSource = requiredString(value, 'decision_source', contract)
+  if (decisionSource !== 'rule' && decisionSource !== 'model') {
+    throw new Error(`invalid ${contract} response field: decision_source`)
+  }
+  const probabilityComplete = requiredNumber(value, 'probability_complete', contract)
+  const probabilityVerify = requiredNumber(value, 'probability_verify', contract)
+  const probabilityContinue = requiredNumber(value, 'probability_continue', contract)
+  const confidence = requiredNumber(value, 'confidence', contract)
+  for (const [key, probability] of [
+    ['probability_complete', probabilityComplete],
+    ['probability_verify', probabilityVerify],
+    ['probability_continue', probabilityContinue],
+    ['confidence', confidence],
+  ] as const) {
+    if (probability < 0 || probability > 1) throw new Error(`${key} must be in [0, 1]`)
+  }
+  return {
+    decision: decision as CompletionDecision['decision'],
+    decision_source: decisionSource,
+    reason: requiredString(value, 'reason', contract),
+    probability_complete: probabilityComplete,
+    probability_verify: probabilityVerify,
+    probability_continue: probabilityContinue,
+    confidence,
+    backend: requiredString(value, 'backend', contract),
+    latency_ms: requiredNumber(value, 'latency_ms', contract),
+    request_id: requestId(value, contract),
+  }
+}
+
 class GateClient<T> {
   constructor(
     private readonly serviceUrl: string,
@@ -176,7 +221,7 @@ class GateClient<T> {
     }
   }
 
-  async decide(task: string, requestIdValue: string): Promise<T> {
+  protected async decideTask(task: string, requestIdValue: string): Promise<T> {
     return this.post({ task, request_id: requestIdValue })
   }
 }
@@ -185,11 +230,19 @@ export class SearchGateClient extends GateClient<SearchDecision> {
   constructor(serviceUrl: string, timeoutMs: number) {
     super(serviceUrl, timeoutMs, '/v1/workflows/search-gate', parseSearchDecision)
   }
+
+  async decide(task: string, requestIdValue: string): Promise<SearchDecision> {
+    return this.decideTask(task, requestIdValue)
+  }
 }
 
 export class ModelTierGateClient extends GateClient<ModelTierDecision> {
   constructor(serviceUrl: string, timeoutMs: number) {
     super(serviceUrl, timeoutMs, '/v1/workflows/model-tier-gate', parseModelTierDecision)
+  }
+
+  async decide(task: string, requestIdValue: string): Promise<ModelTierDecision> {
+    return this.decideTask(task, requestIdValue)
   }
 }
 
@@ -211,6 +264,26 @@ export class NotificationGateClient extends GateClient<NotificationDecision> {
       user_action_required: false,
       blocking_failure: blockingFailure,
       routine_update: false,
+      request_id: requestIdValue,
+    })
+  }
+}
+
+export class CompletionGateClient extends GateClient<CompletionDecision> {
+  constructor(serviceUrl: string, timeoutMs: number) {
+    super(serviceUrl, timeoutMs, '/v1/workflows/completion-gate', parseCompletionDecision)
+  }
+
+  async decide(
+    task: string,
+    currentResult: string,
+    executionState: CompletionExecutionState,
+    requestIdValue: string,
+  ): Promise<CompletionDecision> {
+    return this.post({
+      task,
+      current_result: currentResult,
+      execution_state: executionState,
       request_id: requestIdValue,
     })
   }

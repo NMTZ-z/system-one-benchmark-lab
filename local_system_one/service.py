@@ -10,6 +10,8 @@ from typing import Any
 from .engine import DecisionEngine
 from .schemas import DecisionRequest
 from .workflows import (
+    CompletionGate,
+    CompletionGateRequest,
     ModelTierGate,
     ModelTierRequest,
     NotificationGate,
@@ -28,6 +30,7 @@ def create_server(
     port: int = 8787,
     auth_token: str | None = None,
 ) -> ThreadingHTTPServer:
+    completion_gate = CompletionGate(engine)
     search_gate = SearchGate(engine)
     model_tier_gate = ModelTierGate(engine)
     notification_gate = NotificationGate(engine)
@@ -83,6 +86,27 @@ def create_server(
             if not self._authorized():
                 self._json(401, {"error": "unauthorized"})
                 return
+            if self.path == "/v1/workflows/completion-gate":
+                try:
+                    payload = self._read_payload()
+                    request = CompletionGateRequest.from_payload(payload)
+                    response = completion_gate.decide(request)
+                except (ValueError, TypeError) as error:
+                    self._json(400, {"error": "invalid_request", "detail": str(error)})
+                    return
+                except Exception as error:  # noqa: BLE001 - service boundary
+                    engine.metrics.record_error()
+                    self._json(
+                        500,
+                        {
+                            "error": "decision_failed",
+                            "detail": type(error).__name__,
+                        },
+                    )
+                    return
+                self._json(200, response)
+                return
+
             if self.path == "/v1/workflows/search-gate":
                 try:
                     payload = self._read_payload()
