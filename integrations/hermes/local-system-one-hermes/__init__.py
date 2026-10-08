@@ -29,6 +29,8 @@ _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
 _MAX_NOTIFICATION_CHARS = 6000
 _MAX_COMPLETION_RESULT_CHARS = 6000
+_COMPLETION_DECISIONS = frozenset({"complete", "continue", "verify"})
+_COMPLETION_SOURCES = frozenset({"rule", "model"})
 
 
 def _text_from_content(content: Any) -> str:
@@ -163,6 +165,29 @@ def _safe_notification(
     return result
 
 
+def _valid_completion_response(value: Any) -> bool:
+    """Accept only the documented Completion Gate decision envelope."""
+    if not isinstance(value, dict):
+        return False
+    if value.get("workflow") != "completion_gate":
+        return False
+    if value.get("decision") not in _COMPLETION_DECISIONS:
+        return False
+    if value.get("decision_source") not in _COMPLETION_SOURCES:
+        return False
+    if not isinstance(value.get("reason"), str) or not value["reason"].strip():
+        return False
+    for key in ("probability_complete", "probability_verify", "probability_continue"):
+        probability = value.get(key)
+        if (
+            isinstance(probability, bool)
+            or not isinstance(probability, (int, float))
+            or not 0.0 <= float(probability) <= 1.0
+        ):
+            return False
+    return True
+
+
 def _safe_completion(
     base_url: str,
     task: str,
@@ -181,10 +206,14 @@ def _safe_completion(
         "request_id": request_id,
     }
     try:
-        result["completion"] = _post_json(
+        completion = _post_json(
             base_url, "/v1/workflows/completion-gate", payload, timeout
         )
-        result["ok"] = True
+        if _valid_completion_response(completion):
+            result["completion"] = completion
+            result["ok"] = True
+        else:
+            result["error"] = "invalid_response"
     except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
         result["error"] = type(exc).__name__
     result["shadow_latency_ms"] = (time.perf_counter() - started) * 1000.0

@@ -32,6 +32,7 @@ class FakeEngine:
         self.calls += 1
         self.last_request = request
         if self.fail:
+            self.metrics.record_error()
             raise RuntimeError("synthetic model failure")
         probabilities = {"complete": 0.05, "verify": 0.05, "continue": 0.05}
         probabilities[self.decision] = self.probability
@@ -103,11 +104,12 @@ def test_low_confidence_model_complete_is_downgraded_to_verify():
     assert result["reason"] == "model_complete_below_safety_threshold"
 
 
-def test_model_failure_fails_safe_to_continue():
+def test_model_failure_fails_safe_to_continue_without_double_counting_error():
     engine = FakeEngine(fail=True)
     result = CompletionGate(engine).decide(request())
     assert result["decision"] == "continue"
     assert result["reason"] == "model_failure_fail_open_continue"
+    assert engine.metrics.snapshot()["errors"] == 1
 
 
 def test_request_rejects_missing_unknown_and_invalid_fields():

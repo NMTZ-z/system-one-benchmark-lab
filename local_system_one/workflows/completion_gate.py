@@ -243,7 +243,8 @@ class CompletionGate:
         try:
             model = self.engine.decide(primitive)
         except Exception:  # noqa: BLE001 - classifier failure must never silently stop the agent
-            self.engine.metrics.record_error()
+            # DecisionEngine records direct backend failures. Do not count the same
+            # inference error a second time when Completion falls back to a rule.
             return self._rule_result("continue", "model_failure_fail_open_continue", request)
 
         selected = str(model["decision"])

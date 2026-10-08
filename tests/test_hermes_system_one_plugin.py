@@ -828,6 +828,36 @@ def test_notification_gate_can_be_disabled_independently(monkeypatch):
     assert "last_notification_shadow" not in ctx.state.values
 
 
+def test_safe_completion_rejects_malformed_http_200_payload(monkeypatch):
+    plugin = load_plugin()
+    malformed = [
+        {},
+        {"error": "decision_failed"},
+        {
+            "workflow": "completion_gate",
+            "decision": "stop",
+            "decision_source": "model",
+            "reason": "invalid enum",
+            "probability_complete": 0.8,
+            "probability_verify": 0.1,
+            "probability_continue": 0.1,
+        },
+    ]
+    for payload in malformed:
+        monkeypatch.setattr(plugin, "_post_json", lambda *args, _payload=payload, **kwargs: _payload)
+        result = plugin._safe_completion(
+            "http://127.0.0.1:8787",
+            "Do the task",
+            "Candidate result",
+            {"tools_used": 1},
+            0.5,
+            "turn-malformed",
+        )
+        assert result["ok"] is False
+        assert result["completion"] is None
+        assert result["error"] == "invalid_response"
+
+
 def test_completion_shadow_observes_once_without_mutation_or_raw_persistence(monkeypatch):
     plugin = load_plugin()
     ctx = FakeContext(
