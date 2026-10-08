@@ -432,8 +432,13 @@ def test_canary_partial_gate_failure_is_fail_open(monkeypatch):
         "_safe_recommendations",
         lambda *args, **kwargs: {
             "ok": False,
+            "search_ok": True,
+            "model_tier_ok": False,
+            "search_error": None,
+            "model_tier_error": "TimeoutError",
             "search": {
                 "decision": "no_search",
+                "decision_source": "rule",
                 "reason": "local_file_or_repo",
                 "probability_search": 0.0,
                 "backend": "rule",
@@ -458,14 +463,15 @@ def test_canary_partial_gate_failure_is_fail_open(monkeypatch):
             {"type": "function", "function": {"name": "read_file"}},
         ]
     }
-    assert (
-        ctx.middleware["llm_request"](
-            request=request, turn_id="turn-partial-fail", api_call_count=1
-        )
-        is None
+    result = ctx.middleware["llm_request"](
+        request=request, turn_id="turn-partial-fail", api_call_count=1
     )
+    assert result is not None
+    names = [plugin._tool_name(tool) for tool in result["request"]["tools"]]
+    assert names == ["read_file"]
     assert ctx.state.values["last_shadow"]["ok"] is False
-    assert "last_canary" not in ctx.state.values
+    assert ctx.state.values["last_shadow"]["model_tier"]["action_status"] == "failed_open"
+    assert ctx.state.values["last_canary"]["search_action"]["status"] == "applied"
 
 
 def _hard_fast_only_recommendation(reason: str = "bounded_transform"):
@@ -600,6 +606,94 @@ def test_safe_recommendations_respects_independent_gate_switches(monkeypatch):
     assert result["model_tier"] is None
 
 
+def test_safe_recommendations_isolates_gate_failures(monkeypatch):
+    plugin = load_plugin()
+
+    def fake_post(base_url, path, payload, timeout):
+        if path.endswith("search-gate"):
+            return {
+                "decision": "no_search",
+                "decision_source": "rule",
+                "reason": "local_file_or_repo",
+                "probability_search": 0.0,
+                "backend": "rule",
+            }
+        raise TimeoutError("model tier timeout")
+
+    monkeypatch.setattr(plugin, "_post_json", fake_post)
+    result = plugin._safe_recommendations(
+        "http://127.0.0.1:8787", "task", "", 0.5, "turn"
+    )
+    assert result["ok"] is False
+    assert result["search_ok"] is True
+    assert result["model_tier_ok"] is False
+    assert result["search"]["reason"] == "local_file_or_repo"
+    assert result["model_tier"] is None
+    assert result["model_tier_error"] == "TimeoutError"
+
+
+def test_canary_mutation_exception_preserves_original_request(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("canary")
+    monkeypatch.setattr(
+        plugin,
+        "_safe_recommendations",
+        lambda *args, **kwargs: _bounded_transform_recommendation(),
+    )
+    monkeypatch.setattr(
+        plugin,
+        "_filter_public_web_tools",
+        lambda request: (_ for _ in ()).throw(RuntimeError("synthetic mutation failure")),
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](
+        user_message="润色：测试文本",
+        conversation_history=[],
+        is_first_turn=True,
+        model="test",
+        platform="cli",
+        turn_id="turn-mutation-fail",
+    )
+    request = {
+        "tools": [{"type": "function", "function": {"name": "web_search"}}]
+    }
+    assert (
+        ctx.middleware["llm_request"](
+            request=request, turn_id="turn-mutation-fail", api_call_count=1
+        )
+        is None
+    )
+    assert plugin._tool_name(request["tools"][0]) == "web_search"
+    assert ctx.state.values["last_canary"]["search_action"] == {
+        "status": "failed_open",
+        "reason": "mutation_exception",
+    }
+
+
+def test_session_end_clears_unconsumed_canary_state(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("canary", notification_gate_enabled=False)
+    monkeypatch.setattr(
+        plugin,
+        "_safe_recommendations",
+        lambda *args, **kwargs: _bounded_transform_recommendation(),
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](
+        user_message="润色：测试文本",
+        conversation_history=[],
+        is_first_turn=True,
+        model="test",
+        platform="cli",
+        turn_id="turn-cleanup",
+    )
+    assert "turn-cleanup" in ctx.state.values["canary_pending"]
+    ctx.hooks["on_session_end"](
+        turn_id="turn-cleanup", completed=True, failed=False, interrupted=False
+    )
+    assert "turn-cleanup" not in ctx.state.values["canary_pending"]
+
+
 def test_reasoning_canary_is_disabled_by_feature_switch(monkeypatch):
     plugin = load_plugin()
     ctx = FakeContext("canary", canary_reasoning_downgrade_enabled=False)
@@ -725,7 +819,7 @@ def test_plugin_manifest_has_safe_product_defaults():
 
     manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
     assert manifest["manifest_version"] == 2
-    assert manifest["version"] == "0.6.0"
+    assert manifest["version"] == "0.7.0"
     assert manifest["provides_tools"] == []
     assert manifest["provides_hooks"] == ["pre_llm_call", "post_llm_call", "on_session_end"]
     assert manifest["provides_middleware"] == ["llm_request"]

@@ -4,7 +4,7 @@
 
 Native DeepSeek Harness adapter for Local System One **Search Gate + Model Tier Gate + Notification Gate**.
 
-Version `0.3.0` keeps installation inert by default, observes all three gates, preserves the audited Search Canary, and keeps Model Tier Canary explicitly opt-in. Phase 7B adds Notification Shadow and a second verified Model Tier route using StepFun Step Plan / `step-5-preview`.
+Version `0.4.0` implements **Adapter Contract v1** while keeping installation inert by default, observing all three gates, preserving the audited Search Canary, and keeping Model Tier Canary explicitly opt-in. The earlier parity work added Notification Shadow and a second verified Model Tier route using StepFun Step Plan / `step-5-preview`.
 
 ## Compatibility
 
@@ -44,6 +44,28 @@ Local System One Runtime
 ```
 
 The adapter is an HTTP client. It does not import Laya, MLX, Core ML, Torch, or the Python runtime.
+
+## Adapter Contract v1
+
+The Runtime owns abstract decision semantics such as `Search=no_search` and
+`ModelTier=fast`. This adapter owns DSH hooks, session/turn state, exact tool-name
+mapping, provider/model compatibility, request mutation, Canary authority, and
+rollback. `reasoningEffort` is therefore a DSH mapping detail, not a Local System
+One decision field.
+
+Contract observations use a shared status vocabulary:
+
+```text
+observed | applied | skipped | failed_open | unsupported
+```
+
+They also include `adapter_contract_version=1.0`, `platform=deepseek_harness`,
+adapter version, Gate, mode, semantic decision, reason/backend/latency, action
+status/reason, and request ID. Raw task/event text is not written into these logs.
+
+See [`docs/ADAPTER_CONTRACT.md`](../../../docs/ADAPTER_CONTRACT.md) and the
+machine-readable schema at
+[`contracts/adapter-contract-v1.schema.json`](../../../contracts/adapter-contract-v1.schema.json).
 
 ## Modes and safe defaults
 
@@ -152,7 +174,7 @@ Endpoint:
 POST /v1/workflows/notification-gate
 ```
 
-Notification is **Shadow-only** in `0.3.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
+Notification is **Shadow-only** in `0.4.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
 
 The adapter logs only decision metadata (`delivery`, `notify_now`, source, reason, score, confidence, backend, latency and event length). It never logs the final response text. No push, webhook, message or other delivery action is taken even if Local System One returns `notify_now`.
 
@@ -168,7 +190,7 @@ Search and Model Tier decisions are kept separately under session + turn identit
 
 Each gate is independent. A timeout, HTTP error, malformed response, or dead Local System One service on one gate does not suppress the other gate and does not break the DSH turn.
 
-Canary mutations also fail open: if authority cannot be proven, the original tool/provider behavior is preserved.
+Canary mutations also fail open: if authority cannot be proven or a mutation throws, the original tool/provider behavior is preserved. Known but unverified provider/model mappings are recorded as `unsupported`; actual integration failures are recorded as `failed_open`.
 
 ## Community bundle install
 
@@ -246,8 +268,8 @@ Removing the adapter restores native DSH behavior without reinstalling DSH or ch
 
 ## Phase reports
 
-See [PHASE7A_MODEL_TIER_PARITY.md](PHASE7A_MODEL_TIER_PARITY.md) for Model Tier parity and [PHASE7B_NOTIFICATION_STEPFUN.md](PHASE7B_NOTIFICATION_STEPFUN.md) for Notification Shadow parity and StepFun provider-wire validation.
+See [PHASE7A_MODEL_TIER_PARITY.md](PHASE7A_MODEL_TIER_PARITY.md) for Model Tier parity and [PHASE7B_NOTIFICATION_STEPFUN.md](PHASE7B_NOTIFICATION_STEPFUN.md) for the earlier Notification Shadow + StepFun provider-wire validation. The latter filename is retained as historical evidence; the current project-level **Phase 7B** is the Unified Adapter Contract documented in [`docs/ADAPTER_CONTRACT.md`](../../../docs/ADAPTER_CONTRACT.md).
 
 ## Still out of scope
 
-Phase 7B does not add Active notification delivery, Completion Gate, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.
+Unified Adapter Contract Phase 7B does not add Active notification delivery, Completion Gate, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.

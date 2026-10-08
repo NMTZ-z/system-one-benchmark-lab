@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/NMTZ-z/system-one-benchmark-lab/contracts/adapter-contract-v1.schema.json",
+  "title": "Local System One Adapter Contract v1",
+  "oneOf": [
+    {"$ref": "#/$defs/decisionEnvelope"},
+    {"$ref": "#/$defs/actionOutcome"},
+    {"$ref": "#/$defs/turnContext"},
+    {"$ref": "#/$defs/gateConfig"},
+    {"$ref": "#/$defs/telemetry"}
+  ],
+  "$defs": {
+    "mode": {
+      "type": "string",
+      "enum": ["off", "shadow", "canary"]
+    },
+    "actionOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["observed", "applied", "skipped", "failed_open", "unsupported"]
+        },
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "turnContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_contract_version", "platform"],
+      "properties": {
+        "adapter_contract_version": {"const": "1.0"},
+        "platform": {"type": "string", "minLength": 1},
+        "session_id": {"type": ["string", "null"]},
+        "turn_id": {"type": ["string", "integer", "null"]},
+        "step": {"type": ["integer", "null"], "minimum": 1},
+        "task": {"type": ["string", "null"]},
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "gateConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "mode", "timeout_ms"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "mode": {"$ref": "#/$defs/mode"},
+        "timeout_ms": {"type": "integer", "minimum": 1}
+      }
+    },
+    "decisionEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_contract_version",
+        "request_id",
+        "gate",
+        "decision",
+        "decision_source",
+        "reason",
+        "backend",
+        "latency_ms"
+      ],
+      "properties": {
+        "adapter_contract_version": {"const": "1.0"},
+        "request_id": {"type": ["string", "null"]},
+        "gate": {
+          "type": "string",
+          "enum": ["search", "model_tier", "notification"]
+        },
+        "decision": {"type": "object"},
+        "decision_source": {"type": "string", "enum": ["rule", "model"]},
+        "reason": {"type": "string", "minLength": 1},
+        "backend": {"type": "string", "minLength": 1},
+        "latency_ms": {"type": "number", "minimum": 0},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "metadata": {
+          "type": "object",
+          "description": "Privacy-safe extension point. Unknown metadata keys are allowed.",
+          "additionalProperties": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"gate": {"const": "search"}}},
+          "then": {
+            "properties": {
+              "decision": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["value", "probability_search"],
+                "properties": {
+                  "value": {"type": "string", "enum": ["search", "no_search"]},
+                  "probability_search": {"type": "number", "minimum": 0, "maximum": 1}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {"properties": {"gate": {"const": "model_tier"}}},
+          "then": {
+            "properties": {
+              "decision": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["value", "difficulty_score", "probability_strong"],
+                "properties": {
+                  "value": {"type": "string", "enum": ["fast", "strong"]},
+                  "difficulty_score": {"type": "number"},
+                  "probability_strong": {"type": "number", "minimum": 0, "maximum": 1}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {"properties": {"gate": {"const": "notification"}}},
+          "then": {
+            "properties": {
+              "decision": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["value", "notify_now", "priority_score"],
+                "properties": {
+                  "value": {"type": "string", "enum": ["silent", "digest", "notify_now"]},
+                  "notify_now": {"type": "boolean"},
+                  "priority_score": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "adapter_contract_version",
+        "platform",
+        "adapter_version",
+        "gate",
+        "mode",
+        "action_status",
+        "action_reason"
+      ],
+      "properties": {
+        "adapter_contract_version": {"const": "1.0"},
+        "platform": {"type": "string", "minLength": 1},
+        "adapter_version": {"type": "string", "minLength": 1},
+        "gate": {"type": "string", "enum": ["search", "model_tier", "notification"]},
+        "mode": {"$ref": "#/$defs/mode"},
+        "decision": {},
+        "decision_source": {"type": ["string", "null"]},
+        "reason": {"type": ["string", "null"]},
+        "backend": {"type": ["string", "null"]},
+        "latency_ms": {"type": ["number", "null"], "minimum": 0},
+        "action_status": {
+          "type": "string",
+          "enum": ["observed", "applied", "skipped", "failed_open", "unsupported"]
+        },
+        "action_reason": {"type": "string", "minLength": 1},
+        "request_id": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

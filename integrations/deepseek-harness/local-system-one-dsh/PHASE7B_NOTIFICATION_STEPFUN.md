@@ -2,6 +2,11 @@
 
 Date: 2026-10-06
 
+> Historical naming note: this report predates the project-level **Phase 7B —
+> Unified Adapter Contract** scope adopted on 2026-10-07. The filename is retained
+> to preserve validation provenance. The current Phase 7B contract is documented in
+> [`docs/ADAPTER_CONTRACT.md`](../../../docs/ADAPTER_CONTRACT.md).
+
 ## 1. Scope
 
 Phase 7B closes two follow-ups from Phase 7A without adding new control-plane surface area:
