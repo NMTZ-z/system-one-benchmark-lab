@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from ..engine import DecisionEngine
+from ..metrics import record_error_once
 from ..schemas import DecisionRequest
 
 CompletionDecision = Literal["complete", "continue", "verify"]
@@ -242,9 +243,10 @@ class CompletionGate:
         )
         try:
             model = self.engine.decide(primitive)
-        except Exception:  # noqa: BLE001 - classifier failure must never silently stop the agent
-            # DecisionEngine records direct backend failures. Do not count the same
-            # inference error a second time when Completion falls back to a rule.
+        except Exception as error:  # noqa: BLE001 - classifier failure must never silently stop the agent
+            # Engine inference failures are already marked; failures raised before
+            # inference (or by a test/dummy engine) are accounted here instead.
+            record_error_once(self.engine.metrics, error)
             return self._rule_result("continue", "model_failure_fail_open_continue", request)
 
         selected = str(model["decision"])

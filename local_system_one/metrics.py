@@ -49,3 +49,22 @@ class ServiceMetrics:
                     "max": max(values) if values else None,
                 },
             }
+
+_ERROR_RECORDED_ATTR = "_local_system_one_metrics_error_recorded"
+
+
+def record_error_once(metrics: ServiceMetrics, error: BaseException) -> bool:
+    """Record one service error even when an exception crosses multiple layers.
+
+    Decision/runtime failures can pass through the engine, a workflow fail-open
+    boundary, and the HTTP service. Mark the exception object after the first
+    count so outer layers do not count the same failure again.
+    """
+    if bool(getattr(error, _ERROR_RECORDED_ATTR, False)):
+        return False
+    metrics.record_error()
+    try:
+        setattr(error, _ERROR_RECORDED_ATTR, True)
+    except Exception:  # noqa: BLE001,S110 - never mask the original error
+        pass
+    return True

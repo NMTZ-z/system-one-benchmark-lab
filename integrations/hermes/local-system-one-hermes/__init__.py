@@ -185,6 +185,23 @@ def _valid_completion_response(value: Any) -> bool:
             or not 0.0 <= float(probability) <= 1.0
         ):
             return False
+    backend = value.get("backend")
+    if not isinstance(backend, str) or not backend.strip():
+        return False
+    confidence = value.get("confidence")
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not 0.0 <= float(confidence) <= 1.0
+    ):
+        return False
+    latency_ms = value.get("latency_ms")
+    if (
+        isinstance(latency_ms, bool)
+        or not isinstance(latency_ms, (int, float))
+        or not 0.0 <= float(latency_ms) < float("inf")
+    ):
+        return False
     return True
 
 

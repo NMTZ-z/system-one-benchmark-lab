@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from .engine import DecisionEngine
+from .metrics import record_error_once
 from .schemas import DecisionRequest
 from .workflows import (
     CompletionGate,
@@ -95,7 +96,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -116,7 +117,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -137,7 +138,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -158,7 +159,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -188,7 +189,7 @@ def create_server(
                 self._json(400, {"error": "invalid_request", "detail": str(error)})
                 return
             except Exception as error:  # noqa: BLE001 - service boundary
-                engine.metrics.record_error()
+                record_error_once(engine.metrics, error)
                 self._json(
                     500,
                     {

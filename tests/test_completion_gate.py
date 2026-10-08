@@ -8,7 +8,7 @@ import urllib.request
 import pytest
 
 from local_system_one.health import ANEHealthGate
-from local_system_one.metrics import ServiceMetrics
+from local_system_one.metrics import ServiceMetrics, record_error_once
 from local_system_one.service import create_server
 from local_system_one.workflows.completion_gate import (
     MAX_RESULT_CHARS,
@@ -32,8 +32,9 @@ class FakeEngine:
         self.calls += 1
         self.last_request = request
         if self.fail:
-            self.metrics.record_error()
-            raise RuntimeError("synthetic model failure")
+            error = RuntimeError("synthetic model failure")
+            record_error_once(self.metrics, error)
+            raise error
         probabilities = {"complete": 0.05, "verify": 0.05, "continue": 0.05}
         probabilities[self.decision] = self.probability
         return {
@@ -106,6 +107,19 @@ def test_low_confidence_model_complete_is_downgraded_to_verify():
 
 def test_model_failure_fails_safe_to_continue_without_double_counting_error():
     engine = FakeEngine(fail=True)
+    result = CompletionGate(engine).decide(request())
+    assert result["decision"] == "continue"
+    assert result["reason"] == "model_failure_fail_open_continue"
+    assert engine.metrics.snapshot()["errors"] == 1
+
+
+def test_model_failure_records_unaccounted_error_once():
+    engine = FakeEngine()
+
+    def fail_without_accounting(_request):
+        raise RuntimeError("failure before engine accounting")
+
+    engine.decide = fail_without_accounting
     result = CompletionGate(engine).decide(request())
     assert result["decision"] == "continue"
     assert result["reason"] == "model_failure_fail_open_continue"
