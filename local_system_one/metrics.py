@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import statistics
 from collections import Counter, deque
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from threading import Lock
 from typing import Any
 
@@ -49,3 +52,38 @@ class ServiceMetrics:
                     "max": max(values) if values else None,
                 },
             }
+
+# Each entry point opens a scope. Nested Engine/Workflow/HTTP layers share it,
+# but the marker is reset between requests, even if a runtime re-raises the very
+# same exception instance. An immutable set avoids shared mutable task context.
+_ERROR_SCOPE: ContextVar[frozenset[ServiceMetrics] | None] = ContextVar(
+    "local_system_one_error_scope", default=None
+)
+
+
+@contextmanager
+def error_accounting_scope() -> Iterator[None]:
+    """Deduplicate errors within one decision/HTTP request, not per exception."""
+    if _ERROR_SCOPE.get() is not None:
+        yield
+        return
+    reset_handle = _ERROR_SCOPE.set(frozenset())
+    try:
+        yield
+    finally:
+        _ERROR_SCOPE.reset(reset_handle)
+
+
+def record_error_once(metrics: ServiceMetrics, _error: BaseException) -> bool:
+    """Count a failure once in the active request, across nested layers.
+
+    Exception identity is deliberately ignored: a cached exception raised in a
+    later request must count again. Entry points establish/reset the scope.
+    """
+    already_recorded = _ERROR_SCOPE.get()
+    if already_recorded is not None and metrics in already_recorded:
+        return False
+    metrics.record_error()
+    if already_recorded is not None:
+        _ERROR_SCOPE.set(already_recorded | {metrics})
+    return True

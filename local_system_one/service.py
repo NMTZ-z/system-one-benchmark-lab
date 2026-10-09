@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from .engine import DecisionEngine
+from .metrics import error_accounting_scope, record_error_once
 from .schemas import DecisionRequest
 from .workflows import (
     CompletionGate,
@@ -83,6 +84,10 @@ def create_server(
             self._json(404, {"error": "not_found"})
 
         def do_POST(self) -> None:
+            with error_accounting_scope():
+                self._handle_post()
+
+        def _handle_post(self) -> None:
             if not self._authorized():
                 self._json(401, {"error": "unauthorized"})
                 return
@@ -95,7 +100,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -116,7 +121,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -137,7 +142,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -158,7 +163,7 @@ def create_server(
                     self._json(400, {"error": "invalid_request", "detail": str(error)})
                     return
                 except Exception as error:  # noqa: BLE001 - service boundary
-                    engine.metrics.record_error()
+                    record_error_once(engine.metrics, error)
                     self._json(
                         500,
                         {
@@ -188,7 +193,7 @@ def create_server(
                 self._json(400, {"error": "invalid_request", "detail": str(error)})
                 return
             except Exception as error:  # noqa: BLE001 - service boundary
-                engine.metrics.record_error()
+                record_error_once(engine.metrics, error)
                 self._json(
                     500,
                     {

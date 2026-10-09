@@ -828,6 +828,129 @@ def test_notification_gate_can_be_disabled_independently(monkeypatch):
     assert "last_notification_shadow" not in ctx.state.values
 
 
+def test_safe_completion_rejects_malformed_http_200_payload(monkeypatch):
+    plugin = load_plugin()
+    malformed = [
+        {},
+        {"error": "decision_failed"},
+        {
+            "workflow": "completion_gate",
+            "decision": "stop",
+            "decision_source": "model",
+            "reason": "invalid enum",
+            "probability_complete": 0.8,
+            "probability_verify": 0.1,
+            "probability_continue": 0.1,
+            "backend": "mlx",
+            "confidence": 0.8,
+            "latency_ms": 1.0,
+        },
+        {
+            "workflow": "completion_gate",
+            "decision": "complete",
+            "decision_source": "model",
+            "reason": "missing backend",
+            "probability_complete": 0.8,
+            "probability_verify": 0.1,
+            "probability_continue": 0.1,
+            "confidence": 0.8,
+            "latency_ms": 1.0,
+        },
+        {
+            "workflow": "completion_gate",
+            "decision": "verify",
+            "decision_source": "model",
+            "reason": "invalid confidence",
+            "probability_complete": 0.2,
+            "probability_verify": 0.7,
+            "probability_continue": 0.1,
+            "backend": "mlx",
+            "confidence": 1.5,
+            "latency_ms": 1.0,
+        },
+        {
+            "workflow": "completion_gate",
+            "decision": "continue",
+            "decision_source": "rule",
+            "reason": "invalid latency",
+            "probability_complete": 0.0,
+            "probability_verify": 0.0,
+            "probability_continue": 1.0,
+            "backend": "rule",
+            "confidence": 1.0,
+            "latency_ms": -1.0,
+        },
+    ]
+    for payload in malformed:
+        monkeypatch.setattr(plugin, "_post_json", lambda *args, _payload=payload, **kwargs: _payload)
+        result = plugin._safe_completion(
+            "http://127.0.0.1:8787",
+            "Do the task",
+            "Candidate result",
+            {"tools_used": 1},
+            0.5,
+            "turn-malformed",
+        )
+        assert result["ok"] is False
+        assert result["completion"] is None
+        assert result["error"] == "invalid_response"
+
+
+def test_safe_completion_oversized_json_numbers_fail_open_at_session_end(monkeypatch):
+    plugin = load_plugin()
+    valid = {
+        "workflow": "completion_gate",
+        "decision": "verify",
+        "decision_source": "model",
+        "reason": "needs_verification",
+        "probability_complete": 0.1,
+        "probability_verify": 0.8,
+        "probability_continue": 0.1,
+        "backend": "mlx",
+        "confidence": 0.8,
+        "latency_ms": 12.0,
+    }
+    assert plugin._valid_completion_response(valid)
+    for field in (
+        "probability_complete", "probability_verify", "probability_continue",
+        "confidence", "latency_ms",
+    ):
+        for bad_number in (10**400, float("inf"), float("nan")):
+            malformed = dict(valid)
+            malformed[field] = bad_number
+            monkeypatch.setattr(
+                plugin, "_post_json", lambda *args, _value=malformed, **kwargs: _value
+            )
+            result = plugin._safe_completion(
+                "http://127.0.0.1:8787", "task", "result", {}, 0.5, "bad-number"
+            )
+            assert result["ok"] is False
+            assert result["completion"] is None
+            assert result["error"] == "invalid_response"
+
+    # A malformed HTTP-200 response must not escape the Hermes lifecycle hook.
+    bad_latency = dict(valid, latency_ms=10**400)
+    monkeypatch.setattr(plugin, "_post_json", lambda *args, **kwargs: bad_latency)
+    ctx = FakeContext(
+        "shadow",
+        search_gate_enabled=False,
+        model_tier_gate_enabled=False,
+        notification_gate_enabled=False,
+        completion_gate_enabled=True,
+    )
+    plugin.register(ctx)
+    common = {"session_id": "s-big-number", "turn_id": "turn-big-number"}
+    ctx.hooks["pre_llm_call"](**common, user_message="Validate completion", platform="cli")
+    ctx.hooks["post_llm_call"](**common, assistant_response="Candidate result")
+    assert ctx.hooks["on_session_end"](
+        **common, completed=True, failed=False, interrupted=False
+    ) is None
+    last = ctx.state.values["last_completion_shadow"]
+    assert last["action_status"] == "failed_open"
+    assert last["action_reason"] == "runtime_invalid_response"
+
+
+
 def test_completion_shadow_observes_once_without_mutation_or_raw_persistence(monkeypatch):
     plugin = load_plugin()
     ctx = FakeContext(

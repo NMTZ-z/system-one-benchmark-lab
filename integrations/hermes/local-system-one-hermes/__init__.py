@@ -16,7 +16,9 @@ Notification and Completion are Shadow-only; experimental reasoning downgrade is
 from __future__ import annotations
 
 import json
+import math
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -29,6 +31,8 @@ _MAX_CONTEXT_CHARS = 2000
 _MAX_HISTORY = 200
 _MAX_NOTIFICATION_CHARS = 6000
 _MAX_COMPLETION_RESULT_CHARS = 6000
+_COMPLETION_DECISIONS = frozenset({"complete", "continue", "verify"})
+_COMPLETION_SOURCES = frozenset({"rule", "model"})
 
 
 def _text_from_content(content: Any) -> str:
@@ -163,6 +167,42 @@ def _safe_notification(
     return result
 
 
+def _valid_completion_number(value: Any, *, maximum: float | None = None) -> bool:
+    """Validate wire numbers without overflowing on arbitrary-size JSON integers."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    if isinstance(value, float) and not math.isfinite(value):
+        return False
+    # Large JSON integers may be valid Python ints but cannot be represented as
+    # finite floating-point telemetry values. Compare directly, never float(int).
+    if isinstance(value, int) and value > sys.float_info.max:
+        return False
+    return value >= 0 and (maximum is None or value <= maximum)
+
+
+def _valid_completion_response(value: Any) -> bool:
+    """Accept only the documented Completion Gate decision envelope."""
+    if not isinstance(value, dict):
+        return False
+    if value.get("workflow") != "completion_gate":
+        return False
+    if value.get("decision") not in _COMPLETION_DECISIONS:
+        return False
+    if value.get("decision_source") not in _COMPLETION_SOURCES:
+        return False
+    if not isinstance(value.get("reason"), str) or not value["reason"].strip():
+        return False
+    for key in ("probability_complete", "probability_verify", "probability_continue"):
+        if not _valid_completion_number(value.get(key), maximum=1.0):
+            return False
+    backend = value.get("backend")
+    if not isinstance(backend, str) or not backend.strip():
+        return False
+    if not _valid_completion_number(value.get("confidence"), maximum=1.0):
+        return False
+    return _valid_completion_number(value.get("latency_ms"))
+
+
 def _safe_completion(
     base_url: str,
     task: str,
@@ -181,10 +221,14 @@ def _safe_completion(
         "request_id": request_id,
     }
     try:
-        result["completion"] = _post_json(
+        completion = _post_json(
             base_url, "/v1/workflows/completion-gate", payload, timeout
         )
-        result["ok"] = True
+        if _valid_completion_response(completion):
+            result["completion"] = completion
+            result["ok"] = True
+        else:
+            result["error"] = "invalid_response"
     except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as exc:
         result["error"] = type(exc).__name__
     result["shadow_latency_ms"] = (time.perf_counter() - started) * 1000.0

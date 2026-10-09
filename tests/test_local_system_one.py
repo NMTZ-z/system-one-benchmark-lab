@@ -126,3 +126,90 @@ def test_engine_falls_back_after_ane_failure():
     assert health.snapshot().state == "degraded"
     assert mlx.calls == 1
     assert ane.calls == 1
+    assert engine.metrics_snapshot()["errors"] == 0
+
+def test_engine_direct_mlx_failure_records_one_error():
+    mlx = FakeRuntime("mlx", 100, CHOICE, fail=True)
+    health = ANEHealthGate(available=False)
+    engine = DecisionEngine(
+        mlx=mlx,
+        ane=None,
+        router=DecisionRouter(),
+        health=health,
+    )
+    request = DecisionRequest.from_payload(
+        "choice",
+        {
+            "state": {},
+            "instructions": "Route.",
+            "criteria": ["billing", "other"],
+        },
+    )
+
+    try:
+        engine.decide(request)
+    except RuntimeError as error:
+        assert str(error) == "boom"
+    else:
+        raise AssertionError("expected runtime failure")
+
+    assert engine.metrics_snapshot()["errors"] == 1
+
+
+def test_engine_cached_exception_counts_each_failed_request():
+    cached_error = RuntimeError("cached MLX failure")
+    mlx = FakeRuntime("mlx", 100, CHOICE)
+
+    def raise_cached(_state, _question):
+        raise cached_error
+
+    mlx.predict = raise_cached
+    engine = DecisionEngine(
+        mlx=mlx, ane=None, router=DecisionRouter(),
+        health=ANEHealthGate(available=False),
+    )
+    request = DecisionRequest.from_payload(
+        "choice", {"state": {}, "instructions": "Route.", "criteria": ["billing", "other"]}
+    )
+    for expected_errors in (1, 2):
+        try:
+            engine.decide(request)
+        except RuntimeError as error:
+            assert error is cached_error
+        else:
+            raise AssertionError("expected cached failure")
+        assert engine.metrics_snapshot()["errors"] == expected_errors
+
+
+
+def test_engine_ane_and_fallback_mlx_failure_records_one_error():
+    mlx = FakeRuntime("mlx", 300, CHOICE, fail=True)
+    ane = FakeRuntime("ane_l512", 300, CHOICE, fail=True)
+    health = ANEHealthGate(available=True, max_p50_ms=1000)
+    health.mark_startup_probe(selected_agreement=True, latencies_ms=[10])
+    engine = DecisionEngine(
+        mlx=mlx,
+        ane=ane,
+        router=DecisionRouter(),
+        health=health,
+    )
+    request = DecisionRequest.from_payload(
+        "choice",
+        {
+            "state": {},
+            "instructions": "Route.",
+            "criteria": ["billing", "other"],
+        },
+    )
+
+    try:
+        engine.decide(request)
+    except RuntimeError as error:
+        assert str(error) == "boom"
+    else:
+        raise AssertionError("expected fallback runtime failure")
+
+    assert ane.calls == 1
+    assert mlx.calls == 1
+    assert health.snapshot().state == "degraded"
+    assert engine.metrics_snapshot()["errors"] == 1

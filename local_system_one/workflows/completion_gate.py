@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from ..engine import DecisionEngine
+from ..metrics import error_accounting_scope, record_error_once
 from ..schemas import DecisionRequest
 
 CompletionDecision = Literal["complete", "continue", "verify"]
@@ -215,6 +216,10 @@ class CompletionGate:
         return None
 
     def decide(self, request: CompletionGateRequest) -> dict[str, Any]:
+        with error_accounting_scope():
+            return self._decide_in_scope(request)
+
+    def _decide_in_scope(self, request: CompletionGateRequest) -> dict[str, Any]:
         hard = self._hard_gate(request)
         if hard is not None:
             return hard
@@ -242,8 +247,10 @@ class CompletionGate:
         )
         try:
             model = self.engine.decide(primitive)
-        except Exception:  # noqa: BLE001 - classifier failure must never silently stop the agent
-            self.engine.metrics.record_error()
+        except Exception as error:  # noqa: BLE001 - classifier failure must never silently stop the agent
+            # Engine inference failures are already marked; failures raised before
+            # inference (or by a test/dummy engine) are accounted here instead.
+            record_error_once(self.engine.metrics, error)
             return self._rule_result("continue", "model_failure_fail_open_continue", request)
 
         selected = str(model["decision"])

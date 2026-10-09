@@ -7,7 +7,7 @@ from threading import Lock
 from typing import Any
 
 from .health import ANEHealthGate
-from .metrics import ServiceMetrics
+from .metrics import ServiceMetrics, error_accounting_scope, record_error_once
 from .probes import PROBES
 from .router import DecisionRouter
 from .runtime.base import DecisionRuntime
@@ -54,6 +54,10 @@ class DecisionEngine:
         ).as_dict()
 
     def decide(self, request: DecisionRequest) -> dict[str, Any]:
+        with error_accounting_scope():
+            return self._decide_in_scope(request)
+
+    def _decide_in_scope(self, request: DecisionRequest) -> dict[str, Any]:
         question = request.question()
         token_count = self.mlx.token_count(request.state, question)
         snapshot = self.health.snapshot()
@@ -72,20 +76,26 @@ class DecisionEngine:
 
         started = time.perf_counter()
         try:
-            with self._lock:
-                answer = runtime.predict(request.state, question)
-            latency_ms = (time.perf_counter() - started) * 1000.0
-        except Exception:
-            if route.backend != "ane":
-                self.metrics.record_error()
-                raise
-            self.health.record_failure("ane_runtime_failure")
-            backend_name = "mlx"
-            route_reason = "ane_failure_fallback"
-            started = time.perf_counter()
-            with self._lock:
-                answer = self.mlx.predict(request.state, question)
-            latency_ms = (time.perf_counter() - started) * 1000.0
+            try:
+                with self._lock:
+                    answer = runtime.predict(request.state, question)
+                latency_ms = (time.perf_counter() - started) * 1000.0
+            except Exception:
+                if route.backend != "ane":
+                    raise
+                self.health.record_failure("ane_runtime_failure")
+                backend_name = "mlx"
+                route_reason = "ane_failure_fallback"
+                started = time.perf_counter()
+                with self._lock:
+                    answer = self.mlx.predict(request.state, question)
+                latency_ms = (time.perf_counter() - started) * 1000.0
+        except Exception as error:
+            # Count an inference request that ultimately failed exactly once.
+            # A successful ANE -> MLX fallback remains a successful request; the
+            # ANE health gate already records the degraded backend separately.
+            record_error_once(self.metrics, error)
+            raise
 
         if backend_name == "ane":
             self.health.record_success(latency_ms)
