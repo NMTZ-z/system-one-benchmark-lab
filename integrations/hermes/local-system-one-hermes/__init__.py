@@ -16,7 +16,9 @@ Notification and Completion are Shadow-only; experimental reasoning downgrade is
 from __future__ import annotations
 
 import json
+import math
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -165,6 +167,19 @@ def _safe_notification(
     return result
 
 
+def _valid_completion_number(value: Any, *, maximum: float | None = None) -> bool:
+    """Validate wire numbers without overflowing on arbitrary-size JSON integers."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    if isinstance(value, float) and not math.isfinite(value):
+        return False
+    # Large JSON integers may be valid Python ints but cannot be represented as
+    # finite floating-point telemetry values. Compare directly, never float(int).
+    if isinstance(value, int) and value > sys.float_info.max:
+        return False
+    return value >= 0 and (maximum is None or value <= maximum)
+
+
 def _valid_completion_response(value: Any) -> bool:
     """Accept only the documented Completion Gate decision envelope."""
     if not isinstance(value, dict):
@@ -178,31 +193,14 @@ def _valid_completion_response(value: Any) -> bool:
     if not isinstance(value.get("reason"), str) or not value["reason"].strip():
         return False
     for key in ("probability_complete", "probability_verify", "probability_continue"):
-        probability = value.get(key)
-        if (
-            isinstance(probability, bool)
-            or not isinstance(probability, (int, float))
-            or not 0.0 <= float(probability) <= 1.0
-        ):
+        if not _valid_completion_number(value.get(key), maximum=1.0):
             return False
     backend = value.get("backend")
     if not isinstance(backend, str) or not backend.strip():
         return False
-    confidence = value.get("confidence")
-    if (
-        isinstance(confidence, bool)
-        or not isinstance(confidence, (int, float))
-        or not 0.0 <= float(confidence) <= 1.0
-    ):
+    if not _valid_completion_number(value.get("confidence"), maximum=1.0):
         return False
-    latency_ms = value.get("latency_ms")
-    if (
-        isinstance(latency_ms, bool)
-        or not isinstance(latency_ms, (int, float))
-        or not 0.0 <= float(latency_ms) < float("inf")
-    ):
-        return False
-    return True
+    return _valid_completion_number(value.get("latency_ms"))
 
 
 def _safe_completion(

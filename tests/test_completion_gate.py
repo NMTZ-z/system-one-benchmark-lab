@@ -126,6 +126,24 @@ def test_model_failure_records_unaccounted_error_once():
     assert engine.metrics.snapshot()["errors"] == 1
 
 
+def test_completion_cached_exception_is_counted_per_request_not_per_instance():
+    engine = FakeEngine()
+    cached_error = RuntimeError("cached failure")
+
+    def raise_cached(_request):
+        # An unaccounted engine error is caught and recorded by Completion.
+        raise cached_error
+
+    engine.decide = raise_cached
+    gate = CompletionGate(engine)
+    for expected_errors in (1, 2):
+        result = gate.decide(request())
+        assert result["decision"] == "continue"
+        assert result["reason"] == "model_failure_fail_open_continue"
+        assert engine.metrics.snapshot()["errors"] == expected_errors
+
+
+
 def test_request_rejects_missing_unknown_and_invalid_fields():
     with pytest.raises(ValueError, match="task must be a non-empty string"):
         CompletionGateRequest.from_payload(
@@ -194,6 +212,33 @@ def test_runtime_endpoint_accepts_valid_and_rejects_malformed_requests():
         status, value = _post_json(base, {"task": "missing fields"})
         assert status == 400
         assert value["error"] == "invalid_request"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_http_reused_exception_is_recorded_once_per_request():
+    engine = FakeEngine()
+    cached_error = RuntimeError("cached backend error")
+
+    def fail_and_record(_request):
+        # Pretend the Engine recorded it before the HTTP handler catches it.
+        record_error_once(engine.metrics, cached_error)
+        raise cached_error
+
+    engine.decide = fail_and_record
+    server = create_server(engine, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        endpoint = f"http://127.0.0.1:{server.server_address[1]}/v1/choice"
+        payload = {"state": {}, "instructions": "Route.", "criteria": ["a", "b"]}
+        for expected_errors in (1, 2):
+            status, response = _post_json(endpoint, payload)
+            assert status == 500
+            assert response["error"] == "decision_failed"
+            assert engine.metrics.snapshot()["errors"] == expected_errors
     finally:
         server.shutdown()
         server.server_close()

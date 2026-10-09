@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from ..engine import DecisionEngine
-from ..metrics import record_error_once
+from ..metrics import error_accounting_scope, record_error_once
 from ..schemas import DecisionRequest
 
 CompletionDecision = Literal["complete", "continue", "verify"]
@@ -216,6 +216,10 @@ class CompletionGate:
         return None
 
     def decide(self, request: CompletionGateRequest) -> dict[str, Any]:
+        with error_accounting_scope():
+            return self._decide_in_scope(request)
+
+    def _decide_in_scope(self, request: CompletionGateRequest) -> dict[str, Any]:
         hard = self._hard_gate(request)
         if hard is not None:
             return hard

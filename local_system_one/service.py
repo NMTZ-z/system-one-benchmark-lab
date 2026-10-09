@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from .engine import DecisionEngine
-from .metrics import record_error_once
+from .metrics import error_accounting_scope, record_error_once
 from .schemas import DecisionRequest
 from .workflows import (
     CompletionGate,
@@ -84,6 +84,10 @@ def create_server(
             self._json(404, {"error": "not_found"})
 
         def do_POST(self) -> None:
+            with error_accounting_scope():
+                self._handle_post()
+
+        def _handle_post(self) -> None:
             if not self._authorized():
                 self._json(401, {"error": "unauthorized"})
                 return

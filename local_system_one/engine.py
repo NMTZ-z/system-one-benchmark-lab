@@ -7,7 +7,7 @@ from threading import Lock
 from typing import Any
 
 from .health import ANEHealthGate
-from .metrics import ServiceMetrics, record_error_once
+from .metrics import ServiceMetrics, error_accounting_scope, record_error_once
 from .probes import PROBES
 from .router import DecisionRouter
 from .runtime.base import DecisionRuntime
@@ -54,6 +54,10 @@ class DecisionEngine:
         ).as_dict()
 
     def decide(self, request: DecisionRequest) -> dict[str, Any]:
+        with error_accounting_scope():
+            return self._decide_in_scope(request)
+
+    def _decide_in_scope(self, request: DecisionRequest) -> dict[str, Any]:
         question = request.question()
         token_count = self.mlx.token_count(request.state, question)
         snapshot = self.health.snapshot()

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import statistics
 from collections import Counter, deque
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from threading import Lock
 from typing import Any
 
@@ -50,21 +53,37 @@ class ServiceMetrics:
                 },
             }
 
-_ERROR_RECORDED_ATTR = "_local_system_one_metrics_error_recorded"
+# Each entry point opens a scope. Nested Engine/Workflow/HTTP layers share it,
+# but the marker is reset between requests, even if a runtime re-raises the very
+# same exception instance. An immutable set avoids shared mutable task context.
+_ERROR_SCOPE: ContextVar[frozenset[ServiceMetrics] | None] = ContextVar(
+    "local_system_one_error_scope", default=None
+)
 
 
-def record_error_once(metrics: ServiceMetrics, error: BaseException) -> bool:
-    """Record one service error even when an exception crosses multiple layers.
+@contextmanager
+def error_accounting_scope() -> Iterator[None]:
+    """Deduplicate errors within one decision/HTTP request, not per exception."""
+    if _ERROR_SCOPE.get() is not None:
+        yield
+        return
+    reset_handle = _ERROR_SCOPE.set(frozenset())
+    try:
+        yield
+    finally:
+        _ERROR_SCOPE.reset(reset_handle)
 
-    Decision/runtime failures can pass through the engine, a workflow fail-open
-    boundary, and the HTTP service. Mark the exception object after the first
-    count so outer layers do not count the same failure again.
+
+def record_error_once(metrics: ServiceMetrics, _error: BaseException) -> bool:
+    """Count a failure once in the active request, across nested layers.
+
+    Exception identity is deliberately ignored: a cached exception raised in a
+    later request must count again. Entry points establish/reset the scope.
     """
-    if bool(getattr(error, _ERROR_RECORDED_ATTR, False)):
+    already_recorded = _ERROR_SCOPE.get()
+    if already_recorded is not None and metrics in already_recorded:
         return False
     metrics.record_error()
-    try:
-        setattr(error, _ERROR_RECORDED_ATTR, True)
-    except Exception:  # noqa: BLE001,S110 - never mask the original error
-        pass
+    if already_recorded is not None:
+        _ERROR_SCOPE.set(already_recorded | {metrics})
     return True
