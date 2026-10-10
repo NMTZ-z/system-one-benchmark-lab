@@ -27,6 +27,32 @@ from local_system_one.workflows.completion_gate import (
     CompletionGateRequest,
 )
 
+# Only pre-model hard gates count as deterministic rules in a benchmark.
+# CompletionGate also labels its safe model-failure fallbacks as source="rule".
+DETERMINISTIC_RULE_REASONS = frozenset({
+    "blocking_failure",
+    "required_artifact_missing",
+    "required_step_missing",
+    "required_checks_incomplete",
+    "explicit_test_failure",
+    "conflicting_evidence",
+    "final_state_not_verified",
+})
+
+
+def require_auditable_decision(result: dict, raw: dict | None) -> None:
+    source, reason = result.get("decision_source"), result.get("reason")
+    if source == "rule":
+        if reason not in DETERMINISTIC_RULE_REASONS or raw is not None:
+            raise RuntimeError(
+                f"Completion audit aborted: {reason!r} is not a deterministic hard rule"
+            )
+    elif source == "model":
+        if raw is None:
+            raise RuntimeError("Completion audit aborted: missing raw model evidence")
+    else:
+        raise RuntimeError("Completion audit aborted: unsupported decision source")
+
 
 class CapturingEngine(RemoteChoiceEngine):
     def __init__(self, url: str, timeout: float, backend: str):
@@ -87,6 +113,7 @@ def run(gold: Path, choice_url: str, backend: str, timeout: float, max_cases: in
         result = gate.decide(request)
         elapsed_ms = (time.perf_counter() - start) * 1000
         raw = engine.raw
+        require_auditable_decision(result, raw)
         rows.append({
             "id": item["id"],
             "source": item.get("source", "unclassified"),

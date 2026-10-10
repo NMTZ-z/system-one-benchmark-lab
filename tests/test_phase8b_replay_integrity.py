@@ -8,7 +8,8 @@ import sys
 
 import pytest
 
-from benchmarks.completion import phase8b_reliability
+from benchmarks.completion import phase8b_audit, phase8b_reliability
+from benchmarks.completion.evaluate_live_backend import RemoteChoiceEngine
 from benchmarks.completion.phase8b_audit import run
 from benchmarks.completion.phase8b_offline import compare
 from benchmarks.completion.phase8b_publish_summary import public_summary
@@ -92,6 +93,162 @@ def test_offline_replay_requires_digest_in_trace(tmp_path):
     trace.write_text(json.dumps(audit), encoding="utf-8")
     with pytest.raises(ValueError, match="missing digest"):
         compare(trace, gold)
+
+
+@pytest.mark.parametrize(
+    ("execution_state", "expected_reason", "expected_decision"),
+    (
+        ({"blocking_failure": True}, "blocking_failure", "continue"),
+        ({"required_artifact_missing": True}, "required_artifact_missing", "continue"),
+        ({"required_step_missing": True}, "required_step_missing", "continue"),
+        ({"required_checks_completed": False}, "required_checks_incomplete", "continue"),
+        ({"tests_run": 2, "tests_passed": 1}, "explicit_test_failure", "continue"),
+        ({"conflicting_evidence": True}, "conflicting_evidence", "verify"),
+        ({"verification_required": True}, "final_state_not_verified", "verify"),
+    ),
+)
+def test_audit_accepts_all_existing_hard_gate_reasons(
+    tmp_path, monkeypatch, execution_state, expected_reason, expected_decision
+):
+    def unexpectedly_called_backend(self, request):
+        raise AssertionError("deterministic rules must skip model inference")
+
+    monkeypatch.setattr(RemoteChoiceEngine, "decide", unexpectedly_called_backend)
+    gold = tmp_path / "hard-only.jsonl"
+    gold.write_text(json.dumps({
+        "id": "hard-rule-1",
+        "source": "synthetic",
+        "label": expected_decision,
+        "task": "Synthetic task",
+        "current_result": "Synthetic result",
+        "execution_state": execution_state,
+    }) + "\n", encoding="utf-8")
+    result = run(gold, "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+    assert result["case_count"] == 1
+    assert result["rows"][0]["deterministic_rule"] == expected_decision
+    assert result["rows"][0]["rule_reason"] == expected_reason
+    assert result["raw_counts"] == {}
+
+
+def _model_required_gold(tmp_path):
+    gold = tmp_path / "audit-model-input.jsonl"
+    cases = [
+        {
+            "id": "hard-rule-first",
+            "source": "synthetic",
+            "label": "continue",
+            "task": "Finish synthetic artifact",
+            "current_result": "A prerequisite is missing.",
+            "execution_state": {"required_step_missing": True},
+        },
+        {
+            "id": "model-required-second",
+            "source": "synthetic",
+            "label": "complete",
+            "task": "Confirm a synthetic artifact",
+            "current_result": "All explicit deliverables appear ready.",
+            "execution_state": {},
+        },
+    ]
+    gold.write_text(
+        "".join(json.dumps(case) + "\n" for case in cases), encoding="utf-8"
+    )
+    return gold
+
+
+def _synthetic_choice(decision="complete"):
+    return {
+        "decision": decision,
+        "probabilities": {"complete": 0.95, "continue": 0.03, "verify": 0.02},
+        "confidence": 0.95,
+        "backend": "mlx",
+        "route_reason": "synthetic_test",
+        "token_count": 5,
+        "latency_ms": 1,
+    }
+
+
+def test_audit_accepts_true_hard_rule_and_model_success(tmp_path, monkeypatch):
+    monkeypatch.setattr(RemoteChoiceEngine, "decide", lambda self, req: _synthetic_choice())
+    report = run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice", "mlx", 0.01, 0)
+    assert report["case_count"] == 2
+    hard, model = report["rows"]
+    assert hard["deterministic_rule"] == "continue"
+    assert hard["rule_reason"] == "required_step_missing"
+    assert hard["raw_model_decision"] is None
+    assert model["deterministic_rule"] is None
+    assert model["raw_model_decision"] == "complete"
+    assert model["final_decision"] == "complete"
+    assert report["complete_threshold_unchanged"] == 0.70
+    assert report["rule_counts"] == {"required_step_missing": 1}
+
+
+@pytest.mark.parametrize(
+    ("failure", "fallback_reason"),
+    (
+        ("timeout", "model_failure_fail_open_continue"),
+        ("invalid_model_value", "invalid_model_value_fail_open_continue"),
+    ),
+)
+def test_audit_aborts_on_model_fail_open_instead_of_miscounting_as_rule(
+    tmp_path, monkeypatch, failure, fallback_reason
+):
+    def backend_decide(self, req):
+        if failure == "timeout":
+            raise TimeoutError("synthetic private error detail")
+        return _synthetic_choice("invalid_choice")
+
+    monkeypatch.setattr(RemoteChoiceEngine, "decide", backend_decide)
+    gold = _model_required_gold(tmp_path)
+    # First row is a valid deterministic hard rule, but failure on row two
+    # must abort the ENTIRE benchmark rather than publishing partial metrics.
+    with pytest.raises(RuntimeError, match=fallback_reason) as error:
+        run(gold, "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+    assert "synthetic private error detail" not in str(error.value)
+
+
+def test_audit_cli_does_not_write_metrics_when_backend_is_dead(
+    tmp_path, monkeypatch
+):
+    def dead_backend(self, req):
+        raise TimeoutError("do not expose raw error text")
+
+    monkeypatch.setattr(RemoteChoiceEngine, "decide", dead_backend)
+    gold = _model_required_gold(tmp_path)
+    output = tmp_path / "should-not-exist.json"
+    monkeypatch.setattr(sys, "argv", [
+        "phase8b_audit.py", "--gold", str(gold),
+        "--choice-url", "http://127.0.0.1:9/v1/choice",
+        "--out", str(output),
+    ])
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        phase8b_audit.main()
+    assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    "fallback_reason",
+    ("model_failure_fail_open_continue", "invalid_model_value_fail_open_continue"),
+)
+def test_offline_rejects_legacy_trace_with_model_fallback_rule(
+    tmp_path, fallback_reason
+):
+    gold, trace_path, _, trace = _gold_and_trace(tmp_path)
+    row = trace["rows"][0]
+    row["final_reason"] = fallback_reason
+    row["rule_reason"] = fallback_reason
+    row["deterministic_rule"] = "continue"
+    trace_path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="model fallback"):
+        compare(trace_path, gold)
+
+
+def test_offline_rejects_trace_with_model_output_misclassified_as_rule(tmp_path):
+    gold, trace_path, _, trace = _gold_and_trace(tmp_path)
+    trace["rows"][0]["raw_model_decision"] = "continue"
+    trace_path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="model fallback"):
+        compare(trace_path, gold)
 
 
 def _valid_publication_data(tmp_path):

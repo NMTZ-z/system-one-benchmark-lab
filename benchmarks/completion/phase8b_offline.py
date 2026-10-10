@@ -71,6 +71,18 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
         raise ValueError("trace/gold ID mismatch; comparisons must be paired")
     observed = []
     for trace in traces:
+        # Refuse old audit traces that recorded model fail-open as a hard rule.
+        if (
+            any(
+                "fail_open" in str(trace.get(key) or "")
+                for key in ("rule_reason", "final_reason")
+            )
+            or (
+                trace.get("deterministic_rule") is not None
+                and trace.get("raw_model_decision") is not None
+            )
+        ):
+            raise ValueError("trace contains model fallback misclassified as deterministic rule")
         item = cases[trace["id"]]
         if item["label"] != trace["label"]:
             raise ValueError("trace/gold labels differ")
