@@ -208,6 +208,7 @@
         "raw has no stop authority; candidate threshold has no production effect"
       ],
       "model_only_reliability": {
+        "gold_sha256": "b91bbbfdcdc3be1000574456682647148ce7fc46f1a864fb49c9aec84cdf4dd5",
         "model_only_n": 25,
         "multiclass_brier_mean": 0.4467757256,
         "mean_nll": 0.767890705240516,
@@ -260,7 +261,8 @@
             "empirical_accuracy": null
           }
         ],
-        "warning": "small sample; this is diagnostic, not a validated calibration mapping"
+        "warning": "small sample; this is diagnostic, not a validated calibration mapping",
+        "trace_sha256": "e3cd266f05d1ad0e742d76962f78a30daa5ce01b104b1fc1fed48ac192080662"
       }
     },
     "blind": {
@@ -466,6 +468,7 @@
         "raw has no stop authority; candidate threshold has no production effect"
       ],
       "model_only_reliability": {
+        "gold_sha256": "9074d797a7f56f9506d28199bd5680b9edc6a3108f225d3e976ba52a3921e369",
         "model_only_n": 25,
         "multiclass_brier_mean": 0.48650305840000013,
         "mean_nll": 0.8195592956890428,
@@ -518,7 +521,8 @@
             "empirical_accuracy": null
           }
         ],
-        "warning": "small sample; this is diagnostic, not a validated calibration mapping"
+        "warning": "small sample; this is diagnostic, not a validated calibration mapping",
+        "trace_sha256": "dc0f250fc3f5c6746e6ead0a945493ec5d17370b83de5a8346c9f0a19e26bb9c"
       }
     },
     "stress": {

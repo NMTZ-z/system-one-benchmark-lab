@@ -58,7 +58,9 @@ def calibrated_hybrid(trace: dict, state: dict) -> str:
 
 
 def compare(trace_path: Path, gold_path: Path) -> dict:
-    trace_report = json.loads(trace_path.read_text())
+    trace_bytes = trace_path.read_bytes()
+    trace_report = json.loads(trace_bytes.decode("utf-8"))
+    trace_sha256 = hashlib.sha256(trace_bytes).hexdigest()
     gold_bytes = gold_path.read_bytes()
     gold_sha256 = hashlib.sha256(gold_bytes).hexdigest()
     if trace_report.get("gold_sha256") != gold_sha256:
@@ -97,6 +99,7 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
         "threshold_calibrated_on_pilot_only": CANDIDATE_COMPLETE_THRESHOLD,
         "matched_case_count": len(observed),
         "gold_sha256": gold_sha256,
+        "trace_sha256": trace_sha256,
         "privacy": "no case task/results or prompt text written",
         "limitations": [
             "original 8A and synthetic pilot are not agent E2E experiments",

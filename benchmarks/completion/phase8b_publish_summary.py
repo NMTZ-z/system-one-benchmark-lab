@@ -17,6 +17,7 @@ def public_summary(private_dir: Path) -> dict:
         "blind": freeze["blind"]["sha256"],
         "stress": "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b",
     }
+    policy_trace_sha256 = {}
     report = {
         "schema_version": 1,
         "phase": "8B",
@@ -29,6 +30,7 @@ def public_summary(private_dir: Path) -> dict:
         source = json.loads((private_dir / f"phase8b-{name}-policies.json").read_text())
         if source.get("gold_sha256") != frozen_sha256[name]:
             raise ValueError(f"{name} replay corpus digest does not match frozen manifest")
+        policy_trace_sha256[name] = source.get("trace_sha256")
         policies = {}
         for key in POLICIES:
             metrics = source["policies"][key]
@@ -58,6 +60,16 @@ def public_summary(private_dir: Path) -> dict:
     }
     for phase in ("cal", "blind"):
         reliability = json.loads((private_dir / f"phase8b-{phase}-reliability.json").read_text())
+        if reliability.get("gold_sha256") != frozen_sha256[phase]:
+            raise ValueError(f"{phase} reliability corpus digest does not match frozen manifest")
+        trace_sha256 = policy_trace_sha256[phase]
+        if (
+            not isinstance(trace_sha256, str)
+            or len(trace_sha256) != 64
+            or any(char not in "0123456789abcdef" for char in trace_sha256)
+            or reliability.get("trace_sha256") != trace_sha256
+        ):
+            raise ValueError(f"{phase} reliability trace digest does not match policy replay")
         report["sets"][phase]["model_only_reliability"] = reliability
     return report
 
