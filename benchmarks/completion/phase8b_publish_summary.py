@@ -11,6 +11,12 @@ POLICIES = ("8a", "rules", "raw", "candidate")
 
 
 def public_summary(private_dir: Path) -> dict:
+    freeze = json.loads((private_dir / "phase8b-pilot-freeze.json").read_text())
+    frozen_sha256 = {
+        "cal": freeze["calibration"]["sha256"],
+        "blind": freeze["blind"]["sha256"],
+        "stress": "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b",
+    }
     report = {
         "schema_version": 1,
         "phase": "8B",
@@ -21,6 +27,8 @@ def public_summary(private_dir: Path) -> dict:
     }
     for name in REQUIRED_SETS:
         source = json.loads((private_dir / f"phase8b-{name}-policies.json").read_text())
+        if source.get("gold_sha256") != frozen_sha256[name]:
+            raise ValueError(f"{name} replay corpus digest does not match frozen manifest")
         policies = {}
         for key in POLICIES:
             metrics = source["policies"][key]
@@ -43,11 +51,10 @@ def public_summary(private_dir: Path) -> dict:
                 "raw has no stop authority; candidate threshold has no production effect",
             ],
         }
-    freeze = json.loads((private_dir / "phase8b-pilot-freeze.json").read_text())
     report["freeze_sha256"] = {
-        "calibration": freeze["calibration"]["sha256"],
-        "blind": freeze["blind"]["sha256"],
-        "stress": "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b",
+        "calibration": frozen_sha256["cal"],
+        "blind": frozen_sha256["blind"],
+        "stress": frozen_sha256["stress"],
     }
     for phase in ("cal", "blind"):
         reliability = json.loads((private_dir / f"phase8b-{phase}-reliability.json").read_text())

@@ -8,6 +8,7 @@ Do not use any output here as authority to stop an Agent.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import statistics
@@ -66,7 +67,9 @@ def quantiles(values):
 
 
 def run(gold: Path, choice_url: str, backend: str, timeout: float, max_cases: int) -> dict:
-    cases = [json.loads(line) for line in gold.read_text().splitlines() if line.strip()]
+    gold_bytes = gold.read_bytes()
+    gold_sha256 = hashlib.sha256(gold_bytes).hexdigest()
+    cases = [json.loads(line) for line in gold_bytes.decode("utf-8").splitlines() if line.strip()]
     if max_cases > 0:
         cases = cases[:max_cases]
     engine = CapturingEngine(choice_url, timeout, backend)
@@ -115,6 +118,7 @@ def run(gold: Path, choice_url: str, backend: str, timeout: float, max_cases: in
         "backend_request": backend,
         "complete_threshold_unchanged": .70,
         "case_count": len(rows),
+        "gold_sha256": gold_sha256,  # digest of the FULL input, even when max_cases is set
         "rule_counts": dict(Counter(r["rule_reason"] for r in rows if r["rule_reason"])),
         "raw_counts": dict(Counter(r["raw_model_decision"] for r in model_rows)),
         "final_counts": dict(Counter(r["final_decision"] for r in rows)),

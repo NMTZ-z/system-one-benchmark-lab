@@ -58,6 +58,7 @@ results/reports/Phase8A-Completion-Gate-v0.1.md
 results/processed/completion-gate-v0.1.json
 results/processed/phase8b-completion-pilot-v1.json
 
+benchmarks/__init__.py
 benchmarks/completion/
 
 tests/test_local_system_one.py
@@ -66,6 +67,7 @@ tests/test_search_gate.py
 tests/test_model_tier_gate.py
 tests/test_notification_gate.py
 tests/test_completion_gate.py
+tests/test_phase8b_replay_integrity.py
 tests/test_hermes_system_one_plugin.py
 tests/test_hermes_system_one_scripts.py
 tests/test_public_release.py

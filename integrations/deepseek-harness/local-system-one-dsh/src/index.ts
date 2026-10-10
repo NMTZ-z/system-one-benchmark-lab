@@ -192,6 +192,7 @@ function logFailOpen(
   mode: AdapterMode,
   gate: 'search' | 'model_tier' | 'notification' | 'completion',
   error: unknown,
+  stage?: 'tool_result' | 'turn_end',
 ): void {
   ctx.logger?.info?.(
     `[local-system-one-dsh] ${JSON.stringify({
@@ -207,6 +208,7 @@ function logFailOpen(
       latency_ms: null,
       action_status: 'failed_open',
       action_reason: failureActionReason(error),
+      ...(stage ? { stage } : {}),
       request_id: null,
     })}`,
   )
@@ -311,7 +313,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
               ctx, config.effectiveMode, decision, task.length, resultText.length, 'tool_result',
             ))
             .catch(error => {
-              logFailOpen(ctx, config.effectiveMode, 'completion', error)
+              logFailOpen(ctx, config.effectiveMode, 'completion', error, 'tool_result')
               ctx.logger?.warn?.(
                 `[local-system-one-dsh] completion loop probe unavailable; fail-open (${errorType(error)})`,
               )
@@ -368,7 +370,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
               currentResult.length,
             ))
             .catch(error => {
-              logFailOpen(ctx, config.effectiveMode, 'completion', error)
+              logFailOpen(ctx, config.effectiveMode, 'completion', error, 'turn_end')
               ctx.logger?.warn?.(
                 `[local-system-one-dsh] completion gate unavailable; fail-open (${errorType(error)})`,
               )

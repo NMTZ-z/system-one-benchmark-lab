@@ -7,6 +7,7 @@ before comparing policies; never tune and retest on the same blind set.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -57,8 +58,13 @@ def calibrated_hybrid(trace: dict, state: dict) -> str:
 
 
 def compare(trace_path: Path, gold_path: Path) -> dict:
-    traces = json.loads(trace_path.read_text())["rows"]
-    cases = {r["id"]: r for r in (json.loads(x) for x in gold_path.read_text().splitlines()) if r}
+    trace_report = json.loads(trace_path.read_text())
+    gold_bytes = gold_path.read_bytes()
+    gold_sha256 = hashlib.sha256(gold_bytes).hexdigest()
+    if trace_report.get("gold_sha256") != gold_sha256:
+        raise ValueError("trace/gold corpus SHA-256 mismatch or missing digest")
+    traces = trace_report["rows"]
+    cases = {r["id"]: r for r in (json.loads(x) for x in gold_bytes.decode("utf-8").splitlines()) if r}
     if len(traces) != len(cases) or {row["id"] for row in traces} != set(cases):
         raise ValueError("trace/gold ID mismatch; comparisons must be paired")
     observed = []
@@ -90,6 +96,7 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
         "policies": policies,
         "threshold_calibrated_on_pilot_only": CANDIDATE_COMPLETE_THRESHOLD,
         "matched_case_count": len(observed),
+        "gold_sha256": gold_sha256,
         "privacy": "no case task/results or prompt text written",
         "limitations": [
             "original 8A and synthetic pilot are not agent E2E experiments",

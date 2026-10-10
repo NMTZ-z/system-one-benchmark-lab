@@ -597,6 +597,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     expect(ctx.warnings.join('\n')).not.toContain('dead completion runtime')
     expect(ctx.info.join('\n')).toContain('"gate":"completion"')
     expect(ctx.info.join('\n')).toContain('"action_status":"failed_open"')
+    expect(ctx.info.join('\n')).toContain('"stage":"turn_end"')
   })
 
   it('Phase 8B loop probe is off by default and independent of turn-end Completion', async () => {
@@ -664,6 +665,50 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const second = JSON.parse(String((fetchMock.mock.calls[2]![1] as RequestInit).body))
     expect(second.execution_state).toEqual({ tools_used: 1, tool_failures: 1 })
     // No stop/deny mutation hook is registered for Completion.
+    expect(ctx.count('agent/request')).toBe(0)
+  })
+
+  it('Phase 8B loop and turn-end failed_open telemetry identifies each stage', async () => {
+    const failed = vi.fn().mockRejectedValue(new Error('private runtime failure'))
+    vi.stubGlobal('fetch', failed)
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'shadow',
+      search_gate_enabled: false, model_tier_gate_enabled: false,
+      notification_gate_enabled: false, completion_gate_enabled: true,
+      completion_loop_probe_enabled: true,
+    })
+    const session = { id: 's-both-completion-stages-fail' }
+    await enterTurn(ctx, session.id, 1, 'private task body')
+    expect(await ctx.one('session/event')(
+      session, { type: 'tool/result', data: { turn: 1, step: 1,
+        message: { isError: true, content: [{ type: 'text', text: 'secret tool output' }] } } },
+    )).toBeUndefined()
+    await ctx.one('session/event')(
+      session, { type: 'assistant/message', data: { turn: 1, step: 1,
+        message: { content: [{ type: 'text', text: 'candidate report' }] } } },
+    )
+    expect(await ctx.one('session/event')(
+      session, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )).toBeUndefined()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const completionRecords = ctx.info
+      .filter(message => message.includes('"gate":"completion"'))
+      .map(message => JSON.parse(message.slice(message.indexOf('{'))) as {
+        stage?: string,
+        action_status: string,
+        action_reason: string,
+      })
+    expect(failed).toHaveBeenCalledTimes(2)
+    expect(completionRecords).toHaveLength(2)
+    expect(completionRecords.map(record => record.stage).sort())
+      .toEqual(['tool_result', 'turn_end'])
+    expect(completionRecords.every(record => record.action_status === 'failed_open')).toBe(true)
+    expect(completionRecords.every(record => record.action_reason === 'runtime_error')).toBe(true)
+    expect(ctx.info.join('\\n')).not.toContain('private task body')
+    expect(ctx.info.join('\\n')).not.toContain('secret tool output')
+    expect(ctx.warnings.join('\\n')).not.toContain('private runtime failure')
     expect(ctx.count('agent/request')).toBe(0)
   })
 
