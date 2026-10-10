@@ -33,6 +33,9 @@ docs/SEARCH_GATE.md
 docs/MODEL_TIER_GATE.md
 docs/NOTIFICATION_GATE.md
 docs/COMPLETION_GATE.md
+docs/PHASE8B_BASELINE_AUDIT.md
+docs/PHASE8B_EVALUATION_PROTOCOL.md
+docs/PHASE8B_FINAL_REPORT.md
 docs/MCP_DEPLOYMENT.md
 docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md
 docs/HERMES_SYSTEM_ONE_CALIBRATION.md
@@ -53,6 +56,7 @@ results/reports/Phase3-Jev-Laya-ANE-Final-v1.0.md
 results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md
 results/reports/Phase8A-Completion-Gate-v0.1.md
 results/processed/completion-gate-v0.1.json
+results/processed/phase8b-completion-pilot-v1.json
 
 benchmarks/completion/
 

@@ -48,6 +48,7 @@ interface CompletionCandidate {
   currentResult?: string
   toolsUsed: number
   toolFailures: number
+  loopProbeSent?: boolean
 }
 
 function asSessionId(session: SessionLike | undefined): string | null {
@@ -173,6 +174,7 @@ function logCompletionDecision(
   decision: CompletionDecision,
   taskChars: number,
   resultChars: number,
+  stage: 'turn_end' | 'tool_result' = 'turn_end',
 ): void {
   ctx.logger?.info?.(
     `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
@@ -180,7 +182,7 @@ function logCompletionDecision(
       mode,
       toDecisionEnvelope('completion', decision),
       actionOutcome('observed', 'completion_shadow_only'),
-      { task_chars: taskChars, result_chars: resultChars },
+      { task_chars: taskChars, result_chars: resultChars, stage },
     ))}`,
   )
 }
@@ -290,6 +292,31 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       if (candidate) {
         candidate.toolsUsed += 1
         if (toolResultFailed(event)) candidate.toolFailures += 1
+        // Experimental one-per-turn tool-result observer, explicitly OFF by default.
+        // Never await inference in the event path or make Agent execution conditional.
+        if (config.completionLoopProbeEnabled && candidate.task && !candidate.loopProbeSent) {
+          candidate.loopProbeSent = true // suppress duplicate probes before I/O
+          const resultText = (
+            'A tool step finished during the Agent turn. '
+            + 'The final requested deliverable has not been independently checked.'
+          )
+          const executionState: CompletionExecutionState = {
+            tools_used: candidate.toolsUsed,
+            tool_failures: candidate.toolFailures,
+          }
+          const task = candidate.task
+          void completionClient
+            .decide(task, resultText, executionState, randomUUID())
+            .then(decision => logCompletionDecision(
+              ctx, config.effectiveMode, decision, task.length, resultText.length, 'tool_result',
+            ))
+            .catch(error => {
+              logFailOpen(ctx, config.effectiveMode, 'completion', error)
+              ctx.logger?.warn?.(
+                `[local-system-one-dsh] completion loop probe unavailable; fail-open (${errorType(error)})`,
+              )
+            })
+        }
       }
       return
     }

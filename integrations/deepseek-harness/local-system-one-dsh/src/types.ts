@@ -8,6 +8,7 @@ export interface AdapterConfig {
   model_tier_gate_enabled?: boolean
   notification_gate_enabled?: boolean
   completion_gate_enabled?: boolean
+  completion_loop_probe_enabled?: boolean
   canary_acknowledged?: boolean
   canary_web_filter_enabled?: boolean
   canary_reasoning_downgrade_enabled?: boolean
@@ -22,6 +23,7 @@ export interface ResolvedAdapterConfig {
   modelTierGateEnabled: boolean
   notificationGateEnabled: boolean
   completionGateEnabled: boolean
+  completionLoopProbeEnabled: boolean
   canaryAcknowledged: boolean
   canaryWebFilterEnabled: boolean
   canaryReasoningDowngradeEnabled: boolean

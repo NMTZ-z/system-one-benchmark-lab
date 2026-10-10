@@ -1,0 +1,733 @@
+{
+  "schema_version": 1,
+  "phase": "8B",
+  "status": "synthetic_pilot_only_not_real_agent_validation",
+  "active_completion": "NO-GO",
+  "privacy": "aggregate-only; no task, result, path, model prompts, or raw telemetry",
+  "sets": {
+    "cal": {
+      "cases": 45,
+      "classes": [
+        "complete",
+        "continue",
+        "verify"
+      ],
+      "policies": {
+        "8a": {
+          "accuracy": 0.5777777777777777,
+          "macro_f1": 0.4861329147043432,
+          "per_class": {
+            "complete": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.7333333333333333,
+              "f1": 0.846153846153846,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.4411764705882353,
+              "recall": 1.0,
+              "f1": 0.6122448979591837,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 11,
+              "verify": 4
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "rules": {
+          "accuracy": 0.6666666666666666,
+          "macro_f1": 0.6555555555555556,
+          "per_class": {
+            "complete": {
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 5,
+              "continue": 0,
+              "verify": 10
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 10,
+              "verify": 5
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "raw": {
+          "accuracy": 0.8888888888888888,
+          "macro_f1": 0.8896046482253378,
+          "per_class": {
+            "complete": {
+              "precision": 1.0,
+              "recall": 0.9333333333333333,
+              "f1": 0.9655172413793104,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.7333333333333333,
+              "f1": 0.846153846153846,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 14,
+              "continue": 0,
+              "verify": 1
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 11,
+              "verify": 4
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "candidate": {
+          "accuracy": 0.6888888888888889,
+          "macro_f1": 0.675990675990676,
+          "per_class": {
+            "complete": {
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.7333333333333333,
+              "f1": 0.846153846153846,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.5172413793103449,
+              "recall": 1.0,
+              "f1": 0.6818181818181819,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 5,
+              "continue": 0,
+              "verify": 10
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 11,
+              "verify": 4
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        }
+      },
+      "warnings": [
+        "synthetic engineered cases, not genuine Hermes/DSH Agent traces",
+        "calibration and blind are disjoint families but not production-grade evidence",
+        "raw has no stop authority; candidate threshold has no production effect"
+      ],
+      "model_only_reliability": {
+        "model_only_n": 25,
+        "multiclass_brier_mean": 0.4467757256,
+        "mean_nll": 0.767890705240516,
+        "top_label_ece_5_bins": 0.29616000000000003,
+        "observed_top_class_accuracy": 0.8,
+        "bins": [
+          {
+            "interval": [
+              0.0,
+              0.2
+            ],
+            "count": 0,
+            "mean_confidence": null,
+            "empirical_accuracy": null
+          },
+          {
+            "interval": [
+              0.2,
+              0.4
+            ],
+            "count": 0,
+            "mean_confidence": null,
+            "empirical_accuracy": null
+          },
+          {
+            "interval": [
+              0.4,
+              0.6
+            ],
+            "count": 23,
+            "mean_confidence": 0.4941913043478261,
+            "empirical_accuracy": 0.782608695652174
+          },
+          {
+            "interval": [
+              0.6,
+              0.8
+            ],
+            "count": 2,
+            "mean_confidence": 0.6148,
+            "empirical_accuracy": 1.0
+          },
+          {
+            "interval": [
+              0.8,
+              1.0
+            ],
+            "count": 0,
+            "mean_confidence": null,
+            "empirical_accuracy": null
+          }
+        ],
+        "warning": "small sample; this is diagnostic, not a validated calibration mapping"
+      }
+    },
+    "blind": {
+      "cases": 45,
+      "classes": [
+        "complete",
+        "continue",
+        "verify"
+      ],
+      "policies": {
+        "8a": {
+          "accuracy": 0.5555555555555556,
+          "macro_f1": 0.4666666666666666,
+          "per_class": {
+            "complete": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.42857142857142855,
+              "recall": 1.0,
+              "f1": 0.6,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 10,
+              "verify": 5
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "rules": {
+          "accuracy": 0.6666666666666666,
+          "macro_f1": 0.6555555555555556,
+          "per_class": {
+            "complete": {
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 5,
+              "continue": 0,
+              "verify": 10
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 10,
+              "verify": 5
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "raw": {
+          "accuracy": 0.8222222222222222,
+          "macro_f1": 0.826120857699805,
+          "per_class": {
+            "complete": {
+              "precision": 1.0,
+              "recall": 0.8,
+              "f1": 0.888888888888889,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.6521739130434783,
+              "recall": 1.0,
+              "f1": 0.7894736842105263,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 12,
+              "continue": 0,
+              "verify": 3
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 10,
+              "verify": 5
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "candidate": {
+          "accuracy": 0.6666666666666666,
+          "macro_f1": 0.6555555555555556,
+          "per_class": {
+            "complete": {
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5,
+              "support": 15
+            },
+            "continue": {
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 5,
+              "continue": 0,
+              "verify": 10
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 10,
+              "verify": 5
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        }
+      },
+      "warnings": [
+        "synthetic engineered cases, not genuine Hermes/DSH Agent traces",
+        "calibration and blind are disjoint families but not production-grade evidence",
+        "raw has no stop authority; candidate threshold has no production effect"
+      ],
+      "model_only_reliability": {
+        "model_only_n": 25,
+        "multiclass_brier_mean": 0.48650305840000013,
+        "mean_nll": 0.8195592956890428,
+        "top_label_ece_5_bins": 0.22021200000000013,
+        "observed_top_class_accuracy": 0.68,
+        "bins": [
+          {
+            "interval": [
+              0.0,
+              0.2
+            ],
+            "count": 0,
+            "mean_confidence": null,
+            "empirical_accuracy": null
+          },
+          {
+            "interval": [
+              0.2,
+              0.4
+            ],
+            "count": 1,
+            "mean_confidence": 0.3989,
+            "empirical_accuracy": 0.0
+          },
+          {
+            "interval": [
+              0.4,
+              0.6
+            ],
+            "count": 24,
+            "mean_confidence": 0.49556666666666654,
+            "empirical_accuracy": 0.7083333333333334
+          },
+          {
+            "interval": [
+              0.6,
+              0.8
+            ],
+            "count": 0,
+            "mean_confidence": null,
+            "empirical_accuracy": null
+          },
+          {
+            "interval": [
+              0.8,
+              1.0
+            ],
+            "count": 0,
+            "mean_confidence": null,
+            "empirical_accuracy": null
+          }
+        ],
+        "warning": "small sample; this is diagnostic, not a validated calibration mapping"
+      }
+    },
+    "stress": {
+      "cases": 45,
+      "classes": [
+        "complete",
+        "continue",
+        "verify"
+      ],
+      "policies": {
+        "8a": {
+          "accuracy": 0.3333333333333333,
+          "macro_f1": 0.16666666666666666,
+          "per_class": {
+            "complete": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "continue": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.3333333333333333,
+              "recall": 1.0,
+              "f1": 0.5,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "rules": {
+          "accuracy": 0.3333333333333333,
+          "macro_f1": 0.16666666666666666,
+          "per_class": {
+            "complete": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "continue": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.3333333333333333,
+              "recall": 1.0,
+              "f1": 0.5,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        },
+        "raw": {
+          "accuracy": 0.5777777777777777,
+          "macro_f1": 0.46383186705767354,
+          "per_class": {
+            "complete": {
+              "precision": 0.6875,
+              "recall": 0.7333333333333333,
+              "f1": 0.7096774193548386,
+              "support": 15
+            },
+            "continue": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.5172413793103449,
+              "recall": 1.0,
+              "f1": 0.6818181818181819,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 11,
+              "continue": 0,
+              "verify": 4
+            },
+            "continue": {
+              "complete": 5,
+              "continue": 0,
+              "verify": 10
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 5,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0733654237184855,
+            0.3356435050641603
+          ]
+        },
+        "candidate": {
+          "accuracy": 0.3333333333333333,
+          "macro_f1": 0.16666666666666666,
+          "per_class": {
+            "complete": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "continue": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 15
+            },
+            "verify": {
+              "precision": 0.3333333333333333,
+              "recall": 1.0,
+              "f1": 0.5,
+              "support": 15
+            }
+          },
+          "confusion_matrix": {
+            "complete": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "continue": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            },
+            "verify": {
+              "complete": 0,
+              "continue": 0,
+              "verify": 15
+            }
+          },
+          "premature_completion_count": 0,
+          "non_complete_support": 30,
+          "premature_completion_wilson_95": [
+            0.0,
+            0.11351339317396876
+          ]
+        }
+      },
+      "warnings": [
+        "synthetic engineered cases, not genuine Hermes/DSH Agent traces",
+        "calibration and blind are disjoint families but not production-grade evidence",
+        "raw has no stop authority; candidate threshold has no production effect"
+      ]
+    }
+  },
+  "freeze_sha256": {
+    "calibration": "b91bbbfdcdc3be1000574456682647148ce7fc46f1a864fb49c9aec84cdf4dd5",
+    "blind": "9074d797a7f56f9506d28199bd5680b9edc6a3108f225d3e976ba52a3921e369",
+    "stress": "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b"
+  }
+}

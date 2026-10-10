@@ -1049,6 +1049,112 @@ def test_completion_shadow_dead_service_is_fail_open(monkeypatch):
     assert last["action_reason"] == "runtime_URLError"
 
 
+def test_phase8b_tool_result_probe_opt_in_once_per_turn_and_private(monkeypatch):
+    plugin = load_plugin()
+    observed = []
+
+    def fake_completion(_url, task, result, state, _timeout, request_id):
+        observed.append((task, result, state, request_id))
+        return {
+            "ok": True,
+            "completion": {
+                "decision": "verify",
+                "decision_source": "rule",
+                "reason": "candidate_result_needs_validation",
+                "confidence": 1.0,
+                "backend": "rule",
+                "latency_ms": 0,
+            },
+            "shadow_latency_ms": 2.0,
+            "error": None,
+        }
+
+    monkeypatch.setattr(plugin, "_safe_completion", fake_completion)
+    ctx = FakeContext(
+        "shadow",
+        search_gate_enabled=False,
+        model_tier_gate_enabled=False,
+        notification_gate_enabled=False,
+        completion_gate_enabled=True,
+        completion_loop_probe_enabled=True,
+    )
+    plugin.register(ctx)
+    assert ctx.state.values["status"]["completion_loop_probe_enabled"] is True
+    common = {"turn_id": "turn-loop-a", "session_id": "session-loop-a"}
+    ctx.hooks["pre_llm_call"](**common, user_message="private requested operation", platform="cli")
+    # First tool result triggers one observation. Duplicate results never trigger again.
+    assert ctx.hooks["post_tool_call"](
+        **common, function_name="write_file",
+        result={"success": True, "secret": "private-tool-payload"}, status="success"
+    ) is None
+    assert ctx.hooks["post_tool_call"](
+        **common, function_name="verify_file",
+        result={"success": True}, status="success"
+    ) is None
+    assert len(observed) == 1
+    assert observed[0][2] == {"tools_used": 1, "tool_failures": 0}
+    assert "private-tool-payload" not in observed[0][1]
+    event = ctx.state.values["last_completion_loop_probe"]
+    assert event["stage"] == "post_tool_call"
+    assert event["action_status"] == "observed"
+    assert "private requested operation" not in str(ctx.state.values)
+    assert "private-tool-payload" not in str(ctx.state.values)
+    # End-of-turn observer still functions, and the next turn can probe again.
+    ctx.hooks["post_llm_call"](**common, assistant_response="Candidate result")
+    assert ctx.hooks["on_session_end"](
+        **common, completed=True, failed=False, interrupted=False
+    ) is None
+    assert ctx.state.values["last_completion_shadow"]["action_status"] == "observed"
+    next_turn = {"turn_id": "turn-loop-b", "session_id": "session-loop-a"}
+    ctx.hooks["pre_llm_call"](**next_turn, user_message="second task")
+    assert ctx.hooks["post_tool_call"](
+        **next_turn, function_name="write_file", result={"success": False},
+        status="failed"
+    ) is None
+    assert len(observed) == 3  # probe + end-of-turn + new probe
+    assert observed[-1][2]["tool_failures"] == 1
+
+
+def test_phase8b_probe_default_off_and_independent(monkeypatch):
+    plugin = load_plugin()
+    calls = []
+    monkeypatch.setattr(plugin, "_safe_completion", lambda *a, **kw: calls.append(a) or {
+        "ok": False, "completion": None, "error": "URLError", "shadow_latency_ms": 0
+    })
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+    )
+    plugin.register(ctx)
+    args = {"turn_id": "turn-default-off", "user_message": "task"}
+    ctx.hooks["pre_llm_call"](**args)
+    assert ctx.hooks["post_tool_call"](turn_id="turn-default-off", result={}) is None
+    assert calls == []
+    assert "last_completion_loop_probe" not in ctx.state.values
+    ctx.hooks["post_llm_call"](turn_id="turn-default-off", assistant_response="result")
+    ctx.hooks["on_session_end"](turn_id="turn-default-off", completed=True)
+    assert len(calls) == 1
+
+
+def test_phase8b_probe_fail_open_when_runtime_throws(monkeypatch):
+    plugin = load_plugin()
+
+    def failing_completion(*args, **kwargs):
+        raise RuntimeError("private exception content")
+
+    monkeypatch.setattr(plugin, "_safe_completion", failing_completion)
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+        completion_loop_probe_enabled=True,
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](turn_id="turn-fail", user_message="task")
+    assert ctx.hooks["post_tool_call"](turn_id="turn-fail", status="failed", result={}) is None
+    assert ctx.state.values["last_completion_loop_probe"]["action_status"] == "failed_open"
+    assert "private exception content" not in str(ctx.state.values)
+
+
 def test_plugin_manifest_has_safe_product_defaults():
     import yaml
 
@@ -1067,6 +1173,7 @@ def test_plugin_manifest_has_safe_product_defaults():
     assert schema["mode"]["choices"] == ["off", "shadow", "canary"]
     assert schema["notification_gate_enabled"]["default"] is True
     assert schema["completion_gate_enabled"]["default"] is True
+    assert schema["completion_loop_probe_enabled"]["default"] is False
     assert schema["canary_acknowledged"]["default"] is False
     assert schema["canary_web_filter_enabled"]["default"] is True
     assert schema["canary_reasoning_downgrade_enabled"]["default"] is False

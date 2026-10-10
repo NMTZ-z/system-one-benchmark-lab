@@ -599,6 +599,106 @@ describe('DeepSeek Harness lifecycle integration', () => {
     expect(ctx.info.join('\n')).toContain('"action_status":"failed_open"')
   })
 
+  it('Phase 8B loop probe is off by default and independent of turn-end Completion', async () => {
+    expect(resolveConfig({ mode: 'shadow' }).completionLoopProbeEnabled).toBe(false)
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'shadow', search_gate_enabled: false, model_tier_gate_enabled: false,
+      notification_gate_enabled: false, completion_gate_enabled: true,
+    })
+    await enterTurn(ctx, 's-phase8b-off', 1, 'task')
+    await ctx.one('session/event')(
+      { id: 's-phase8b-off' },
+      { type: 'tool/result', data: { turn: 1, step: 1, message: { isError: false } } },
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(0)
+    await ctx.one('session/event')(
+      { id: 's-phase8b-off' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('Phase 8B loop probe observes one tool-result event per turn without changing execution', async () => {
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'shadow', search_gate_enabled: false, model_tier_gate_enabled: false,
+      notification_gate_enabled: false, completion_gate_enabled: true,
+      completion_loop_probe_enabled: true,
+    })
+    await enterTurn(ctx, 's-phase8b', 1, 'private task')
+    for (const step of [1, 2]) {
+      expect(await ctx.one('session/event')(
+        { id: 's-phase8b' },
+        { type: 'tool/result', data: { turn: 1, step,
+          message: { isError: false, content: [{ type: 'text', text: 'private raw secret' }] } } },
+      )).toBeUndefined()
+    }
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const probe = JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body))
+    expect(probe.execution_state).toEqual({ tools_used: 1, tool_failures: 0 })
+    expect(probe.current_result).not.toContain('private raw secret')
+    expect(ctx.info.join('\\n')).toContain('"stage":"tool_result"')
+    expect(ctx.info.join('\\n')).not.toContain('private task')
+    expect(ctx.info.join('\\n')).not.toContain('private raw secret')
+    await ctx.one('session/event')(
+      { id: 's-phase8b' },
+      { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(ctx.info.join('\\n')).toContain('"stage":"turn_end"')
+    await enterTurn(ctx, 's-phase8b', 2, 'second task')
+    await ctx.one('session/event')(
+      { id: 's-phase8b' },
+      { type: 'tool/result', data: { turn: 2, step: 1, message: { isError: true } } },
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const second = JSON.parse(String((fetchMock.mock.calls[2]![1] as RequestInit).body))
+    expect(second.execution_state).toEqual({ tools_used: 1, tool_failures: 1 })
+    // No stop/deny mutation hook is registered for Completion.
+    expect(ctx.count('agent/request')).toBe(0)
+  })
+
+  it('Phase 8B probe fails open and is inert when Completion is disabled', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private runtime failure')))
+    const ctx = new FakeContext()
+    apply(ctx, {
+      mode: 'shadow', search_gate_enabled: false, model_tier_gate_enabled: false,
+      notification_gate_enabled: false, completion_gate_enabled: true,
+      completion_loop_probe_enabled: true,
+    })
+    await enterTurn(ctx, 's-dead-probe', 1, 'some task')
+    expect(await ctx.one('session/event')(
+      { id: 's-dead-probe' },
+      { type: 'tool/result', data: { turn: 1, step: 1, message: { isError: false } } },
+    )).toBeUndefined()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(ctx.info.join('\\n')).toContain('"action_status":"failed_open"')
+    expect(ctx.info.join('\\n')).not.toContain('private runtime failure')
+    const inert = new FakeContext()
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    apply(inert, {
+      mode: 'shadow', search_gate_enabled: false, model_tier_gate_enabled: false,
+      notification_gate_enabled: false, completion_gate_enabled: false,
+      completion_loop_probe_enabled: true,
+    })
+    await enterTurn(inert, 's-inert-probe', 1, 'task')
+    await inert.one('session/event')(
+      { id: 's-inert-probe' },
+      { type: 'tool/result', data: { turn: 1, step: 1, message: { isError: false } } },
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(0)
+  })
+
   it('unacknowledged Canary behaves as Shadow', async () => {
     vi.stubGlobal('fetch', gateFetch())
     const ctx = new FakeContext()

@@ -70,6 +70,13 @@ config_schema:
     description: >-
       Observe whether a turn appears complete, should continue, or needs verification.
       Completion is observation-only and never terminates or restarts the Hermes loop.
+  completion_loop_probe_enabled:
+    type: bool
+    default: false
+    label: Completion tool-result probe (experimental Shadow)
+    description: >-
+      Opt-in one-per-turn observation after a tool result, without blocking tools or
+      stopping the Agent. End-of-turn Completion remains separately available.
   canary_acknowledged:
     type: bool
     default: false
