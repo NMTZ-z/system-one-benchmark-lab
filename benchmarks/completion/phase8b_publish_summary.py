@@ -120,6 +120,20 @@ def _reliability_number(source: dict, key: str, *, nullable: bool = False):
     return value
 
 
+def _reliability_nonnegative(source: dict, key: str):
+    value = _reliability_number(source, key)
+    if value < 0:
+        raise ValueError(f"invalid reliability aggregate loss: {key}")
+    return value
+
+
+def _reliability_rate(source: dict, key: str, *, nullable: bool = False):
+    value = _reliability_number(source, key, nullable=nullable)
+    if value is not None and not 0.0 <= value <= 1.0:
+        raise ValueError(f"invalid reliability aggregate rate: {key}")
+    return value
+
+
 def _reliability_count(source: dict, key: str) -> int:
     value = source.get(key)
     if type(value) is not int or value < 0:
@@ -139,21 +153,22 @@ def _public_reliability(source: dict) -> dict:
         interval = entry.get("interval")
         if not isinstance(interval, list) or len(interval) != 2:
             raise ValueError("invalid reliability aggregate bin interval")
+        bounds = [_reliability_rate({"bound": value}, "bound") for value in interval]
+        if bounds[0] > bounds[1]:
+            raise ValueError("invalid reliability aggregate bin interval ordering")
         public_bins.append({
-            "interval": [
-                _reliability_number({"bound": value}, "bound") for value in interval
-            ],
+            "interval": bounds,
             "count": _reliability_count(entry, "count"),
-            "mean_confidence": _reliability_number(entry, "mean_confidence", nullable=True),
-            "empirical_accuracy": _reliability_number(entry, "empirical_accuracy", nullable=True),
+            "mean_confidence": _reliability_rate(entry, "mean_confidence", nullable=True),
+            "empirical_accuracy": _reliability_rate(entry, "empirical_accuracy", nullable=True),
         })
     return {
         "gold_sha256": source["gold_sha256"],
         "model_only_n": _reliability_count(source, "model_only_n"),
-        "multiclass_brier_mean": _reliability_number(source, "multiclass_brier_mean"),
-        "mean_nll": _reliability_number(source, "mean_nll"),
-        "top_label_ece_5_bins": _reliability_number(source, "top_label_ece_5_bins"),
-        "observed_top_class_accuracy": _reliability_number(
+        "multiclass_brier_mean": _reliability_nonnegative(source, "multiclass_brier_mean"),
+        "mean_nll": _reliability_nonnegative(source, "mean_nll"),
+        "top_label_ece_5_bins": _reliability_rate(source, "top_label_ece_5_bins"),
+        "observed_top_class_accuracy": _reliability_rate(
             source, "observed_top_class_accuracy"
         ),
         "bins": public_bins,

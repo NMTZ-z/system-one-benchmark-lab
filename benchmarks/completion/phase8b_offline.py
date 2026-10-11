@@ -69,6 +69,7 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
     cases = {r["id"]: r for r in (json.loads(x) for x in gold_bytes.decode("utf-8").splitlines()) if r}
     if len(traces) != len(cases) or {row["id"] for row in traces} != set(cases):
         raise ValueError("trace/gold ID mismatch; comparisons must be paired")
+    requested_backend = trace_report.get("backend_request")
     observed = []
     for trace in traces:
         # Refuse old audit traces that recorded model fail-open as a hard rule.
@@ -83,6 +84,12 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
             )
         ):
             raise ValueError("trace contains model fallback misclassified as deterministic rule")
+        if (
+            requested_backend in ("ane", "mlx")
+            and trace.get("raw_model_decision") is not None
+            and trace.get("raw_backend") != requested_backend
+        ):
+            raise ValueError("trace contains inference backend mismatch for forced audit")
         item = cases[trace["id"]]
         if item["label"] != trace["label"]:
             raise ValueError("trace/gold labels differ")

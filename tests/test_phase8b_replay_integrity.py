@@ -198,7 +198,7 @@ def test_audit_aborts_on_model_fail_open_instead_of_miscounting_as_rule(
     def backend_decide(self, req):
         if failure == "timeout":
             raise TimeoutError("synthetic private error detail")
-        return _synthetic_choice("invalid_choice")
+        return dict(_synthetic_choice("invalid_choice"), backend="ane")
 
     monkeypatch.setattr(RemoteChoiceEngine, "decide", backend_decide)
     gold = _model_required_gold(tmp_path)
@@ -244,11 +244,69 @@ def test_audit_accepts_four_decimal_probability_rounding(tmp_path, monkeypatch):
     monkeypatch.setattr(
         RemoteChoiceEngine,
         "decide",
-        lambda self, request: dict(_synthetic_choice(), probabilities=distribution),
+        lambda self, request: dict(
+            _synthetic_choice(), backend="ane", probabilities=distribution
+        ),
     )
     result = run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
     assert result["rows"][1]["raw_probabilities"] == distribution
     assert result["rows"][1]["raw_model_decision"] == "complete"
+
+
+@pytest.mark.parametrize(
+    ("requested", "actual"),
+    (
+        ("ane", "mlx"),
+        ("mlx", "ane"),
+        ("ane", None),
+        ("mlx", "unknown"),
+    ),
+)
+def test_forced_backend_audit_aborts_if_actual_backend_differs(
+    tmp_path, monkeypatch, requested, actual
+):
+    def reported_backend(self, request):
+        return dict(_synthetic_choice(), backend=actual)
+
+    monkeypatch.setattr(RemoteChoiceEngine, "decide", reported_backend)
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice",
+            requested, 0.01, 0)
+
+
+@pytest.mark.parametrize("actual", ("ane", "mlx"))
+def test_auto_backend_audit_allows_valid_mixed_routing(tmp_path, monkeypatch, actual):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(_synthetic_choice(), backend=actual),
+    )
+    trace = run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice",
+                "auto", 0.01, 0)
+    assert trace["backend_request"] == "auto"
+    assert trace["rows"][1]["raw_backend"] == actual
+    assert trace["model_backend_distribution"] == {actual: 1}
+
+
+def test_cli_rejects_forced_backend_fallback_without_writing_trace(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(
+            _synthetic_choice(), backend="mlx", route_reason="ane_failure_fallback"
+        ),
+    )
+    gold = _model_required_gold(tmp_path)
+    output = tmp_path / "must-not-write-misreported-ane.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_audit.py", "--gold", str(gold), "--backend", "ane",
+            "--choice-url", "http://127.0.0.1:9/v1/choice", "--out", str(output),
+        ],
+    )
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        phase8b_audit.main()
+    assert not output.exists()
 
 
 def test_audit_cli_rejects_invalid_probability_without_writing_trace(
@@ -310,6 +368,23 @@ def test_offline_rejects_legacy_trace_with_model_fallback_rule(
     trace_path.write_text(json.dumps(trace))
     with pytest.raises(ValueError, match="model fallback"):
         compare(trace_path, gold)
+
+
+def test_offline_rejects_legacy_trace_with_forced_backend_fallback(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(_synthetic_choice(), backend="ane"),
+    )
+    gold = _model_required_gold(tmp_path)
+    prior_trace = run(gold, "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+    prior_trace["rows"][1]["raw_backend"] = "mlx"
+    prior_trace["rows"][1]["route_reason"] = "ane_failure_fallback"
+    trace = tmp_path / "old-ane-contaminated-trace.json"
+    trace.write_text(json.dumps(prior_trace))
+    with pytest.raises(ValueError, match="backend mismatch"):
+        compare(trace, gold)
 
 
 def test_offline_rejects_trace_with_model_output_misclassified_as_rule(tmp_path):
@@ -726,9 +801,22 @@ def test_public_reliability_allowlist_drops_private_fields_recursively(tmp_path,
         ("model_only_n", "PRIVATE-TASK-BODY"),
         ("model_only_n", True),
         ("multiclass_brier_mean", {"task": "PRIVATE-TASK-BODY"}),
+        ("multiclass_brier_mean", -0.1),
+        ("mean_nll", -1.0),
         ("top_label_ece_5_bins", float("nan")),
+        ("top_label_ece_5_bins", -0.001),
+        ("top_label_ece_5_bins", 1.001),
         ("observed_top_class_accuracy", "PRIVATE-TASK-BODY"),
+        ("observed_top_class_accuracy", -0.5),
+        ("observed_top_class_accuracy", 1.001),
         ("bins.0.count", True),
+        ("bins.4.mean_confidence", -0.01),
+        ("bins.4.mean_confidence", 1.01),
+        ("bins.4.empirical_accuracy", -0.01),
+        ("bins.4.empirical_accuracy", 1.01),
+        ("bins.0.interval", [-0.2, 0.2]),
+        ("bins.0.interval", [0.8, 0.2]),
+        ("bins.4.interval", [0.8, 1.2]),
         ("bins.0.mean_confidence", "PRIVATE-TASK-BODY"),
         ("bins.0.interval", [0, "PRIVATE-TASK-BODY"]),
         ("bins.0.interval", [0.0, 0.1, "PRIVATE-TASK-BODY"]),
@@ -746,6 +834,25 @@ def test_public_reliability_invalid_known_fields_fail_closed(tmp_path, field, in
     path.write_text(json.dumps(source))
     with pytest.raises(ValueError, match="invalid reliability aggregate"):
         public_summary(tmp_path)
+
+
+def test_public_reliability_accepts_valid_loss_and_rate_boundaries(tmp_path):
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-blind-reliability.json"
+    source = json.loads(path.read_text())
+    source["multiclass_brier_mean"] = 0.0
+    source["mean_nll"] = 0.0
+    source["top_label_ece_5_bins"] = 1.0
+    source["observed_top_class_accuracy"] = 0.0
+    source["bins"][4]["mean_confidence"] = 1.0
+    source["bins"][4]["empirical_accuracy"] = 0.0
+    path.write_text(json.dumps(source))
+    result = public_summary(tmp_path)["sets"]["blind"]["model_only_reliability"]
+    assert result["mean_nll"] == 0
+    assert result["multiclass_brier_mean"] == 0
+    assert result["top_label_ece_5_bins"] == 1
+    assert result["observed_top_class_accuracy"] == 0
+    assert result["bins"][4]["mean_confidence"] == 1
 
 
 def test_publisher_cli_never_writes_unvalidated_reliability_metrics(

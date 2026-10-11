@@ -80,6 +80,15 @@ class CapturingEngine(RemoteChoiceEngine):
             )
         ):
             raise ValueError("invalid choice probability distribution")
+        observed_backend = result.get("backend")
+        # A forced backend benchmark cannot silently accept a successful
+        # ANE->MLX failover (or any other backend substitution). Only the
+        # explicitly requested auto route permits either model backend.
+        if (
+            observed_backend not in ("ane", "mlx")
+            or (self.backend != "auto" and observed_backend != self.backend)
+        ):
+            raise ValueError("audited choice backend differs from requested backend")
         self.raw = {
             "decision": result.get("decision"),
             "probabilities": {key: probabilities.get(key) for key in LABELS},
