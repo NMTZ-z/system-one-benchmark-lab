@@ -14,6 +14,8 @@ from benchmarks.completion.phase8b_audit import run
 from benchmarks.completion.phase8b_offline import compare
 from benchmarks.completion.phase8b_publish_summary import public_summary
 
+CAL_DIGEST = "b91bbbfdcdc3be1000574456682647148ce7fc46f1a864fb49c9aec84cdf4dd5"
+BLIND_DIGEST = "9074d797a7f56f9506d28199bd5680b9edc6a3108f225d3e976ba52a3921e369"
 STRESS_DIGEST = "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b"
 
 
@@ -207,6 +209,73 @@ def test_audit_aborts_on_model_fail_open_instead_of_miscounting_as_rule(
     assert "synthetic private error detail" not in str(error.value)
 
 
+@pytest.mark.parametrize(
+    "invalid_probabilities",
+    (
+        None,
+        [],
+        {},
+        {"complete": 0.6, "continue": 0.4},  # missing verify
+        {"complete": 0.6, "continue": 0.2, "verify": 0.2, "other": 0.0},
+        {"complete": -0.1, "continue": 0.6, "verify": 0.5},
+        {"complete": 1.1, "continue": 0.0, "verify": -0.1},
+        {"complete": float("nan"), "continue": 0.2, "verify": 0.8},
+        {"complete": 0.7, "continue": float("inf"), "verify": 0.3},
+        {"complete": 0.7, "continue": "0.2", "verify": 0.1},
+        {"complete": True, "continue": 0.2, "verify": 0.8},
+        {"complete": 0.6, "continue": 0.2, "verify": 0.1},  # sum < 1
+        {"complete": 0.8, "continue": 0.2, "verify": 0.2},  # sum > 1
+    ),
+)
+def test_audit_aborts_on_invalid_model_probability_distribution(
+    tmp_path, monkeypatch, invalid_probabilities
+):
+    def invalid_backend(self, request):
+        return dict(_synthetic_choice(), probabilities=invalid_probabilities)
+
+    monkeypatch.setattr(RemoteChoiceEngine, "decide", invalid_backend)
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+
+
+def test_audit_accepts_four_decimal_probability_rounding(tmp_path, monkeypatch):
+    distribution = {"complete": 0.4755, "continue": 0.1228, "verify": 0.4018}
+    assert abs(sum(distribution.values()) - 1.0) < 1e-3
+    monkeypatch.setattr(
+        RemoteChoiceEngine,
+        "decide",
+        lambda self, request: dict(_synthetic_choice(), probabilities=distribution),
+    )
+    result = run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+    assert result["rows"][1]["raw_probabilities"] == distribution
+    assert result["rows"][1]["raw_model_decision"] == "complete"
+
+
+def test_audit_cli_rejects_invalid_probability_without_writing_trace(
+    tmp_path, monkeypatch
+):
+    from benchmarks.completion import phase8b_audit
+
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(
+            _synthetic_choice(),
+            probabilities={"complete": 0.6, "continue": 0.2, "verify": 0.1},
+        ),
+    )
+    gold = _model_required_gold(tmp_path)
+    output = tmp_path / "must-not-write-invalid-distribution.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_audit.py", "--gold", str(gold),
+            "--choice-url", "http://127.0.0.1:9/v1/choice", "--out", str(output),
+        ],
+    )
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        phase8b_audit.main()
+    assert not output.exists()
+
+
 def test_audit_cli_does_not_write_metrics_when_backend_is_dead(
     tmp_path, monkeypatch
 ):
@@ -252,7 +321,7 @@ def test_offline_rejects_trace_with_model_output_misclassified_as_rule(tmp_path)
 
 
 def _valid_publication_data(tmp_path):
-    frozen = {"calibration": {"sha256": "a" * 64}, "blind": {"sha256": "b" * 64}}
+    frozen = {"calibration": {"sha256": CAL_DIGEST}, "blind": {"sha256": BLIND_DIGEST}}
     (tmp_path / "phase8b-pilot-freeze.json").write_text(json.dumps(frozen))
     sha = {"cal": frozen["calibration"]["sha256"], "blind": frozen["blind"]["sha256"],
            "stress": STRESS_DIGEST}
@@ -314,9 +383,73 @@ def _valid_publication_data(tmp_path):
     return sha
 
 
+@pytest.mark.parametrize(
+    ("phase", "manifest_key", "foreign_digest"),
+    (
+        ("cal", "calibration", "e" * 64),
+        ("blind", "blind", "f" * 64),
+    ),
+)
+def test_public_summary_rejects_consistent_foreign_manifest_and_results(
+    tmp_path, phase, manifest_key, foreign_digest
+):
+    _valid_publication_data(tmp_path)
+    manifest_path = tmp_path / "phase8b-pilot-freeze.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest[manifest_key]["sha256"] = foreign_digest
+    manifest_path.write_text(json.dumps(manifest))
+
+    # The policy/reliability results now match the forged manifest exactly,
+    # but no longer match the original protocol's immutable corpus digests.
+    policy_path = tmp_path / f"phase8b-{phase}-policies.json"
+    policy = json.loads(policy_path.read_text())
+    policy["gold_sha256"] = foreign_digest
+    policy_path.write_text(json.dumps(policy))
+    reliability_path = tmp_path / f"phase8b-{phase}-reliability.json"
+    reliability = json.loads(reliability_path.read_text())
+    reliability["gold_sha256"] = foreign_digest
+    reliability_path.write_text(json.dumps(reliability))
+
+    with pytest.raises(ValueError, match=rf"{phase} manifest corpus digest"):
+        public_summary(tmp_path)
+
+
+@pytest.mark.parametrize(("phase", "manifest_key"), (("cal", "calibration"), ("blind", "blind")))
+def test_public_summary_requires_both_declared_manifest_digests(
+    tmp_path, phase, manifest_key
+):
+    _valid_publication_data(tmp_path)
+    manifest_path = tmp_path / "phase8b-pilot-freeze.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest.pop(manifest_key)
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match=rf"{phase} manifest corpus digest"):
+        public_summary(tmp_path)
+
+
+def test_publisher_cli_will_not_write_summary_for_foreign_manifest(tmp_path, monkeypatch):
+    from benchmarks.completion import phase8b_publish_summary
+
+    _valid_publication_data(tmp_path)
+    manifest_path = tmp_path / "phase8b-pilot-freeze.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["calibration"]["sha256"] = "f" * 64
+    manifest_path.write_text(json.dumps(manifest))
+    output = tmp_path / "must-not-write-forged-freeze.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_publish_summary.py", "--private-dir", str(tmp_path),
+            "--out", str(output),
+        ],
+    )
+    with pytest.raises(ValueError, match="cal manifest corpus digest"):
+        phase8b_publish_summary.main()
+    assert not output.exists()
+
+
 def test_public_summary_rejects_replay_digest_different_from_freeze(tmp_path):
     _valid_publication_data(tmp_path)
-    assert public_summary(tmp_path)["freeze_sha256"]["blind"] == "b" * 64
+    assert public_summary(tmp_path)["freeze_sha256"]["blind"] == BLIND_DIGEST
     changed = json.loads((tmp_path / "phase8b-blind-policies.json").read_text())
     changed["gold_sha256"] = "f" * 64
     (tmp_path / "phase8b-blind-policies.json").write_text(json.dumps(changed))

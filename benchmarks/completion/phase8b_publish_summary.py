@@ -13,6 +13,13 @@ RELIABILITY_WARNING = "small sample; this is diagnostic, not a validated calibra
 
 
 LABELS = ("complete", "continue", "verify")
+# Anchored to the frozen public Phase 8B evaluation protocol, not an untrusted
+# manifest supplied alongside the private result files.
+FROZEN_SHA256 = {
+    "cal": "b91bbbfdcdc3be1000574456682647148ce7fc46f1a864fb49c9aec84cdf4dd5",
+    "blind": "9074d797a7f56f9506d28199bd5680b9edc6a3108f225d3e976ba52a3921e369",
+    "stress": "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b",
+}
 
 
 def _policy_number(source: dict, key: str, *, nullable: bool = False):
@@ -147,11 +154,14 @@ def _public_reliability(source: dict) -> dict:
 
 def public_summary(private_dir: Path) -> dict:
     freeze = json.loads((private_dir / "phase8b-pilot-freeze.json").read_text())
-    frozen_sha256 = {
-        "cal": freeze["calibration"]["sha256"],
-        "blind": freeze["blind"]["sha256"],
-        "stress": "fa7324fcee611988c9ed3f92d6a0ac1f7af81b9b22c2fcb219f86dbc22856b2b",
-    }
+    for name, manifest_key in (("cal", "calibration"), ("blind", "blind")):
+        manifest_set = freeze.get(manifest_key)
+        if (
+            not isinstance(manifest_set, dict)
+            or manifest_set.get("sha256") != FROZEN_SHA256[name]
+        ):
+            raise ValueError(f"{name} manifest corpus digest does not match declared freeze")
+    frozen_sha256 = FROZEN_SHA256
     policy_trace_sha256 = {}
     report = {
         "schema_version": 1,
