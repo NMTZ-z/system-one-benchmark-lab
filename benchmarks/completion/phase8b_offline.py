@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from benchmarks.completion.evaluate import metrics
-from benchmarks.completion.phase8b_contract import require_choice_distribution
+from benchmarks.completion.phase8b_contract import require_top_label_consistency
 
 CANDIDATE_COMPLETE_THRESHOLD = .50  # selected from pilot calibration ONLY
 
@@ -100,7 +100,9 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
         else:
             if trace["raw_model_decision"] not in ("complete", "continue", "verify"):
                 raise ValueError("trace contains invalid raw model choice")
-            require_choice_distribution(trace.get("raw_probabilities"))
+            require_top_label_consistency(
+                trace.get("raw_probabilities"), trace["raw_model_decision"]
+            )
             if trace.get("raw_backend") not in ("ane", "mlx"):
                 raise ValueError("trace contains unsupported actual backend")
         item = cases[trace["id"]]

@@ -44,6 +44,26 @@ def require_choice_distribution(probabilities: object) -> None:
         _reject("invalid model probability distribution")
 
 
+def require_top_label_consistency(probabilities: object, decision: object) -> str:
+    """Require an unambiguous argmax that agrees with the declared model choice.
+
+    The service rounds probabilities before returning them. When multiple
+    classes share the highest rounded probability, top-label correctness is
+    ambiguous; fail closed rather than invent a tie-break for calibration.
+    """
+    require_choice_distribution(probabilities)
+    if decision not in LABELS:
+        _reject("invalid declared top-label decision")
+    maximum = max(probabilities.values())
+    winners = [label for label in LABELS if probabilities[label] == maximum]
+    if len(winners) != 1:
+        _reject("ambiguous top label in rounded probabilities")
+    top_label = winners[0]
+    if decision != top_label:
+        _reject("declared model decision disagrees with probability argmax")
+    return top_label
+
+
 def _wilson_interval(k: int, n: int) -> tuple[float, float]:
     if n == 0:
         return (0.0, 1.0)

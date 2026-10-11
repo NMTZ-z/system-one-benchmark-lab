@@ -50,8 +50,11 @@ nonnegative integer counts summing to `model_only_n`, null statistics only for
 empty bins, valid confidence ranges, and empirical correct counts consistent
 with integer observations. Weighted bin statistics must independently reproduce
 the published ECE and observed top-class accuracy. Losses must be finite and
-nonnegative. Private task, tool, path and trace contents are never copied into
-the aggregate-only public JSON.
+nonnegative. Top-label correctness is determined from the probability **argmax**,
+not blindly from the separate declared decision; an inconsistent decision or a
+tie for the highest rounded probability fails closed before Audit, offline
+replay, or Reliability statistics are published. Private task, tool, path and
+trace contents are never copied into the aggregate-only public JSON.
 
 Audit and offline replay share strict typed-choice probability validation
 (three required labels, finite [0,1] values, normalized within rounding error).

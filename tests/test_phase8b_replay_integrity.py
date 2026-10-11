@@ -312,6 +312,49 @@ def test_cli_rejects_forced_backend_fallback_without_writing_trace(
     assert not output.exists()
 
 
+@pytest.mark.parametrize(
+    ("probabilities", "decision"),
+    (
+        ({"complete": .10, "continue": .80, "verify": .10}, "complete"),
+        ({"complete": .45, "continue": .45, "verify": .10}, "complete"),
+    ),
+)
+def test_audit_rejects_top_label_mismatch_or_tie(
+    tmp_path, monkeypatch, probabilities, decision
+):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(
+            _synthetic_choice(decision), probabilities=probabilities, backend="ane"
+        ),
+    )
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        run(_model_required_gold(tmp_path), "http://127.0.0.1:9/v1/choice",
+            "ane", 0.01, 0)
+
+
+def test_audit_cli_rejects_valid_but_misleading_top_label(tmp_path, monkeypatch):
+    from benchmarks.completion import phase8b_audit
+
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(
+            _synthetic_choice(), backend="ane",
+            probabilities={"complete": 0.1, "continue": 0.8, "verify": 0.1},
+        ),
+    )
+    output = tmp_path / "must-not-export-inconsistent-top-label.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_audit.py", "--gold", str(_model_required_gold(tmp_path)),
+            "--backend", "ane", "--out", str(output),
+        ],
+    )
+    with pytest.raises(RuntimeError, match="model_failure_fail_open_continue"):
+        phase8b_audit.main()
+    assert not output.exists()
+
+
 def test_audit_cli_rejects_invalid_probability_without_writing_trace(
     tmp_path, monkeypatch
 ):
@@ -409,6 +452,31 @@ def test_hardening_offline_rejects_duplicate_gold_case_ids(tmp_path):
     trace_path.write_text(json.dumps(trace))
     with pytest.raises(ValueError, match="duplicate case IDs"):
         compare(trace_path, gold)
+
+
+@pytest.mark.parametrize(
+    ("probabilities", "model_decision", "error"),
+    (
+        ({"complete": .1, "continue": .8, "verify": .1}, "complete", "argmax"),
+        ({"complete": .45, "continue": .45, "verify": .10}, "complete", "ambiguous"),
+    ),
+)
+def test_offline_replay_rejects_inconsistent_top_label(
+    tmp_path, monkeypatch, probabilities, model_decision, error
+):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(_synthetic_choice(), backend="ane"),
+    )
+    gold = _model_required_gold(tmp_path)
+    trace_data = run(gold, "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+    model_row = trace_data["rows"][1]
+    model_row["raw_probabilities"] = probabilities
+    model_row["raw_model_decision"] = model_decision
+    trace = tmp_path / "old-inconsistent-top-label.json"
+    trace.write_text(json.dumps(trace_data))
+    with pytest.raises(ValueError, match=error):
+        compare(trace, gold)
 
 
 def test_offline_rejects_trace_with_model_output_misclassified_as_rule(tmp_path):
@@ -1045,6 +1113,56 @@ def test_hardening_rejects_legacy_raw_trace_with_invalid_probability(tmp_path, m
     path.write_text(json.dumps(trace))
     with pytest.raises(ValueError, match="model probability distribution"):
         compare(path, gold)
+
+
+@pytest.mark.parametrize(
+    ("probabilities", "decision", "expected_error"),
+    (
+        ({"complete": .1, "continue": .8, "verify": .1}, "complete", "argmax"),
+        ({"complete": .45, "continue": .45, "verify": .10}, "complete", "ambiguous"),
+        ({"complete": .1, "continue": .8, "verify": .1}, None, "declared top-label"),
+    ),
+)
+def test_reliability_rejects_ambiguous_or_inconsistent_top_class(
+    probabilities, decision, expected_error
+):
+    rows = [{
+        "label": "complete", "raw_model_decision": decision,
+        "raw_probabilities": probabilities,
+    }]
+    with pytest.raises(ValueError, match=expected_error):
+        phase8b_reliability.report(rows, gold_sha256="a" * 64)
+
+
+def test_reliability_correctness_is_based_on_probability_argmax():
+    rows = [
+        {"label": "continue", "raw_model_decision": "continue",
+         "raw_probabilities": {"complete": .05, "continue": .9, "verify": .05}},
+        {"label": "complete", "raw_model_decision": "verify",
+         "raw_probabilities": {"complete": .05, "continue": .1, "verify": .85}},
+    ]
+    result = phase8b_reliability.report(rows, gold_sha256="a" * 64)
+    assert result["model_only_n"] == 2
+    assert result["observed_top_class_accuracy"] == .5
+    assert sum(bin_["count"] for bin_ in result["bins"]) == 2
+
+
+def test_reliability_cli_refuses_inconsistent_top_label_without_output(
+    tmp_path, monkeypatch
+):
+    source = _reliability_trace(tmp_path, "a" * 64)
+    doc = json.loads(source.read_text())
+    doc["rows"][0]["raw_model_decision"] = "verify"
+    source.write_text(json.dumps(doc))
+    output = tmp_path / "must-not-export-miscalibrated-top-label.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_reliability.py", "--trace", str(source), "--out", str(output),
+        ],
+    )
+    with pytest.raises(ValueError, match="argmax"):
+        phase8b_reliability.main()
+    assert not output.exists()
 
 
 def _reliability_trace(tmp_path, digest):

@@ -22,7 +22,10 @@ sys.path.insert(0, str(ROOT))
 
 from benchmarks.completion.evaluate import LABELS, metrics
 from benchmarks.completion.evaluate_live_backend import RemoteChoiceEngine
-from benchmarks.completion.phase8b_contract import require_choice_distribution
+from benchmarks.completion.phase8b_contract import (
+    require_choice_distribution,
+    require_top_label_consistency,
+)
 from local_system_one.workflows.completion_gate import (
     CompletionGate,
     CompletionGateRequest,
@@ -65,6 +68,10 @@ class CapturingEngine(RemoteChoiceEngine):
         probabilities = result.get("probabilities")
         # Production remains fail-open; audit records must be stricter.
         require_choice_distribution(probabilities)
+        # Preserve native CompletionGate's existing handling of invalid
+        # decision labels. Valid labels must match an unambiguous argmax.
+        if result.get("decision") in LABELS:
+            require_top_label_consistency(probabilities, result["decision"])
         observed_backend = result.get("backend")
         # A forced backend benchmark cannot silently accept a successful
         # ANE->MLX failover (or any other backend substitution). Only the
