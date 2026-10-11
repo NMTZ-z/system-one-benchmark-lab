@@ -27,3 +27,43 @@ Pair identical task goals and explicit acceptance criteria across platforms. Gat
 For true Agent-level A/B/C, Shadow-only policies cannot influence actual task execution, so their observed tool counts and success rates should be *identical by design* when paired on the same native run. Token savings and premature termination reduction can only be **modeled** until a later separately approved Active experiment.
 
 All pilot outcomes are for method validation only. Engineering implementation can PASS without authorizing an Active gate.
+
+## Phase 8B Final Hardening: public-report data contract
+
+The synthetic pilot and adversarial stress sets are each **45 frozen cases**, with
+**15 Complete / 15 Continue / 15 Verify** labels. The publisher checks the exact
+frozen SHA-256 values before accepting data. A policy summary with a partial
+`matched_case_count`, missing/duplicate paired case IDs, wrong class support,
+or missing paired predictions must **fail closed**.
+
+The independent `phase8b_contract.py` validator does **not** call the metric
+producer's `evaluate.metrics`, `phase8b_offline.wilson`, or
+`phase8b_reliability.report` functions. For each of the four policies, it
+rebuilds the 3x3 confusion matrix from private paired case predictions and
+independently checks accuracy, per-class support/precision/recall/F1, macro F1,
+non-Complete support, dangerous premature Complete count, Wilson 95% interval,
+and the exact one-sided upper bound for zero dangerous events. All rate fields
+also require finite values within [0,1].
+
+For model-only reliability, the validator requires five fixed confidence bins,
+nonnegative integer counts summing to `model_only_n`, null statistics only for
+empty bins, valid confidence ranges, and empirical correct counts consistent
+with integer observations. Weighted bin statistics must independently reproduce
+the published ECE and observed top-class accuracy. Losses must be finite and
+nonnegative. Private task, tool, path and trace contents are never copied into
+the aggregate-only public JSON.
+
+Audit and offline replay share strict typed-choice probability validation
+(three required labels, finite [0,1] values, normalized within rounding error).
+Forced ANE/MLX audits reject actual-backend substitutions; paired replays reject
+model fail-open events, duplicate gold IDs, invalid probability evidence, and
+mismatched case sources. Errors abort publication before writing a final report.
+
+**Independent provenance limitation:** Matrix/bin consistency alone cannot
+cryptographically prove that a private paired prediction came from a genuine
+frozen inference. Calibration/blind reliability is bound to the exact trace
+SHA-256, and separate private-only final validation must rehash the trace files,
+check paired IDs/labels, and recalculate Brier/NLL from the raw probabilities.
+These raw traces and user content must never enter the public release. The
+new data contract is a correctness safeguard, **not** real Agent E2E evidence,
+a new calibration mapping or authorization for Active.

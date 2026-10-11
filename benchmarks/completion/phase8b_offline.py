@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from benchmarks.completion.evaluate import metrics
+from benchmarks.completion.phase8b_contract import require_choice_distribution
 
 CANDIDATE_COMPLETE_THRESHOLD = .50  # selected from pilot calibration ONLY
 
@@ -66,7 +67,10 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
     if trace_report.get("gold_sha256") != gold_sha256:
         raise ValueError("trace/gold corpus SHA-256 mismatch or missing digest")
     traces = trace_report["rows"]
-    cases = {r["id"]: r for r in (json.loads(x) for x in gold_bytes.decode("utf-8").splitlines()) if r}
+    gold_rows = [json.loads(line) for line in gold_bytes.decode("utf-8").splitlines() if line.strip()]
+    cases = {row["id"]: row for row in gold_rows}
+    if len(cases) != len(gold_rows):
+        raise ValueError("gold corpus contains duplicate case IDs")
     if len(traces) != len(cases) or {row["id"] for row in traces} != set(cases):
         raise ValueError("trace/gold ID mismatch; comparisons must be paired")
     requested_backend = trace_report.get("backend_request")
@@ -90,9 +94,22 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
             and trace.get("raw_backend") != requested_backend
         ):
             raise ValueError("trace contains inference backend mismatch for forced audit")
+        if trace.get("raw_model_decision") is None:
+            if trace.get("raw_probabilities") is not None:
+                raise ValueError("trace has orphaned raw probability evidence")
+        else:
+            if trace["raw_model_decision"] not in ("complete", "continue", "verify"):
+                raise ValueError("trace contains invalid raw model choice")
+            require_choice_distribution(trace.get("raw_probabilities"))
+            if trace.get("raw_backend") not in ("ane", "mlx"):
+                raise ValueError("trace contains unsupported actual backend")
         item = cases[trace["id"]]
         if item["label"] != trace["label"]:
             raise ValueError("trace/gold labels differ")
+        if trace.get("source") != item.get("source", "unclassified"):
+            raise ValueError("trace/gold source metadata differs")
+        if trace.get("final_decision") not in ("complete", "continue", "verify"):
+            raise ValueError("trace contains invalid final choice")
         state = item["execution_state"]
         observed.append({
             "id": trace["id"], "label": trace["label"], "source": trace["source"],

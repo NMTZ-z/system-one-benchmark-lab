@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT))
 
 from benchmarks.completion.evaluate import LABELS, metrics
 from benchmarks.completion.evaluate_live_backend import RemoteChoiceEngine
+from benchmarks.completion.phase8b_contract import require_choice_distribution
 from local_system_one.workflows.completion_gate import (
     CompletionGate,
     CompletionGateRequest,
@@ -62,24 +63,8 @@ class CapturingEngine(RemoteChoiceEngine):
     def decide(self, request):
         result = super().decide(request)
         probabilities = result.get("probabilities")
-        # The live CompletionGate is intentionally fail-open; an offline audit
-        # must instead reject malformed model probabilities before recording
-        # any apparently valid trace metrics.
-        if (
-            not isinstance(probabilities, dict)
-            or set(probabilities) != set(LABELS)
-            or any(
-                isinstance(value, bool)
-                or not isinstance(value, (int, float))
-                or not math.isfinite(value)
-                or not 0.0 <= value <= 1.0
-                for value in probabilities.values()
-            )
-            or not math.isclose(
-                sum(probabilities.values()), 1.0, rel_tol=0.0, abs_tol=1e-3
-            )
-        ):
-            raise ValueError("invalid choice probability distribution")
+        # Production remains fail-open; audit records must be stricter.
+        require_choice_distribution(probabilities)
         observed_backend = result.get("backend")
         # A forced backend benchmark cannot silently accept a successful
         # ANE->MLX failover (or any other backend substitution). Only the

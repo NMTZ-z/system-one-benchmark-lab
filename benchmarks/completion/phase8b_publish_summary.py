@@ -5,7 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from pathlib import Path
+
+# Also support invoking this publisher directly as a repository script.
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from benchmarks.completion.phase8b_contract import (
+    validate_policy_bundle,
+    validate_reliability_summary,
+)
 
 REQUIRED_SETS = ("cal", "blind", "stress")
 POLICIES = ("8a", "rules", "raw", "candidate")
@@ -214,6 +223,7 @@ def public_summary(private_dir: Path) -> dict:
                 "raw has no stop authority; candidate threshold has no production effect",
             ],
         }
+        validate_policy_bundle(source, report["sets"][name], phase=name)
     report["freeze_sha256"] = {
         "calibration": frozen_sha256["cal"],
         "blind": frozen_sha256["blind"],
@@ -231,7 +241,9 @@ def public_summary(private_dir: Path) -> dict:
             or reliability.get("trace_sha256") != trace_sha256
         ):
             raise ValueError(f"{phase} reliability trace digest does not match policy replay")
-        report["sets"][phase]["model_only_reliability"] = _public_reliability(reliability)
+        sanitized = _public_reliability(reliability)
+        validate_reliability_summary(sanitized, phase=phase)
+        report["sets"][phase]["model_only_reliability"] = sanitized
     return report
 
 

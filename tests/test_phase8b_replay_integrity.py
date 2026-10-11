@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import random
 import sys
 
 import pytest
 
 from benchmarks.completion import phase8b_audit, phase8b_reliability
+from benchmarks.completion.evaluate import metrics as calculate_metrics
 from benchmarks.completion.evaluate_live_backend import RemoteChoiceEngine
 from benchmarks.completion.phase8b_audit import run
-from benchmarks.completion.phase8b_offline import compare
+from benchmarks.completion.phase8b_offline import compare, wilson
 from benchmarks.completion.phase8b_publish_summary import public_summary
 
 CAL_DIGEST = "b91bbbfdcdc3be1000574456682647148ce7fc46f1a864fb49c9aec84cdf4dd5"
@@ -387,6 +390,27 @@ def test_offline_rejects_legacy_trace_with_forced_backend_fallback(
         compare(trace, gold)
 
 
+def test_hardening_offline_rejects_trace_with_changed_case_source(tmp_path):
+    gold, trace_path, _, trace = _gold_and_trace(tmp_path)
+    trace["rows"][0]["source"] = "incorrect-slice"
+    trace_path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="source metadata differs"):
+        compare(trace_path, gold)
+
+
+def test_hardening_offline_rejects_duplicate_gold_case_ids(tmp_path):
+    gold, trace_path, corpus, trace = _gold_and_trace(tmp_path)
+    corpus[1]["id"] = corpus[0]["id"]
+    gold.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in corpus),
+        encoding="utf-8",
+    )
+    trace["gold_sha256"] = hashlib.sha256(gold.read_bytes()).hexdigest()
+    trace_path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="duplicate case IDs"):
+        compare(trace_path, gold)
+
+
 def test_offline_rejects_trace_with_model_output_misclassified_as_rule(tmp_path):
     gold, trace_path, _, trace = _gold_and_trace(tmp_path)
     trace["rows"][0]["raw_model_decision"] = "continue"
@@ -400,37 +424,30 @@ def _valid_publication_data(tmp_path):
     (tmp_path / "phase8b-pilot-freeze.json").write_text(json.dumps(frozen))
     sha = {"cal": frozen["calibration"]["sha256"], "blind": frozen["blind"]["sha256"],
            "stress": STRESS_DIGEST}
-    labels = ("complete", "continue", "verify")
-    policy = {
-        "accuracy": 1.0,
-        "macro_f1": 1 / 3,
-        "per_class": {
-            label: {
-                "precision": 1.0 if label == "continue" else 0.0,
-                "recall": 1.0 if label == "continue" else 0.0,
-                "f1": 1.0 if label == "continue" else 0.0,
-                "support": int(label == "continue"),
-            }
-            for label in labels
-        },
-        "confusion_matrix": {
-            label: {
-                predicted: int(label == predicted == "continue") for predicted in labels
-            }
-            for label in labels
-        },
-        "premature_completion_count": 0,
-        "non_complete_support": 1,
-        "premature_completion_wilson_95": [0.0, 0.1],
-        "premature_completion_zero_one_sided_upper_95": 0.95,
-    }
+    policies = ("8a", "rules", "raw", "candidate")
+    paired = [
+        {
+            "id": f"fixture-{label}-{index:02d}", "label": label,
+            "source": "synthetic_pilot", **{policy: label for policy in policies},
+        }
+        for label in ("complete", "continue", "verify")
+        for index in range(15)
+    ]
+    # Fixture metrics are produced by the ordinary evaluator; the contract
+    # validator deliberately computes them independently from paired rows.
+    policy = calculate_metrics([
+        {"label": row["label"], "prediction": row["8a"]} for row in paired
+    ])
+    policy["premature_completion_wilson_95"] = list(wilson(0, 30))
+    policy["premature_completion_zero_one_sided_upper_95"] = 1 - math.pow(0.05, 1 / 30)
     for stage, digest in sha.items():
         (tmp_path / f"phase8b-{stage}-policies.json").write_text(
             json.dumps({
                 "gold_sha256": digest,
                 "trace_sha256": {"cal": "c" * 64, "blind": "d" * 64, "stress": "e" * 64}[stage],
-                "matched_case_count": 1,
-                "policies": {name: policy for name in ("8a", "rules", "raw", "candidate")},
+                "matched_case_count": 45,
+                "policies": {name: policy for name in policies},
+                "paired_predictions": paired,
             })
         )
     for stage in ("cal", "blind"):
@@ -540,6 +557,8 @@ def test_public_policy_allowlist_drops_private_nested_fields(tmp_path, stage):
     private_marker = "PRIVATE-RAW-TASK-OUTPUT-LOCAL-PATH"
     policy = source["policies"]["raw"]
     policy["private_rows"] = [{"task": private_marker}]
+    source["paired_predictions"][0]["raw_task"] = private_marker
+    source["paired_predictions"][0]["tool_output"] = {"raw": private_marker}
     policy["per_class"]["complete"]["raw_task"] = private_marker
     policy["per_class"]["verify"]["diagnostics"] = {"tool_output": private_marker}
     policy["per_class"]["injected_label"] = {"task": private_marker}
@@ -567,7 +586,10 @@ def test_public_policy_allowlist_drops_private_nested_fields(tmp_path, stage):
         assert set(aggregate["confusion_matrix"][label]) == expected_labels
     assert private_marker not in json.dumps(published)
     assert "private_rows" not in json.dumps(published)
-    assert aggregate["premature_completion_zero_one_sided_upper_95"] == 0.95
+    assert math.isclose(
+        aggregate["premature_completion_zero_one_sided_upper_95"],
+        1 - math.pow(0.05, 1 / 30),
+    )
 
 
 @pytest.mark.parametrize(
@@ -623,19 +645,24 @@ def test_public_policy_accepts_valid_rate_boundaries_and_wilson_order(tmp_path):
     _valid_publication_data(tmp_path)
     path = tmp_path / "phase8b-blind-policies.json"
     source = json.loads(path.read_text())
-    policy = source["policies"]["candidate"]
-    policy["accuracy"] = 0.0
-    policy["macro_f1"] = 1.0
-    policy["per_class"]["complete"]["precision"] = 0.0
-    policy["per_class"]["continue"]["recall"] = 1.0
-    policy["per_class"]["verify"]["f1"] = 0.0
-    policy["premature_completion_wilson_95"] = [0.0, 1.0]
+    shifted = {"complete": "continue", "continue": "verify", "verify": "complete"}
+    for row in source["paired_predictions"]:
+        row["candidate"] = shifted[row["label"]]
+    policy = calculate_metrics([
+        {"label": row["label"], "prediction": row["candidate"]}
+        for row in source["paired_predictions"]
+    ])
+    policy["premature_completion_wilson_95"] = list(wilson(15, 30))
+    policy["premature_completion_zero_one_sided_upper_95"] = None
+    source["policies"]["candidate"] = policy
     path.write_text(json.dumps(source))
 
     result = public_summary(tmp_path)["sets"]["blind"]["policies"]["candidate"]
     assert result["accuracy"] == 0.0
-    assert result["macro_f1"] == 1.0
-    assert result["premature_completion_wilson_95"] == [0.0, 1.0]
+    assert result["macro_f1"] == 0.0
+    assert 0 <= result["premature_completion_wilson_95"][0] <= result[
+        "premature_completion_wilson_95"
+    ][1] <= 1
 
 
 def test_publisher_cli_refuses_out_of_range_scores_without_output(tmp_path, monkeypatch):
@@ -662,9 +689,17 @@ def test_public_policy_publishes_null_when_zero_event_bound_not_defined(tmp_path
     _valid_publication_data(tmp_path)
     source_path = tmp_path / "phase8b-stress-policies.json"
     source = json.loads(source_path.read_text())
-    metrics = source["policies"]["raw"]
-    metrics["premature_completion_count"] = 1
-    metrics["premature_completion_zero_one_sided_upper_95"] = None
+    candidate = next(
+        row for row in source["paired_predictions"] if row["label"] == "continue"
+    )
+    candidate["raw"] = "complete"
+    policy = calculate_metrics([
+        {"label": row["label"], "prediction": row["raw"]}
+        for row in source["paired_predictions"]
+    ])
+    policy["premature_completion_wilson_95"] = list(wilson(1, 30))
+    policy["premature_completion_zero_one_sided_upper_95"] = None
+    source["policies"]["raw"] = policy
     source_path.write_text(json.dumps(source))
     assert (
         public_summary(tmp_path)["sets"]["stress"]["policies"]["raw"][
@@ -875,6 +910,141 @@ def test_publisher_cli_never_writes_unvalidated_reliability_metrics(
     with pytest.raises(ValueError, match="invalid reliability aggregate"):
         phase8b_publish_summary.main()
     assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("matched_case_count", 44),
+        ("matched_case_count", 46),
+        ("paired_predictions", []),
+        ("paired_predictions", None),
+        ("policies.8a.accuracy", 0.98),
+        ("policies.rules.macro_f1", 0.95),
+        ("policies.candidate.per_class.complete.f1", 0.8),
+        ("policies.raw.per_class.continue.support", 14),
+        ("policies.raw.confusion_matrix.continue.continue", 14),
+        ("policies.raw.premature_completion_count", 1),
+        ("policies.raw.non_complete_support", 29),
+        ("policies.raw.premature_completion_wilson_95", [0.0, 0.2]),
+    ),
+)
+def test_hardening_rejects_inconsistent_policy_artifacts(tmp_path, field, invalid):
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-stress-policies.json"
+    source = json.loads(path.read_text())
+    obj = source
+    parts = field.split(".")
+    for part in parts[:-1]:
+        obj = obj[part]
+    obj[parts[-1]] = invalid
+    path.write_text(json.dumps(source))
+    with pytest.raises(ValueError, match="(?:invalid policy aggregate|invalid phase8b data contract)"):
+        public_summary(tmp_path)
+
+
+@pytest.mark.parametrize("mutation", ("duplicate_id", "missing_id", "imbalanced_labels", "invalid_label"))
+def test_hardening_rejects_invalid_paired_prediction_identity(tmp_path, mutation):
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-blind-policies.json"
+    source = json.loads(path.read_text())
+    rows = source["paired_predictions"]
+    if mutation == "duplicate_id":
+        rows[1]["id"] = rows[0]["id"]
+    elif mutation == "missing_id":
+        rows[0]["id"] = ""
+    elif mutation == "imbalanced_labels":
+        rows[0]["label"] = "continue"
+    else:
+        rows[0]["label"] = "unreviewed"
+    path.write_text(json.dumps(source))
+    with pytest.raises(ValueError, match="invalid phase8b data contract"):
+        public_summary(tmp_path)
+
+
+@pytest.mark.parametrize("seed", range(24))
+def test_hardening_fuzzed_prediction_corruption_is_never_published(tmp_path, seed):
+    # Reproducible property-style mutations without an additional dependency.
+    _valid_publication_data(tmp_path)
+    stage = ("cal", "blind", "stress")[seed % 3]
+    path = tmp_path / f"phase8b-{stage}-policies.json"
+    source = json.loads(path.read_text())
+    rng = random.Random(seed)
+    row = rng.choice(source["paired_predictions"])
+    policy = rng.choice(("8a", "rules", "raw", "candidate"))
+    new_prediction = rng.choice([label for label in ("complete", "continue", "verify")
+                                 if label != row[policy]])
+    row[policy] = new_prediction
+    path.write_text(json.dumps(source))
+    with pytest.raises(ValueError, match="invalid phase8b data contract"):
+        public_summary(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("model_only_n", 0),
+        ("model_only_n", 2),
+        ("model_only_n", 46),
+        ("bins.4.count", 0),
+        ("bins.4.count", 2),
+        ("bins.0.mean_confidence", 0.1),
+        ("bins.0.empirical_accuracy", 0.1),
+        ("bins.4.mean_confidence", None),
+        ("bins.4.empirical_accuracy", None),
+        ("bins.4.mean_confidence", 0.5),
+        ("bins.4.empirical_accuracy", 0.5),
+        ("bins.4.interval", [0.7, 1.0]),
+        ("top_label_ece_5_bins", 0.16),
+        ("observed_top_class_accuracy", 0.8),
+    ),
+)
+def test_hardening_rejects_self_inconsistent_reliability(tmp_path, field, invalid):
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-cal-reliability.json"
+    source = json.loads(path.read_text())
+    obj = source
+    parts = field.split(".")
+    for key in parts[:-1]:
+        obj = obj[int(key)] if isinstance(obj, list) else obj[key]
+    obj[parts[-1]] = invalid
+    path.write_text(json.dumps(source))
+    with pytest.raises(ValueError, match="(?:invalid reliability aggregate|invalid phase8b data contract)"):
+        public_summary(tmp_path)
+
+
+def test_hardening_no_report_on_cross_field_mismatch(tmp_path, monkeypatch):
+    from benchmarks.completion import phase8b_publish_summary
+
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-blind-policies.json"
+    data = json.loads(path.read_text())
+    data["matched_case_count"] = 44
+    path.write_text(json.dumps(data))
+    output = tmp_path / "must-not-publish-inconsistent-statistics.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_publish_summary.py", "--private-dir", str(tmp_path),
+            "--out", str(output),
+        ],
+    )
+    with pytest.raises(ValueError, match="invalid phase8b data contract"):
+        phase8b_publish_summary.main()
+    assert not output.exists()
+
+
+def test_hardening_rejects_legacy_raw_trace_with_invalid_probability(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(_synthetic_choice(), backend="ane"),
+    )
+    gold = _model_required_gold(tmp_path)
+    trace = run(gold, "http://127.0.0.1:9/v1/choice", "ane", 0.01, 0)
+    trace["rows"][1]["raw_probabilities"]["complete"] = 1.4
+    path = tmp_path / "old-contaminated-probabilities.json"
+    path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="model probability distribution"):
+        compare(path, gold)
 
 
 def _reliability_trace(tmp_path, digest):
