@@ -280,6 +280,20 @@ def _valid_publication_data(tmp_path):
                 "gold_sha256": sha[stage],
                 "trace_sha256": {"cal": "c" * 64, "blind": "d" * 64}[stage],
                 "model_only_n": 1,
+                "multiclass_brier_mean": 0.1,
+                "mean_nll": 0.2,
+                "top_label_ece_5_bins": 0.15,
+                "observed_top_class_accuracy": 1.0,
+                "bins": [
+                    {
+                        "interval": [i / 5, (i + 1) / 5],
+                        "count": int(i == 4),
+                        "mean_confidence": 0.85 if i == 4 else None,
+                        "empirical_accuracy": 1.0 if i == 4 else None,
+                    }
+                    for i in range(5)
+                ],
+                "warning": "small sample; this is diagnostic, not a validated calibration mapping",
             })
         )
     return sha
@@ -358,6 +372,90 @@ def test_public_summary_requires_trace_digest_in_policy_and_reliability(tmp_path
     reliability_path.write_text(json.dumps(reliability))
     with pytest.raises(ValueError, match="cal reliability trace digest"):
         public_summary(tmp_path)
+
+
+@pytest.mark.parametrize("phase", ("cal", "blind"))
+def test_public_reliability_allowlist_drops_private_fields_recursively(tmp_path, phase):
+    _valid_publication_data(tmp_path)
+    artifact_path = tmp_path / f"phase8b-{phase}-reliability.json"
+    source = json.loads(artifact_path.read_text())
+    private_marker = "PRIVATE-RAW-PROMPT-PATH-AND-TOOL-OUTPUT"
+    source.update({
+        "raw_rows": [{"task": private_marker, "id": "private-id"}],
+        "local_paths": [f"/private/experiments/{private_marker}"],
+        "unreviewed_diagnostics": {"full_text": private_marker},
+        "warning": private_marker,
+    })
+    source["bins"][0]["raw_tool_output"] = private_marker
+    source["bins"][1]["unreviewed_diagnostics"] = {"prompt": private_marker}
+    artifact_path.write_text(json.dumps(source))
+    published = public_summary(tmp_path)
+    exported = published["sets"][phase]["model_only_reliability"]
+    assert set(exported) == {
+        "gold_sha256", "trace_sha256", "model_only_n",
+        "multiclass_brier_mean", "mean_nll", "top_label_ece_5_bins",
+        "observed_top_class_accuracy", "bins", "warning",
+    }
+    for histogram_bin in exported["bins"]:
+        assert set(histogram_bin) == {
+            "interval", "count", "mean_confidence", "empirical_accuracy"
+        }
+    assert exported["warning"] == (
+        "small sample; this is diagnostic, not a validated calibration mapping"
+    )
+    assert private_marker not in json.dumps(published)
+    assert "raw_rows" not in json.dumps(published)
+    assert "local_paths" not in json.dumps(published)
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("model_only_n", "PRIVATE-TASK-BODY"),
+        ("model_only_n", True),
+        ("multiclass_brier_mean", {"task": "PRIVATE-TASK-BODY"}),
+        ("top_label_ece_5_bins", float("nan")),
+        ("observed_top_class_accuracy", "PRIVATE-TASK-BODY"),
+        ("bins.0.count", True),
+        ("bins.0.mean_confidence", "PRIVATE-TASK-BODY"),
+        ("bins.0.interval", [0, "PRIVATE-TASK-BODY"]),
+        ("bins.0.interval", [0.0, 0.1, "PRIVATE-TASK-BODY"]),
+    ),
+)
+def test_public_reliability_invalid_known_fields_fail_closed(tmp_path, field, invalid):
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-cal-reliability.json"
+    source = json.loads(path.read_text())
+    keys = field.split(".")
+    target = source
+    for key in keys[:-1]:
+        target = target[int(key)] if isinstance(target, list) else target[key]
+    target[keys[-1]] = invalid
+    path.write_text(json.dumps(source))
+    with pytest.raises(ValueError, match="invalid reliability aggregate"):
+        public_summary(tmp_path)
+
+
+def test_publisher_cli_never_writes_unvalidated_reliability_metrics(
+    tmp_path, monkeypatch
+):
+    from benchmarks.completion import phase8b_publish_summary
+
+    _valid_publication_data(tmp_path)
+    source = tmp_path / "phase8b-blind-reliability.json"
+    artifact = json.loads(source.read_text())
+    artifact["model_only_n"] = "PRIVATE RAW USER TEXT"
+    source.write_text(json.dumps(artifact))
+    output = tmp_path / "must-not-write-public-result.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_publish_summary.py", "--private-dir", str(tmp_path),
+            "--out", str(output),
+        ],
+    )
+    with pytest.raises(ValueError, match="invalid reliability aggregate"):
+        phase8b_publish_summary.main()
+    assert not output.exists()
 
 
 def _reliability_trace(tmp_path, digest):

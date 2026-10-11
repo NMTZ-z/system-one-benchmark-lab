@@ -4,10 +4,67 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 REQUIRED_SETS = ("cal", "blind", "stress")
 POLICIES = ("8a", "rules", "raw", "candidate")
+RELIABILITY_WARNING = "small sample; this is diagnostic, not a validated calibration mapping"
+
+
+def _reliability_number(source: dict, key: str, *, nullable: bool = False):
+    value = source.get(key)
+    if value is None and nullable:
+        return None
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+    ):
+        raise ValueError(f"invalid reliability aggregate number: {key}")
+    return value
+
+
+def _reliability_count(source: dict, key: str) -> int:
+    value = source.get(key)
+    if type(value) is not int or value < 0:
+        raise ValueError(f"invalid reliability aggregate count: {key}")
+    return value
+
+
+def _public_reliability(source: dict) -> dict:
+    """Allowlist numeric aggregate fields; never copy arbitrary private diagnostics."""
+    bins = source.get("bins")
+    if not isinstance(bins, list) or len(bins) != 5:
+        raise ValueError("invalid reliability aggregate bins")
+    public_bins = []
+    for entry in bins:
+        if not isinstance(entry, dict):
+            raise TypeError("invalid reliability aggregate bin")
+        interval = entry.get("interval")
+        if not isinstance(interval, list) or len(interval) != 2:
+            raise ValueError("invalid reliability aggregate bin interval")
+        public_bins.append({
+            "interval": [
+                _reliability_number({"bound": value}, "bound") for value in interval
+            ],
+            "count": _reliability_count(entry, "count"),
+            "mean_confidence": _reliability_number(entry, "mean_confidence", nullable=True),
+            "empirical_accuracy": _reliability_number(entry, "empirical_accuracy", nullable=True),
+        })
+    return {
+        "gold_sha256": source["gold_sha256"],
+        "model_only_n": _reliability_count(source, "model_only_n"),
+        "multiclass_brier_mean": _reliability_number(source, "multiclass_brier_mean"),
+        "mean_nll": _reliability_number(source, "mean_nll"),
+        "top_label_ece_5_bins": _reliability_number(source, "top_label_ece_5_bins"),
+        "observed_top_class_accuracy": _reliability_number(
+            source, "observed_top_class_accuracy"
+        ),
+        "bins": public_bins,
+        "warning": RELIABILITY_WARNING,
+        "trace_sha256": source["trace_sha256"],
+    }
 
 
 def public_summary(private_dir: Path) -> dict:
@@ -70,7 +127,7 @@ def public_summary(private_dir: Path) -> dict:
             or reliability.get("trace_sha256") != trace_sha256
         ):
             raise ValueError(f"{phase} reliability trace digest does not match policy replay")
-        report["sets"][phase]["model_only_reliability"] = reliability
+        report["sets"][phase]["model_only_reliability"] = _public_reliability(reliability)
     return report
 
 
