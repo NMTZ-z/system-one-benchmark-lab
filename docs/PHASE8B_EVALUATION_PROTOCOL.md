@@ -60,7 +60,18 @@ Audit and offline replay share strict typed-choice probability validation
 (three required labels, finite [0,1] values, normalized within rounding error).
 Forced ANE/MLX audits reject actual-backend substitutions; paired replays reject
 model fail-open events, duplicate gold IDs, invalid probability evidence, and
-mismatched case sources. Errors abort publication before writing a final report.
+mismatched case sources. **Replays also independently derive original 8A
+decisions** rather than trusting the stored trace: all seven hard rules are
+recomputed in production order from frozen gold `execution_state`, while
+model decisions are reconstructed from the original choice, validated
+probabilities and the unchanged 0.70 Complete safety threshold (exact equality
+to 0.70 is sufficient). Each row's `deterministic_rule`, `rule_reason`,
+`final_decision`, `final_reason`, `prediction`, and `complete_threshold`
+must match the reconstructed evidence. Malformed, stale or fabricated decisions
+abort offline replay before any policy aggregate can be written. The independent
+hard-rule oracle is regression-tested against the actual CompletionGate
+implementation, including competing evidence flags and rule precedence.
+Errors abort publication before writing a final report.
 
 **Independent provenance limitation:** Matrix/bin consistency alone cannot
 cryptographically prove that a private paired prediction came from a genuine

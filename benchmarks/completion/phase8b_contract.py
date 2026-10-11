@@ -64,6 +64,82 @@ def require_top_label_consistency(probabilities: object, decision: object) -> st
     return top_label
 
 
+# Mirror the seven pre-inference CompletionGate hard rules independently.
+# Regression tests compare this oracle against the live gate implementation,
+# including priority when several evidence flags are true.
+def expected_completion_hard_rule(state: dict) -> tuple[str, str] | None:
+    if state.get("blocking_failure"):
+        return ("continue", "blocking_failure")
+    if state.get("required_artifact_missing"):
+        return ("continue", "required_artifact_missing")
+    if state.get("required_step_missing"):
+        return ("continue", "required_step_missing")
+    if state.get("required_checks_completed") is False:
+        return ("continue", "required_checks_incomplete")
+    tests_run, tests_passed = state.get("tests_run"), state.get("tests_passed")
+    if (
+        isinstance(tests_run, int)
+        and isinstance(tests_passed, int)
+        and tests_run > tests_passed
+    ):
+        return ("continue", "explicit_test_failure")
+    if state.get("conflicting_evidence"):
+        return ("verify", "conflicting_evidence")
+    if state.get("verification_required") and not state.get("final_state_verified", False):
+        return ("verify", "final_state_not_verified")
+    return None
+
+
+def validate_trace_decision(
+    trace: dict, execution_state: dict, *, complete_threshold: float = 0.70
+) -> None:
+    """Independently check the 8A final decision and rule provenance.
+
+    Replay may observe a model choice or a deterministic pre-inference rule,
+    never trust either label or reason as supplied by an editable trace.
+    """
+    observed_threshold = trace.get("complete_threshold")
+    if (
+        isinstance(observed_threshold, bool)
+        or not isinstance(observed_threshold, (int, float))
+        or not math.isfinite(observed_threshold)
+        or observed_threshold != complete_threshold
+    ):
+        _reject("8A safety threshold does not match frozen 0.70")
+
+    hard = expected_completion_hard_rule(execution_state)
+    if hard is not None:
+        expected_decision, expected_reason = hard
+        if (
+            trace.get("deterministic_rule") != expected_decision
+            or trace.get("rule_reason") != expected_reason
+            or trace.get("raw_model_decision") is not None
+            or trace.get("raw_probabilities") is not None
+        ):
+            _reject("deterministic hard gate or its provenance disagrees with gold state")
+    else:
+        if trace.get("deterministic_rule") is not None or trace.get("rule_reason") is not None:
+            _reject("invented deterministic rule without matching gold evidence")
+        raw_choice = trace.get("raw_model_decision")
+        probabilities = trace.get("raw_probabilities")
+        expected_choice = require_top_label_consistency(probabilities, raw_choice)
+        expected_decision = expected_choice
+        expected_reason = f"model_{expected_choice}"
+        if (
+            expected_choice == "complete"
+            and probabilities["complete"] < complete_threshold
+        ):
+            expected_decision = "verify"
+            expected_reason = "model_complete_below_safety_threshold"
+
+    if (
+        trace.get("final_decision") != expected_decision
+        or trace.get("final_reason") != expected_reason
+        or trace.get("prediction") != expected_decision
+    ):
+        _reject("8A final decision, reason or prediction disagrees with frozen evidence")
+
+
 def _wilson_interval(k: int, n: int) -> tuple[float, float]:
     if n == 0:
         return (0.0, 1.0)

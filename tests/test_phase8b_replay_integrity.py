@@ -14,8 +14,13 @@ from benchmarks.completion import phase8b_audit, phase8b_reliability
 from benchmarks.completion.evaluate import metrics as calculate_metrics
 from benchmarks.completion.evaluate_live_backend import RemoteChoiceEngine
 from benchmarks.completion.phase8b_audit import run
+from benchmarks.completion.phase8b_contract import expected_completion_hard_rule
 from benchmarks.completion.phase8b_offline import compare, wilson
 from benchmarks.completion.phase8b_publish_summary import public_summary
+from local_system_one.workflows.completion_gate import (
+    CompletionGate,
+    CompletionGateRequest,
+)
 
 CAL_DIGEST = "b91bbbfdcdc3be1000574456682647148ce7fc46f1a864fb49c9aec84cdf4dd5"
 BLIND_DIGEST = "9074d797a7f56f9506d28199bd5680b9edc6a3108f225d3e976ba52a3921e369"
@@ -485,6 +490,186 @@ def test_offline_rejects_trace_with_model_output_misclassified_as_rule(tmp_path)
     trace_path.write_text(json.dumps(trace))
     with pytest.raises(ValueError, match="model fallback"):
         compare(trace_path, gold)
+
+
+@pytest.mark.parametrize(
+    "state",
+    (
+        {},
+        {"required_checks_completed": True, "final_state_verified": True},
+        {"blocking_failure": True},
+        {"required_artifact_missing": True},
+        {"required_step_missing": True},
+        {"required_checks_completed": False},
+        {"tests_run": 3, "tests_passed": 2},
+        {"conflicting_evidence": True},
+        {"verification_required": True},
+        {"verification_required": True, "final_state_verified": True},
+        {"blocking_failure": True, "required_artifact_missing": True},
+        {"required_artifact_missing": True, "required_step_missing": True},
+        {"required_step_missing": True, "required_checks_completed": False},
+        {"required_checks_completed": False, "tests_run": 3, "tests_passed": 1},
+        {"tests_run": 3, "tests_passed": 1, "conflicting_evidence": True},
+        {"conflicting_evidence": True, "verification_required": True},
+    ),
+)
+def test_offline_hard_rule_oracle_matches_real_gate_including_precedence(state):
+    # Independent audit contract is compared with the unmodified production
+    # CompletionGate, including conflicting evidence flags and rule priority.
+    engine = RemoteChoiceEngine("http://127.0.0.1:9/v1/choice", 0.01, "ane")
+    gate = CompletionGate(engine)
+    request = CompletionGateRequest.from_payload({
+        "task": "Synthetic completion evidence",
+        "current_result": "Synthetic result",
+        "execution_state": state,
+    })
+    actual = gate._hard_gate(request)
+    derived = expected_completion_hard_rule(state)
+    assert derived == (
+        (actual["decision"], actual["reason"]) if actual is not None else None
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("deterministic_rule", "complete"),
+        ("deterministic_rule", None),
+        ("rule_reason", "blocking_failure"),  # a genuine reason, wrong state
+        ("rule_reason", "invented_rule"),
+        ("rule_reason", None),
+        ("final_decision", "complete"),
+        ("final_reason", "invented_rule"),
+        ("prediction", "complete"),
+        ("complete_threshold", 0.5),
+        ("complete_threshold", True),
+        ("complete_threshold", "0.70"),
+    ),
+)
+def test_offline_rejects_forged_hard_rule_trace_field(tmp_path, field, replacement):
+    gold, path, _, trace = _gold_and_trace(tmp_path)
+    trace["rows"][0][field] = replacement
+    path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="invalid phase8b data contract"):
+        compare(path, gold)
+
+
+def test_offline_rejects_fully_fabricated_early_completion_hard_rule(tmp_path):
+    gold, path, _, trace = _gold_and_trace(tmp_path)
+    row = trace["rows"][0]
+    row.update({
+        "deterministic_rule": "complete",
+        "rule_reason": "invented_rule",
+        "final_decision": "complete",
+        "final_reason": "invented_rule",
+        "prediction": "complete",
+    })
+    path.write_text(json.dumps(trace))
+    with pytest.raises(ValueError, match="deterministic hard gate"):
+        compare(path, gold)
+
+
+@pytest.mark.parametrize(
+    ("distribution", "expected_final", "expected_reason"),
+    (
+        ({"complete": 0.6999, "continue": 0.2, "verify": 0.1001},
+         "verify", "model_complete_below_safety_threshold"),
+        ({"complete": 0.7, "continue": 0.2, "verify": 0.1},
+         "complete", "model_complete"),
+        ({"complete": 0.95, "continue": 0.03, "verify": 0.02},
+         "complete", "model_complete"),
+        ({"complete": 0.1, "continue": 0.1, "verify": 0.8},
+         "verify", "model_verify"),
+        ({"complete": 0.08, "continue": 0.82, "verify": 0.10},
+         "continue", "model_continue"),
+    ),
+)
+def test_offline_rederives_true_model_choice_and_exact_8a_threshold(
+    tmp_path, monkeypatch, distribution, expected_final, expected_reason
+):
+    selected = max(distribution, key=distribution.__getitem__)
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide",
+        lambda self, request: dict(
+            _synthetic_choice(selected),
+            probabilities=distribution,
+            confidence=distribution[selected],
+        ),
+    )
+    gold = _model_required_gold(tmp_path)
+    audited = run(gold, "http://127.0.0.1:9/v1/choice", "mlx", 0.01, 0)
+    model = audited["rows"][1]
+    assert model["final_decision"] == expected_final
+    assert model["final_reason"] == expected_reason
+    path = tmp_path / "evidence-trace.json"
+    path.write_text(json.dumps(audited))
+    replay = compare(path, gold)
+    assert replay["paired_predictions"][1]["8a"] == expected_final
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("final_decision", "verify"),
+        ("final_reason", "model_complete_below_safety_threshold"),
+        ("prediction", "verify"),
+        ("rule_reason", "blocking_failure"),  # cannot claim a rule after inference
+        ("complete_threshold", 0.5),
+    ),
+)
+def test_offline_rejects_forged_model_decision_or_threshold(
+    tmp_path, monkeypatch, field, replacement
+):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide", lambda self, request: _synthetic_choice()
+    )
+    gold = _model_required_gold(tmp_path)
+    audited = run(gold, "http://127.0.0.1:9/v1/choice", "mlx", 0.01, 0)
+    audited["rows"][1][field] = replacement
+    path = tmp_path / "forged-model-trace.json"
+    path.write_text(json.dumps(audited))
+    with pytest.raises(ValueError, match="invalid phase8b data contract"):
+        compare(path, gold)
+
+
+def test_offline_rejects_invalid_model_trace_after_probability_edit(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        RemoteChoiceEngine, "decide", lambda self, request: _synthetic_choice()
+    )
+    gold = _model_required_gold(tmp_path)
+    audited = run(gold, "http://127.0.0.1:9/v1/choice", "mlx", 0.01, 0)
+    model = audited["rows"][1]
+    model["raw_probabilities"] = {"complete": 0.65, "continue": 0.2, "verify": 0.15}
+    path = tmp_path / "forged-probability-threshold.json"
+    path.write_text(json.dumps(audited))
+    with pytest.raises(ValueError, match="8A final decision"):
+        compare(path, gold)
+
+
+def test_offline_cli_rejects_fabricated_decision_without_output(tmp_path, monkeypatch):
+    from benchmarks.completion import phase8b_offline
+
+    gold, path, _, trace = _gold_and_trace(tmp_path)
+    trace["rows"][0].update({
+        "deterministic_rule": "complete",
+        "rule_reason": "invented_rule",
+        "final_decision": "complete",
+        "final_reason": "invented_rule",
+        "prediction": "complete",
+    })
+    path.write_text(json.dumps(trace))
+    out = tmp_path / "must-not-publish-fabricated-completion.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_offline.py",
+            "--gold", str(gold), "--trace", str(path), "--out", str(out),
+        ],
+    )
+    with pytest.raises(ValueError, match="invalid phase8b data contract"):
+        phase8b_offline.main()
+    assert not out.exists()
 
 
 def _valid_publication_data(tmp_path):

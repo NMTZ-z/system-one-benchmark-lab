@@ -16,7 +16,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from benchmarks.completion.evaluate import metrics
-from benchmarks.completion.phase8b_contract import require_top_label_consistency
+from benchmarks.completion.phase8b_contract import (
+    require_top_label_consistency,
+    validate_trace_decision,
+)
 
 CANDIDATE_COMPLETE_THRESHOLD = .50  # selected from pilot calibration ONLY
 
@@ -113,6 +116,10 @@ def compare(trace_path: Path, gold_path: Path) -> dict:
         if trace.get("final_decision") not in ("complete", "continue", "verify"):
             raise ValueError("trace contains invalid final choice")
         state = item["execution_state"]
+        # Reproduce the original 8A hard-gate precedence and model threshold
+        # independently from gold state and captured raw inference evidence.
+        # A plausible but fabricated trace decision must never enter metrics.
+        validate_trace_decision(trace, state)
         observed.append({
             "id": trace["id"], "label": trace["label"], "source": trace["source"],
             "8a": trace["final_decision"],
