@@ -35,6 +35,13 @@ def _policy_number(source: dict, key: str, *, nullable: bool = False):
     return value
 
 
+def _policy_rate(source: dict, key: str, *, nullable: bool = False):
+    value = _policy_number(source, key, nullable=nullable)
+    if value is not None and not 0.0 <= value <= 1.0:
+        raise ValueError(f"invalid policy aggregate rate: {key}")
+    return value
+
+
 def _policy_count(source: dict, key: str) -> int:
     value = source.get(key)
     if type(value) is not int or value < 0:
@@ -58,9 +65,9 @@ def _public_policy(source: dict) -> dict:
         if not isinstance(class_metrics, dict) or not isinstance(matrix_row, dict):
             raise TypeError("invalid policy aggregate class/matrix row")
         public_classes[label] = {
-            "precision": _policy_number(class_metrics, "precision"),
-            "recall": _policy_number(class_metrics, "recall"),
-            "f1": _policy_number(class_metrics, "f1"),
+            "precision": _policy_rate(class_metrics, "precision"),
+            "recall": _policy_rate(class_metrics, "recall"),
+            "f1": _policy_rate(class_metrics, "f1"),
             "support": _policy_count(class_metrics, "support"),
         }
         public_matrix[label] = {
@@ -69,11 +76,16 @@ def _public_policy(source: dict) -> dict:
     wilson = source.get("premature_completion_wilson_95")
     if not isinstance(wilson, list) or len(wilson) != 2:
         raise ValueError("invalid policy aggregate Wilson interval")
+    wilson_bounds = [
+        _policy_rate({"bound": value}, "bound") for value in wilson
+    ]
+    if wilson_bounds[0] > wilson_bounds[1]:
+        raise ValueError("invalid policy aggregate Wilson interval ordering")
     premature = _policy_count(source, "premature_completion_count")
     non_complete = _policy_count(source, "non_complete_support")
     if premature > non_complete:
         raise ValueError("invalid policy aggregate premature count")
-    bound = _policy_number(
+    bound = _policy_rate(
         source, "premature_completion_zero_one_sided_upper_95",
         nullable=premature != 0 or non_complete == 0,
     )
@@ -84,15 +96,13 @@ def _public_policy(source: dict) -> dict:
     elif bound is not None:
         raise ValueError("invalid policy aggregate nonzero-event upper bound")
     return {
-        "accuracy": _policy_number(source, "accuracy"),
-        "macro_f1": _policy_number(source, "macro_f1"),
+        "accuracy": _policy_rate(source, "accuracy"),
+        "macro_f1": _policy_rate(source, "macro_f1"),
         "per_class": public_classes,
         "confusion_matrix": public_matrix,
         "premature_completion_count": premature,
         "non_complete_support": non_complete,
-        "premature_completion_wilson_95": [
-            _policy_number({"bound": value}, "bound") for value in wilson
-        ],
+        "premature_completion_wilson_95": wilson_bounds,
         "premature_completion_zero_one_sided_upper_95": bound,
     }
 

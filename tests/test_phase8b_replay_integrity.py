@@ -509,6 +509,20 @@ def test_public_policy_allowlist_drops_private_nested_fields(tmp_path, stage):
         ("premature_completion_zero_one_sided_upper_95", None),
         ("premature_completion_zero_one_sided_upper_95", 0.1),
         ("macro_f1", float("nan")),
+        ("accuracy", -0.01),
+        ("accuracy", 1.01),
+        ("macro_f1", -0.01),
+        ("macro_f1", 1.01),
+        ("per_class.complete.precision", -0.01),
+        ("per_class.complete.precision", 1.01),
+        ("per_class.continue.recall", -0.01),
+        ("per_class.continue.recall", 1.01),
+        ("per_class.verify.f1", -0.01),
+        ("per_class.verify.f1", 1.01),
+        ("premature_completion_wilson_95", [-0.01, 0.6]),
+        ("premature_completion_wilson_95", [0.2, 1.01]),
+        ("premature_completion_wilson_95", [0.8, 0.2]),
+        ("premature_completion_zero_one_sided_upper_95", 1.01),
         ("non_complete_support", "PRIVATE PATH"),
         ("matched_case_count", "PRIVATE PATH"),
     ),
@@ -528,6 +542,45 @@ def test_public_policy_invalid_aggregate_values_fail_closed(tmp_path, field, inv
     source_path.write_text(json.dumps(source))
     with pytest.raises(ValueError, match="invalid policy aggregate"):
         public_summary(tmp_path)
+
+
+def test_public_policy_accepts_valid_rate_boundaries_and_wilson_order(tmp_path):
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-blind-policies.json"
+    source = json.loads(path.read_text())
+    policy = source["policies"]["candidate"]
+    policy["accuracy"] = 0.0
+    policy["macro_f1"] = 1.0
+    policy["per_class"]["complete"]["precision"] = 0.0
+    policy["per_class"]["continue"]["recall"] = 1.0
+    policy["per_class"]["verify"]["f1"] = 0.0
+    policy["premature_completion_wilson_95"] = [0.0, 1.0]
+    path.write_text(json.dumps(source))
+
+    result = public_summary(tmp_path)["sets"]["blind"]["policies"]["candidate"]
+    assert result["accuracy"] == 0.0
+    assert result["macro_f1"] == 1.0
+    assert result["premature_completion_wilson_95"] == [0.0, 1.0]
+
+
+def test_publisher_cli_refuses_out_of_range_scores_without_output(tmp_path, monkeypatch):
+    from benchmarks.completion import phase8b_publish_summary
+
+    _valid_publication_data(tmp_path)
+    path = tmp_path / "phase8b-stress-policies.json"
+    source = json.loads(path.read_text())
+    source["policies"]["raw"]["accuracy"] = 2.0
+    path.write_text(json.dumps(source))
+    output = tmp_path / "must-not-publish-impossible-accuracy.json"
+    monkeypatch.setattr(
+        sys, "argv", [
+            "phase8b_publish_summary.py", "--private-dir", str(tmp_path),
+            "--out", str(output),
+        ],
+    )
+    with pytest.raises(ValueError, match="invalid policy aggregate rate"):
+        phase8b_publish_summary.main()
+    assert not output.exists()
 
 
 def test_public_policy_publishes_null_when_zero_event_bound_not_defined(tmp_path):
