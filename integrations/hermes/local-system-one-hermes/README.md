@@ -98,6 +98,20 @@ Shadow mode:
 
 This is the recommended way to evaluate the plugin before allowing any request mutation.
 
+## Phase 8B optional tool-result Completion probe
+
+For an **evaluation profile only**, `completion_loop_probe_enabled: true` adds
+one extra **Shadow-only** observation after the first `post_tool_call` in a
+turn. It is **false by default** and requires `completion_gate_enabled: true`.
+The existing end-of-turn probe remains independent and unchanged. Neither
+decision can stop a task, alter a tool request or skip verification. Only a
+generic status sentence and bounded task are sent; **raw tool result text is
+not sent or logged**. The synchronous Hermes hook incurs extra latency if
+enabled, and the first tool result alone is usually insufficient completion
+evidence. This is not recommended on production profiles.
+
+See [Phase 8B report](../../../docs/PHASE8B_FINAL_REPORT.md); **Active: NO-GO**.
+
 ## Modes
 
 | Mode | Local System One calls | Changes Hermes provider request? | Recommended use |
