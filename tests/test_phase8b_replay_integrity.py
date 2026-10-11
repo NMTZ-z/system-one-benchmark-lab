@@ -256,14 +256,29 @@ def _valid_publication_data(tmp_path):
     (tmp_path / "phase8b-pilot-freeze.json").write_text(json.dumps(frozen))
     sha = {"cal": frozen["calibration"]["sha256"], "blind": frozen["blind"]["sha256"],
            "stress": STRESS_DIGEST}
+    labels = ("complete", "continue", "verify")
     policy = {
         "accuracy": 1.0,
-        "macro_f1": 1.0,
-        "per_class": {},
-        "confusion_matrix": {},
+        "macro_f1": 1 / 3,
+        "per_class": {
+            label: {
+                "precision": 1.0 if label == "continue" else 0.0,
+                "recall": 1.0 if label == "continue" else 0.0,
+                "f1": 1.0 if label == "continue" else 0.0,
+                "support": int(label == "continue"),
+            }
+            for label in labels
+        },
+        "confusion_matrix": {
+            label: {
+                predicted: int(label == predicted == "continue") for predicted in labels
+            }
+            for label in labels
+        },
         "premature_completion_count": 0,
         "non_complete_support": 1,
         "premature_completion_wilson_95": [0.0, 0.1],
+        "premature_completion_zero_one_sided_upper_95": 0.95,
     }
     for stage, digest in sha.items():
         (tmp_path / f"phase8b-{stage}-policies.json").write_text(
@@ -307,6 +322,117 @@ def test_public_summary_rejects_replay_digest_different_from_freeze(tmp_path):
     (tmp_path / "phase8b-blind-policies.json").write_text(json.dumps(changed))
     with pytest.raises(ValueError, match="blind replay corpus digest"):
         public_summary(tmp_path)
+
+
+@pytest.mark.parametrize("stage", ("cal", "blind", "stress"))
+def test_public_policy_allowlist_drops_private_nested_fields(tmp_path, stage):
+    _valid_publication_data(tmp_path)
+    source_path = tmp_path / f"phase8b-{stage}-policies.json"
+    source = json.loads(source_path.read_text())
+    private_marker = "PRIVATE-RAW-TASK-OUTPUT-LOCAL-PATH"
+    policy = source["policies"]["raw"]
+    policy["private_rows"] = [{"task": private_marker}]
+    policy["per_class"]["complete"]["raw_task"] = private_marker
+    policy["per_class"]["verify"]["diagnostics"] = {"tool_output": private_marker}
+    policy["per_class"]["injected_label"] = {"task": private_marker}
+    policy["confusion_matrix"]["complete"]["local_path"] = private_marker
+    policy["confusion_matrix"]["verify"]["raw_rows"] = [private_marker]
+    policy["confusion_matrix"]["injected_label"] = {"task": private_marker}
+    source["private_debug_rows"] = [{"task": private_marker}]
+    source_path.write_text(json.dumps(source))
+
+    published = public_summary(tmp_path)
+    aggregate = published["sets"][stage]["policies"]["raw"]
+    assert set(aggregate) == {
+        "accuracy", "macro_f1", "per_class", "confusion_matrix",
+        "premature_completion_count", "non_complete_support",
+        "premature_completion_wilson_95",
+        "premature_completion_zero_one_sided_upper_95",
+    }
+    expected_labels = {"complete", "continue", "verify"}
+    assert set(aggregate["per_class"]) == expected_labels
+    assert set(aggregate["confusion_matrix"]) == expected_labels
+    for label in expected_labels:
+        assert set(aggregate["per_class"][label]) == {
+            "precision", "recall", "f1", "support",
+        }
+        assert set(aggregate["confusion_matrix"][label]) == expected_labels
+    assert private_marker not in json.dumps(published)
+    assert "private_rows" not in json.dumps(published)
+    assert aggregate["premature_completion_zero_one_sided_upper_95"] == 0.95
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("per_class.complete.precision", "PRIVATE USER PROMPT"),
+        ("per_class.complete.support", True),
+        ("per_class.continue.f1", {"raw_text": "PRIVATE USER PROMPT"}),
+        ("confusion_matrix.complete.verify", "PRIVATE TOOL OUTPUT"),
+        ("confusion_matrix.verify.complete", -1),
+        ("premature_completion_wilson_95", [0, "PRIVATE VALUE"]),
+        ("premature_completion_wilson_95", [0, 0.1, "PRIVATE VALUE"]),
+        ("premature_completion_zero_one_sided_upper_95", "PRIVATE VALUE"),
+        ("premature_completion_zero_one_sided_upper_95", None),
+        ("premature_completion_zero_one_sided_upper_95", 0.1),
+        ("macro_f1", float("nan")),
+        ("non_complete_support", "PRIVATE PATH"),
+        ("matched_case_count", "PRIVATE PATH"),
+    ),
+)
+def test_public_policy_invalid_aggregate_values_fail_closed(tmp_path, field, invalid):
+    _valid_publication_data(tmp_path)
+    source_path = tmp_path / "phase8b-blind-policies.json"
+    source = json.loads(source_path.read_text())
+    if field == "matched_case_count":
+        source[field] = invalid
+    else:
+        target = source["policies"]["candidate"]
+        parts = field.split(".")
+        for part in parts[:-1]:
+            target = target[part]
+        target[parts[-1]] = invalid
+    source_path.write_text(json.dumps(source))
+    with pytest.raises(ValueError, match="invalid policy aggregate"):
+        public_summary(tmp_path)
+
+
+def test_public_policy_publishes_null_when_zero_event_bound_not_defined(tmp_path):
+    _valid_publication_data(tmp_path)
+    source_path = tmp_path / "phase8b-stress-policies.json"
+    source = json.loads(source_path.read_text())
+    metrics = source["policies"]["raw"]
+    metrics["premature_completion_count"] = 1
+    metrics["premature_completion_zero_one_sided_upper_95"] = None
+    source_path.write_text(json.dumps(source))
+    assert (
+        public_summary(tmp_path)["sets"]["stress"]["policies"]["raw"][
+            "premature_completion_zero_one_sided_upper_95"
+        ] is None
+    )
+
+
+def test_publisher_cli_never_writes_unvalidated_policy_metrics(tmp_path, monkeypatch):
+    from benchmarks.completion import phase8b_publish_summary
+
+    _valid_publication_data(tmp_path)
+    artifact_path = tmp_path / "phase8b-stress-policies.json"
+    artifact = json.loads(artifact_path.read_text())
+    artifact["policies"]["8a"]["confusion_matrix"]["complete"]["verify"] = (
+        "PRIVATE USER TEXT"
+    )
+    artifact_path.write_text(json.dumps(artifact))
+    output = tmp_path / "must-not-publish-private-policy-report.json"
+    monkeypatch.setattr(
+        sys, "argv",
+        [
+            "phase8b_publish_summary.py", "--private-dir", str(tmp_path),
+            "--out", str(output),
+        ],
+    )
+    with pytest.raises(ValueError, match="invalid policy aggregate"):
+        phase8b_publish_summary.main()
+    assert not output.exists()
 
 
 def test_public_summary_accepts_matching_reliability_corpus_digest(tmp_path):

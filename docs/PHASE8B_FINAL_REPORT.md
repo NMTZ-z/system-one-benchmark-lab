@@ -70,7 +70,7 @@ Numbers include local loopback, serialization and cold/warm variability, **not**
 
 Installed Hermes identified as `0.21.6+153.g51609d8.dirty`. Actual native `post_tool_call` dispatcher and its per-tool identity were inspected in the installed Hermes source; it is an observational bounded hook. An **independent default-OFF** `completion_loop_probe_enabled` toggle was added to the existing adapter; it probes at most **once per turn after the first observed tool result**. Existing `on_session_end` observer stays intact. Requests carry task and a generic progress sentence, *not raw tool output*. Only metadata is stored. The native hook callback returns `None`, never mutates tools, model, or termination. Errors/invalid Runtime responses fail open. Hermes manifest validation and doctor passed, and synthetic hook replay reached a separately launched actual MLX Runtime on loopback port 8788 for both mid-turn and end-turn calls.
 
-**Important limit:** The first tool completion generally does **not** establish whole-task satisfaction. This proves lifecycle/transport feasibility, not useful Active evidence. Hermes synchronous adapter call adds decision latency on that tool-result hook (roughly a model inference wall-time; worst case bounded by existing timeout settings). Future asynchronous/batched model observations should be tested before allowing frequent probes.
+**Important limit:** The first tool completion generally does **not** establish whole-task satisfaction. This proves lifecycle/transport feasibility, not useful Active evidence. The opt-in Hermes `post_tool_call` observer now **dispatches inference to a daemon thread and returns without waiting for the HTTP response**. A nonblocking semaphore caps in-flight observations at **four**; saturation drops the optional probe with `failed_open / probe_capacity_exhausted`, while worker/dispatch failures fail open. The original end-of-turn observer remains separate. The hook still incurs bounded metadata-copy, bookkeeping and thread-scheduling overhead; background inference consumes local compute, memory and HTTP resources and may cause contention. This is **not** proof of zero overhead, reduced end-to-end Agent latency, or energy savings. Event-triggered/batched scheduling, live Agent E2E and longer concurrency testing remain future work; basic asynchronous dispatch is already implemented.
 
 ## 10. DeepSeek Harness Agent Loop probe
 
@@ -78,7 +78,7 @@ Pinned upstream lifecycle inspected at commit `477b4f420553e8a52c2fbccc464d7561b
 
 ## 11. Agent cost and possible scheduling policy
 
-The isolated synthetic holdout required 25 Laya calls for 45 cases; the other 20 were handled by hard rules. Mean model question length was **164.28 tokens** (range 156–181) in that replay. Those are **local model input tokens**, not an LLM API bill. Completion adds no provider prompt tokens by itself. With the opt-in loop probe, an ordinary turn with tools can produce **up to two Completion calls** (one after the first tool and one at turn/end); zero-tool turns can still be evaluated at turn/end. A rough 50–65 ms per inference can become ~100–130 ms of aggregate extra local work on a 2-call turn before scheduling/network variance. This is **not** a measurement of end-to-end Agent delay. Only a state-change/completion-candidate event-driven strategy could justify frequent calls; the first-tool one-shot is a feasibility probe, not an optimized scheduler.
+The isolated synthetic holdout required 25 Laya calls for 45 cases; the other 20 were handled by hard rules. Mean model question length was **164.28 tokens** (range 156–181) in that replay. Those are **local model input tokens**, not an LLM API bill. Completion adds no provider prompt tokens by itself. With the opt-in loop probe, an ordinary turn with tools can produce **up to two Completion calls** (one after the first tool and one at turn/end); zero-tool turns can still be evaluated at turn/end. A rough 50–65 ms per inference can become ~100–130 ms of aggregate extra local work on a 2-call turn before scheduling/network variance. Hermes now dispatches its optional tool-result observation asynchronously, so those model times **must not** be summed as sequential hook-path blocking. This is **not** a measurement of end-to-end Agent delay. Only a state-change/completion-candidate event-driven strategy could justify frequent calls; the first-tool one-shot is a feasibility probe, not an optimized scheduler.
 
 ## 12. Risk and fail-open
 
@@ -86,8 +86,8 @@ Completion is still a semantic recommendation, not a control command. No setting
 
 ## 13. Tests and technical acceptance
 
-- Repository Python full regression: **114/114 PASS**.
-- DSH Vitest: **43/43 PASS**; TypeScript `tsc --noEmit` PASS; production `tsc` build PASS.
+- Initial Phase 8B pilot snapshot (historical): repository Python **114/114 PASS**; DSH Vitest **43/43 PASS**.
+- After Codex Review follow-up fixes (2026-10-11): NAS development Python **179/179 PASS**; DSH Vitest **44/44 PASS**, TypeScript `tsc --noEmit` and `tsc` build PASS. Independent sanitized public-tree results are recorded in the PR review evidence.
 - Hermes `plugins validate` PASS, `plugins doctor --ci` PASS on installed Hermes.
 - Hermes new probe unit tests: one per turn, default off, telemetry privacy, error fail-open.
 - DSH new probe tests: one per turn, default off, unchanged native event dispatch, error fail-open and gate independence.

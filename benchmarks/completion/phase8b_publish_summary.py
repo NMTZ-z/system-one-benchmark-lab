@@ -12,6 +12,84 @@ POLICIES = ("8a", "rules", "raw", "candidate")
 RELIABILITY_WARNING = "small sample; this is diagnostic, not a validated calibration mapping"
 
 
+LABELS = ("complete", "continue", "verify")
+
+
+def _policy_number(source: dict, key: str, *, nullable: bool = False):
+    value = source.get(key)
+    if value is None and nullable:
+        return None
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+    ):
+        raise ValueError(f"invalid policy aggregate number: {key}")
+    return value
+
+
+def _policy_count(source: dict, key: str) -> int:
+    value = source.get(key)
+    if type(value) is not int or value < 0:
+        raise ValueError(f"invalid policy aggregate count: {key}")
+    return value
+
+
+def _public_policy(source: dict) -> dict:
+    """Project every nested policy metric onto typed, aggregate-only fields."""
+    if not isinstance(source, dict):
+        raise TypeError("invalid policy aggregate record")
+    classes = source.get("per_class")
+    matrix = source.get("confusion_matrix")
+    if not isinstance(classes, dict) or not isinstance(matrix, dict):
+        raise TypeError("invalid policy aggregate class/matrix")
+    public_classes = {}
+    public_matrix = {}
+    for label in LABELS:
+        class_metrics = classes.get(label)
+        matrix_row = matrix.get(label)
+        if not isinstance(class_metrics, dict) or not isinstance(matrix_row, dict):
+            raise TypeError("invalid policy aggregate class/matrix row")
+        public_classes[label] = {
+            "precision": _policy_number(class_metrics, "precision"),
+            "recall": _policy_number(class_metrics, "recall"),
+            "f1": _policy_number(class_metrics, "f1"),
+            "support": _policy_count(class_metrics, "support"),
+        }
+        public_matrix[label] = {
+            predicted: _policy_count(matrix_row, predicted) for predicted in LABELS
+        }
+    wilson = source.get("premature_completion_wilson_95")
+    if not isinstance(wilson, list) or len(wilson) != 2:
+        raise ValueError("invalid policy aggregate Wilson interval")
+    premature = _policy_count(source, "premature_completion_count")
+    non_complete = _policy_count(source, "non_complete_support")
+    if premature > non_complete:
+        raise ValueError("invalid policy aggregate premature count")
+    bound = _policy_number(
+        source, "premature_completion_zero_one_sided_upper_95",
+        nullable=premature != 0 or non_complete == 0,
+    )
+    if premature == 0 and non_complete > 0:
+        expected = 1 - math.pow(.05, 1 / non_complete)
+        if not math.isclose(bound, expected, rel_tol=1e-12, abs_tol=1e-15):
+            raise ValueError("invalid policy aggregate exact zero-event upper bound")
+    elif bound is not None:
+        raise ValueError("invalid policy aggregate nonzero-event upper bound")
+    return {
+        "accuracy": _policy_number(source, "accuracy"),
+        "macro_f1": _policy_number(source, "macro_f1"),
+        "per_class": public_classes,
+        "confusion_matrix": public_matrix,
+        "premature_completion_count": premature,
+        "non_complete_support": non_complete,
+        "premature_completion_wilson_95": [
+            _policy_number({"bound": value}, "bound") for value in wilson
+        ],
+        "premature_completion_zero_one_sided_upper_95": bound,
+    }
+
+
 def _reliability_number(source: dict, key: str, *, nullable: bool = False):
     value = source.get(key)
     if value is None and nullable:
@@ -90,19 +168,10 @@ def public_summary(private_dir: Path) -> dict:
         policy_trace_sha256[name] = source.get("trace_sha256")
         policies = {}
         for key in POLICIES:
-            metrics = source["policies"][key]
-            policies[key] = {
-                "accuracy": metrics["accuracy"],
-                "macro_f1": metrics["macro_f1"],
-                "per_class": metrics["per_class"],
-                "confusion_matrix": metrics["confusion_matrix"],
-                "premature_completion_count": metrics["premature_completion_count"],
-                "non_complete_support": metrics["non_complete_support"],
-                "premature_completion_wilson_95": metrics["premature_completion_wilson_95"],
-            }
+            policies[key] = _public_policy(source["policies"][key])
         report["sets"][name] = {
-            "cases": source["matched_case_count"],
-            "classes": ["complete", "continue", "verify"],
+            "cases": _policy_count(source, "matched_case_count"),
+            "classes": list(LABELS),
             "policies": policies,
             "warnings": [
                 "synthetic engineered cases, not genuine Hermes/DSH Agent traces",

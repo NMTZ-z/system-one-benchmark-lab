@@ -106,9 +106,16 @@ turn. It is **false by default** and requires `completion_gate_enabled: true`.
 The existing end-of-turn probe remains independent and unchanged. Neither
 decision can stop a task, alter a tool request or skip verification. Only a
 generic status sentence and bounded task are sent; **raw tool result text is
-not sent or logged**. The synchronous Hermes hook incurs extra latency if
-enabled, and the first tool result alone is usually insufficient completion
-evidence. This is not recommended on production profiles.
+not sent or logged**. The `post_tool_call` hook snapshots bounded metadata
+and starts a **daemon observer thread without waiting for HTTP inference**.
+At most four observations may run concurrently; when all slots are occupied,
+the optional probe records `failed_open / probe_capacity_exhausted` instead
+of queuing or blocking the Agent. Thread dispatch failures also fail open.
+Hook bookkeeping and thread scheduling still have overhead, and background
+inference consumes local compute, memory and network resources; end-to-end
+Agent latency/energy savings are **not established**. The first tool result
+alone is usually insufficient completion evidence. This is not recommended
+on production profiles.
 
 See [Phase 8B report](../../../docs/PHASE8B_FINAL_REPORT.md); **Active: NO-GO**.
 
