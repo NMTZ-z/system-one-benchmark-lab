@@ -19,6 +19,7 @@ import json
 import math
 import os
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -463,6 +464,9 @@ def register(ctx):
     # Completion context is bounded and process-local. Raw task/result content is
     # consumed at the real Hermes session boundary and never written to plugin state.
     pending_completion: dict[str, dict[str, Any]] = {}
+    # Observation-only work is bounded and must never hold up Hermes hooks.
+    completion_probe_slots = threading.BoundedSemaphore(4)
+    completion_probe_history_lock = threading.Lock()
 
     def _completion_keys(kwargs: dict[str, Any]) -> list[str]:
         keys: list[str] = []
@@ -527,6 +531,15 @@ def register(ctx):
         if record is not None:
             record["current_result"] = response[:_MAX_COMPLETION_RESULT_CHARS]
 
+    def _persist_completion_probe_event(event: dict[str, Any]) -> None:
+        with completion_probe_history_lock:
+            history = _state_get(ctx, "completion_loop_probe_history", [])
+            if not isinstance(history, list):
+                history = []
+            history.append(event)
+            _state_set(ctx, "completion_loop_probe_history", history[-_MAX_HISTORY:])
+            _state_set(ctx, "last_completion_loop_probe", event)
+
     def _completion_post_tool(**kwargs):
         if effective_mode.startswith("off") or not completion_enabled:
             return
@@ -570,47 +583,67 @@ def register(ctx):
             "tools_used": record["tools_used"],
             "tool_failures": record["tool_failures"],
         }
-        try:
-            observed = _safe_completion(
-                base_url,
-                task,
-                result_text,
-                {
-                    "tools_used": record["tools_used"],
-                    "tool_failures": record["tool_failures"],
-                },
-                timeout,
-                request_id,
-            )
-            event["shadow_latency_ms"] = round(
-                float(observed.get("shadow_latency_ms", 0.0)), 3
-            )
-            completion = observed.get("completion")
-            if isinstance(completion, dict):
-                event.update({
-                    "decision": completion.get("decision"),
-                    "decision_source": completion.get("decision_source"),
-                    "reason": completion.get("reason"),
-                    "backend": completion.get("backend"),
-                    "latency_ms": completion.get("latency_ms"),
-                    "confidence": completion.get("confidence"),
-                    "action_status": "observed",
-                    "action_reason": "completion_loop_probe_shadow_only",
-                })
-            else:
-                event["action_status"] = "failed_open"
-                event["action_reason"] = (
-                    f"runtime_{observed.get('error') or 'invalid_response'}"
-                )
-        except Exception:  # noqa: BLE001 - experimental observer may never break native Hermes
+        # Never wait for a network response on the native Hermes hook path.
+        # Saturation drops this optional observation rather than queuing work.
+        if not completion_probe_slots.acquire(blocking=False):
             event["action_status"] = "failed_open"
-            event["action_reason"] = "probe_exception"
-        history = _state_get(ctx, "completion_loop_probe_history", [])
-        if not isinstance(history, list):
-            history = []
-        history.append(event)
-        _state_set(ctx, "completion_loop_probe_history", history[-_MAX_HISTORY:])
-        _state_set(ctx, "last_completion_loop_probe", event)
+            event["action_reason"] = "probe_capacity_exhausted"
+            _persist_completion_probe_event(event)
+            return
+
+        # Snapshot the turn counters: the native hook can continue immediately.
+        execution_state = {
+            "tools_used": event["tools_used"],
+            "tool_failures": event["tool_failures"],
+        }
+
+        def _observe_completion_probe() -> None:
+            try:
+                try:
+                    observed = _safe_completion(
+                        base_url, task, result_text, execution_state, timeout, request_id
+                    )
+                    event["shadow_latency_ms"] = round(
+                        float(observed.get("shadow_latency_ms", 0.0)), 3
+                    )
+                    completion = observed.get("completion")
+                    if isinstance(completion, dict):
+                        event.update({
+                            "decision": completion.get("decision"),
+                            "decision_source": completion.get("decision_source"),
+                            "reason": completion.get("reason"),
+                            "backend": completion.get("backend"),
+                            "latency_ms": completion.get("latency_ms"),
+                            "confidence": completion.get("confidence"),
+                            "action_status": "observed",
+                            "action_reason": "completion_loop_probe_shadow_only",
+                        })
+                    else:
+                        event["action_status"] = "failed_open"
+                        event["action_reason"] = (
+                            f"runtime_{observed.get('error') or 'invalid_response'}"
+                        )
+                except Exception:  # noqa: BLE001 - observer failure cannot break Hermes
+                    event["action_status"] = "failed_open"
+                    event["action_reason"] = "probe_exception"
+            finally:
+                try:
+                    _persist_completion_probe_event(event)
+                finally:
+                    completion_probe_slots.release()
+
+        try:
+            # Daemon threads do not extend the Hermes process lifetime.
+            threading.Thread(
+                target=_observe_completion_probe,
+                name="system-one-completion-observer",
+                daemon=True,
+            ).start()
+        except Exception:  # noqa: BLE001 - even thread dispatch must fail open
+            completion_probe_slots.release()
+            event["action_status"] = "failed_open"
+            event["action_reason"] = "probe_dispatch_failed"
+            _persist_completion_probe_event(event)
 
     def _completion_session_end(**kwargs):
         if effective_mode.startswith("off") or not completion_enabled:
