@@ -63,6 +63,7 @@ export function resolveConfig(input: AdapterConfig = {}): ResolvedAdapterConfig 
     modelTierGateEnabled: input.model_tier_gate_enabled ?? true,
     notificationGateEnabled: input.notification_gate_enabled ?? true,
     completionGateEnabled: input.completion_gate_enabled ?? true,
+    completionLoopProbeEnabled: input.completion_loop_probe_enabled ?? false,
     canaryAcknowledged,
     canaryWebFilterEnabled: input.canary_web_filter_enabled ?? true,
     canaryReasoningDowngradeEnabled: input.canary_reasoning_downgrade_enabled ?? false,

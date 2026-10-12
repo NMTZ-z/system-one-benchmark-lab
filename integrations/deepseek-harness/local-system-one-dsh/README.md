@@ -77,6 +77,7 @@ machine-readable schema at
 | `model_tier_gate_enabled` | `true` |
 | `notification_gate_enabled` | `true` |
 | `completion_gate_enabled` | `true` |
+| `completion_loop_probe_enabled` | `false` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
@@ -102,6 +103,21 @@ canary_reasoning_downgrade_enabled: false
 ```
 
 The adapter sends only the current user task plus an ephemeral request ID to the configured Local System One endpoint. It does not send the full transcript or system prompt.
+
+## Phase 8B optional loop probe
+
+An opt-in `completion_loop_probe_enabled: true` enables a one-per-turn
+**Shadow-only** observation on the native `session/event:tool/result` event,
+without awaiting model inference in the event handler. It is independent of,
+and additional to, the existing `turn/end` Completion observation. The
+observation uses generic progress wording, not raw tool output. It does not
+mutate DSH control flow and is **off by default**. Turn and session state
+is scoped and cleared on lifecycle boundaries; failures are fail-open.
+
+Only the pinned upstream DSH lifecycle and simulated event replay plus real
+HTTP adapter integration were evaluated. Full native LLM-backed Agent
+E2E and a production-quality task dataset remain outstanding. [Phase 8B
+report](../../../docs/PHASE8B_FINAL_REPORT.md): **Active NO-GO**.
 
 ## Search Gate
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import threading
+import time
 from pathlib import Path
 
 PLUGIN_PATH = (
@@ -1049,6 +1051,247 @@ def test_completion_shadow_dead_service_is_fail_open(monkeypatch):
     assert last["action_reason"] == "runtime_URLError"
 
 
+def _wait_probe_events(ctx, count, timeout=2.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        events = ctx.state.values.get("completion_loop_probe_history", [])
+        if len(events) >= count:
+            return events
+        time.sleep(0.005)
+    raise AssertionError(f"expected {count} completed asynchronous probe events")
+
+
+def test_phase8b_tool_result_probe_opt_in_once_per_turn_and_private(monkeypatch):
+    plugin = load_plugin()
+    observed = []
+
+    def fake_completion(_url, task, result, state, _timeout, request_id):
+        observed.append((task, result, state, request_id))
+        return {
+            "ok": True,
+            "completion": {
+                "decision": "verify",
+                "decision_source": "rule",
+                "reason": "candidate_result_needs_validation",
+                "confidence": 1.0,
+                "backend": "rule",
+                "latency_ms": 0,
+            },
+            "shadow_latency_ms": 2.0,
+            "error": None,
+        }
+
+    monkeypatch.setattr(plugin, "_safe_completion", fake_completion)
+    ctx = FakeContext(
+        "shadow",
+        search_gate_enabled=False,
+        model_tier_gate_enabled=False,
+        notification_gate_enabled=False,
+        completion_gate_enabled=True,
+        completion_loop_probe_enabled=True,
+    )
+    plugin.register(ctx)
+    assert ctx.state.values["status"]["completion_loop_probe_enabled"] is True
+    common = {"turn_id": "turn-loop-a", "session_id": "session-loop-a"}
+    ctx.hooks["pre_llm_call"](**common, user_message="private requested operation", platform="cli")
+    # First tool result triggers one observation. Duplicate results never trigger again.
+    assert ctx.hooks["post_tool_call"](
+        **common, function_name="write_file",
+        result={"success": True, "secret": "private-tool-payload"}, status="success"
+    ) is None
+    assert ctx.hooks["post_tool_call"](
+        **common, function_name="verify_file",
+        result={"success": True}, status="success"
+    ) is None
+    _wait_probe_events(ctx, 1)
+    assert len(observed) == 1
+    assert observed[0][2] == {"tools_used": 1, "tool_failures": 0}
+    assert "private-tool-payload" not in observed[0][1]
+    event = ctx.state.values["last_completion_loop_probe"]
+    assert event["stage"] == "post_tool_call"
+    assert event["action_status"] == "observed"
+    assert "private requested operation" not in str(ctx.state.values)
+    assert "private-tool-payload" not in str(ctx.state.values)
+    # End-of-turn observer still functions, and the next turn can probe again.
+    ctx.hooks["post_llm_call"](**common, assistant_response="Candidate result")
+    assert ctx.hooks["on_session_end"](
+        **common, completed=True, failed=False, interrupted=False
+    ) is None
+    assert ctx.state.values["last_completion_shadow"]["action_status"] == "observed"
+    next_turn = {"turn_id": "turn-loop-b", "session_id": "session-loop-a"}
+    ctx.hooks["pre_llm_call"](**next_turn, user_message="second task")
+    assert ctx.hooks["post_tool_call"](
+        **next_turn, function_name="write_file", result={"success": False},
+        status="failed"
+    ) is None
+    _wait_probe_events(ctx, 2)
+    assert len(observed) == 3  # probe + end-of-turn + new probe
+    assert observed[-1][2]["tool_failures"] == 1
+
+
+def test_phase8b_probe_never_blocks_post_tool_call_when_runtime_stalls(monkeypatch):
+    plugin = load_plugin()
+    started = threading.Event()
+    release = threading.Event()
+    observed = []
+
+    def stalled_completion(_url, task, result, state, _timeout, _request_id):
+        started.set()
+        release.wait(timeout=2.0)
+        observed.append((task, result, state))
+        return {
+            "completion": {"decision": "verify", "decision_source": "rule"},
+            "shadow_latency_ms": 700,
+        }
+
+    monkeypatch.setattr(plugin, "_safe_completion", stalled_completion)
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+        completion_loop_probe_enabled=True, timeout_ms=5000,
+    )
+    plugin.register(ctx)
+    turn = {"turn_id": "slow-runtime", "session_id": "slow-session"}
+    ctx.hooks["pre_llm_call"](**turn, user_message="private task")
+    try:
+        began = time.perf_counter()
+        assert ctx.hooks["post_tool_call"](
+            **turn, result={"secret": "must not persist"}, status="success"
+        ) is None
+        hook_latency = time.perf_counter() - began
+        assert hook_latency < 0.2, f"blocking hook took {hook_latency:.3f}s"
+        assert started.wait(timeout=1.0)
+        assert ctx.hooks["post_tool_call"](
+            **turn, result={"success": True}, status="success"
+        ) is None
+        assert "last_completion_loop_probe" not in ctx.state.values
+    finally:
+        release.set()
+
+    events = _wait_probe_events(ctx, 1)
+    assert len(events) == 1
+    assert events[0]["action_status"] == "observed"
+    assert len(observed) == 1
+    assert observed[0][2] == {"tools_used": 1, "tool_failures": 0}
+    assert "private task" not in str(ctx.state.values)
+    assert "must not persist" not in str(ctx.state.values)
+    assert ctx.state.values["status"]["completion_loop_probe_enabled"] is True
+
+
+def test_phase8b_probe_limits_concurrent_observers_without_blocking(monkeypatch):
+    plugin = load_plugin()
+    release = threading.Event()
+    started_all = threading.Event()
+    entered = 0
+    lock = threading.Lock()
+
+    def stalled_completion(*args):
+        nonlocal entered
+        with lock:
+            entered += 1
+            if entered == 4:
+                started_all.set()
+        release.wait(timeout=2.0)
+        return {"completion": {"decision": "verify"}, "shadow_latency_ms": 5}
+
+    monkeypatch.setattr(plugin, "_safe_completion", stalled_completion)
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+        completion_loop_probe_enabled=True,
+    )
+    plugin.register(ctx)
+    try:
+        for number in range(4):
+            turn = {"turn_id": f"bounded-{number}"}
+            ctx.hooks["pre_llm_call"](**turn, user_message="private task")
+            assert ctx.hooks["post_tool_call"](**turn, result={}) is None
+        assert started_all.wait(timeout=1.0)
+
+        turn = {"turn_id": "bounded-overflow"}
+        ctx.hooks["pre_llm_call"](**turn, user_message="private task")
+        began = time.perf_counter()
+        assert ctx.hooks["post_tool_call"](**turn, result={}) is None
+        assert time.perf_counter() - began < 0.2
+        assert ctx.state.values["last_completion_loop_probe"]["action_reason"] == (
+            "probe_capacity_exhausted"
+        )
+        # One per turn even if the first observation had to be dropped.
+        assert ctx.hooks["post_tool_call"](**turn, result={}) is None
+        assert entered == 4
+    finally:
+        release.set()
+
+    events = _wait_probe_events(ctx, 5)
+    assert len(events) == 5
+    assert sum(e["action_reason"] == "probe_capacity_exhausted" for e in events) == 1
+    assert entered == 4
+
+
+def test_phase8b_probe_thread_dispatch_failure_fails_open(monkeypatch):
+    plugin = load_plugin()
+
+    def dispatch_unavailable(_thread):
+        raise RuntimeError("private host exception detail")
+
+    monkeypatch.setattr(plugin.threading.Thread, "start", dispatch_unavailable)
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+        completion_loop_probe_enabled=True,
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](turn_id="bad-dispatch", user_message="private task")
+    assert ctx.hooks["post_tool_call"](
+        turn_id="bad-dispatch", result={}, status="success"
+    ) is None
+    event = ctx.state.values["last_completion_loop_probe"]
+    assert event["action_status"] == "failed_open"
+    assert event["action_reason"] == "probe_dispatch_failed"
+    assert "private host exception detail" not in str(ctx.state.values)
+
+
+def test_phase8b_probe_default_off_and_independent(monkeypatch):
+    plugin = load_plugin()
+    calls = []
+    monkeypatch.setattr(plugin, "_safe_completion", lambda *a, **kw: calls.append(a) or {
+        "ok": False, "completion": None, "error": "URLError", "shadow_latency_ms": 0
+    })
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+    )
+    plugin.register(ctx)
+    args = {"turn_id": "turn-default-off", "user_message": "task"}
+    ctx.hooks["pre_llm_call"](**args)
+    assert ctx.hooks["post_tool_call"](turn_id="turn-default-off", result={}) is None
+    assert calls == []
+    assert "last_completion_loop_probe" not in ctx.state.values
+    ctx.hooks["post_llm_call"](turn_id="turn-default-off", assistant_response="result")
+    ctx.hooks["on_session_end"](turn_id="turn-default-off", completed=True)
+    assert len(calls) == 1
+
+
+def test_phase8b_probe_fail_open_when_runtime_throws(monkeypatch):
+    plugin = load_plugin()
+
+    def failing_completion(*args, **kwargs):
+        raise RuntimeError("private exception content")
+
+    monkeypatch.setattr(plugin, "_safe_completion", failing_completion)
+    ctx = FakeContext(
+        "shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+        notification_gate_enabled=False, completion_gate_enabled=True,
+        completion_loop_probe_enabled=True,
+    )
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](turn_id="turn-fail", user_message="task")
+    assert ctx.hooks["post_tool_call"](turn_id="turn-fail", status="failed", result={}) is None
+    _wait_probe_events(ctx, 1)
+    assert ctx.state.values["last_completion_loop_probe"]["action_status"] == "failed_open"
+    assert "private exception content" not in str(ctx.state.values)
+
+
 def test_plugin_manifest_has_safe_product_defaults():
     import yaml
 
@@ -1067,6 +1310,7 @@ def test_plugin_manifest_has_safe_product_defaults():
     assert schema["mode"]["choices"] == ["off", "shadow", "canary"]
     assert schema["notification_gate_enabled"]["default"] is True
     assert schema["completion_gate_enabled"]["default"] is True
+    assert schema["completion_loop_probe_enabled"]["default"] is False
     assert schema["canary_acknowledged"]["default"] is False
     assert schema["canary_web_filter_enabled"]["default"] is True
     assert schema["canary_reasoning_downgrade_enabled"]["default"] is False
