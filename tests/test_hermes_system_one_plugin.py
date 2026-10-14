@@ -1297,7 +1297,7 @@ def test_plugin_manifest_has_safe_product_defaults():
 
     manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
     assert manifest["manifest_version"] == 2
-    assert manifest["version"] == "0.8.0"
+    assert manifest["version"] == "0.9.0"
     assert manifest["provides_tools"] == []
     assert manifest["provides_hooks"] == [
         "pre_llm_call", "post_llm_call", "post_tool_call", "on_session_end"

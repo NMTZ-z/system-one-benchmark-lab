@@ -1,6 +1,6 @@
 manifest_version: 2
 name: local-system-one-hermes
-version: 0.8.0
+version: 0.9.0
 description: >-
   Local System One / Laya Typed Decisions control plane for Hermes Agent.
   Reversible OFF/Shadow/Canary modes, explicit Canary acknowledgement,
@@ -70,6 +70,13 @@ config_schema:
     description: >-
       Observe whether a turn appears complete, should continue, or needs verification.
       Completion is observation-only and never terminates or restarts the Hermes loop.
+  retry_escalation_gate_enabled:
+    type: bool
+    default: false
+    label: Retry / Escalation Gate (Shadow-only)
+    description: >-
+      Observe structured failed-tool recovery suggestions. No automatic retry,
+      termination, permissions, alternative tools or model changes.
   completion_loop_probe_enabled:
     type: bool
     default: false

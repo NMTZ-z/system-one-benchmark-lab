@@ -14,12 +14,12 @@ from typing import Any, Literal
 
 ADAPTER_CONTRACT_VERSION = "1.0"
 
-GateName = Literal["search", "model_tier", "notification", "completion"]
+GateName = Literal["search", "model_tier", "notification", "completion", "retry_escalation"]
 AdapterMode = Literal["off", "shadow", "canary"]
 DecisionSource = Literal["rule", "model"]
 ActionStatus = Literal["observed", "applied", "skipped", "failed_open", "unsupported"]
 
-_GATES = {"search", "model_tier", "notification", "completion"}
+_GATES = {"search", "model_tier", "notification", "completion", "retry_escalation"}
 _ACTION_STATUSES = {"observed", "applied", "skipped", "failed_open", "unsupported"}
 
 
@@ -251,6 +251,21 @@ def _validate_gate_decision(gate: str, decision: dict[str, Any]) -> dict[str, An
             ),
         }
 
+    if gate == "retry_escalation":
+        allowed = {"value", "raw_model_decision", "safety_override_reason"}
+        unknown = set(decision) - allowed
+        if unknown:
+            raise AdapterContractError(f"unknown Retry decision field(s): {sorted(unknown)!r}")
+        value = _string(decision.get("value"), "decision.value")
+        options = {"retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort"}
+        if value not in options:
+            raise AdapterContractError(f"invalid Retry decision: {value}")
+        raw = _string(decision.get("raw_model_decision"), "decision.raw_model_decision", nullable=True)
+        if raw is not None and raw not in options:
+            raise AdapterContractError("invalid Retry raw_model_decision")
+        override = _string(decision.get("safety_override_reason"), "decision.safety_override_reason", nullable=True)
+        return {"value": value, "raw_model_decision": raw, "safety_override_reason": override}
+
     raise AdapterContractError(f"unknown gate: {gate}")
 
 
@@ -297,6 +312,13 @@ def envelope_from_runtime(gate: GateName, payload: Any) -> DecisionEnvelope:
             "probability_verify": record.get("probability_verify"),
             "probability_continue": record.get("probability_continue"),
         }
+    elif gate == "retry_escalation":
+        common["decision"] = {
+            "value": record.get("guarded_decision"),
+            "raw_model_decision": record.get("raw_model_decision"),
+            "safety_override_reason": record.get("safety_override_reason"),
+        }
+        common["metadata"]["advisory_only"] = record.get("advisory_only", False)
     else:  # pragma: no cover - typing prevents normal callers from reaching this.
         raise AdapterContractError(f"unknown gate: {gate}")
     return validate_decision_envelope(common)

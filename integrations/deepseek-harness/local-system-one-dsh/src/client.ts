@@ -4,6 +4,9 @@ import type {
   ModelTierDecision,
   NotificationDecision,
   SearchDecision,
+  FailureContext,
+  RetryEscalationDecision,
+  RetryDecisionValue,
 } from './types.js'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -286,5 +289,71 @@ export class CompletionGateClient extends GateClient<CompletionDecision> {
       execution_state: executionState,
       request_id: requestIdValue,
     })
+  }
+}
+
+const RETRY_DECISIONS = new Set<RetryDecisionValue>([
+  'retry_same', 'try_alternative', 'escalate_model',
+  'verify_state', 'ask_user', 'abort',
+])
+
+export function parseRetryEscalationDecision(value: unknown): RetryEscalationDecision {
+  const contract = 'retry-escalation-gate'
+  if (!isRecord(value) || value.workflow !== 'retry_escalation_gate'
+      || value.advisory_only !== true) {
+    throw new Error('invalid retry-escalation-gate response')
+  }
+  const decision = requiredString(value, 'decision', contract) as RetryDecisionValue
+  if (!RETRY_DECISIONS.has(decision) || value.guarded_decision !== decision) {
+    throw new Error('invalid retry decision or guarded decision')
+  }
+  const raw = value.raw_model_decision
+  if (raw !== null && (typeof raw !== 'string' || !RETRY_DECISIONS.has(raw as RetryDecisionValue))) {
+    throw new Error('invalid raw_model_decision')
+  }
+  if (value.safety_override_reason !== null &&
+      (typeof value.safety_override_reason !== 'string' || !value.safety_override_reason)) {
+    throw new Error('invalid safety_override_reason')
+  }
+  if (value.decision_source !== 'rule' && value.decision_source !== 'model') {
+    throw new Error('invalid retry decision_source')
+  }
+  const reason = requiredString(value, 'reason', contract)
+  if (!/^[a-z][a-z0-9_]{0,79}$/.test(reason)) {
+    throw new Error('invalid retry telemetry reason')
+  }
+  if (value.safety_override_reason !== null &&
+      !/^[a-z][a-z0-9_]{0,79}$/.test(value.safety_override_reason as string)) {
+    throw new Error('invalid retry safety override')
+  }
+  const latency = requiredNumber(value, 'latency_ms', contract)
+  const confidence = requiredNumber(value, 'confidence', contract)
+  if (latency < 0 || confidence < 0 || confidence > 1) {
+    throw new Error('invalid retry latency/confidence')
+  }
+  return {
+    workflow: 'retry_escalation_gate',
+    decision, guarded_decision: decision,
+    raw_model_decision: raw as RetryDecisionValue | null,
+    safety_override_reason: value.safety_override_reason as string | null,
+    decision_source: value.decision_source,
+    reason,
+    backend: requiredString(value, 'backend', contract),
+    latency_ms: latency, confidence,
+    request_id: requestId(value, contract), advisory_only: true,
+  }
+}
+
+export class RetryEscalationGateClient extends GateClient<RetryEscalationDecision> {
+  constructor(serviceUrl: string, timeoutMs: number) {
+    super(serviceUrl, timeoutMs, '/v1/workflows/retry-escalation-gate', parseRetryEscalationDecision)
+  }
+
+  async decide(context: FailureContext, requestIdValue: string): Promise<RetryEscalationDecision> {
+    const result = await this.post({ ...context, request_id: requestIdValue })
+    if (result.request_id !== requestIdValue) {
+      throw new Error('retry gate request_id mismatch')
+    }
+    return result
   }
 }
