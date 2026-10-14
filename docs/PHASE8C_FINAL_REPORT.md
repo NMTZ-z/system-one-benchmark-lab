@@ -218,19 +218,20 @@ modifying gold labels.
   `GET /metrics` integration, real failing `DecisionEngine` with repeated
   exception identity, 65th Hermes active-turn overflow, session isolation,
   and required-nullable JSON Schema / Python / Hermes contract checks.
-- DSH Vitest: **52/52 PASS**; TypeScript typecheck and build PASS.
+- DSH Vitest: **55/55 PASS**; TypeScript typecheck and build PASS.
   Added 96/97 parallel-turn overflow exercise (tracked oldest turn retains its
   two-observation cap, new turn fails open, ended turn releases capacity),
-  duplicate `turn/start` regression and explicit missing-field rejection.
+  duplicate `turn/start` regression, explicit missing-field rejection,
+  and independent opaque session-ID collision regressions. In particular,
+  closing `job` must not reset the Retry counter for `job:child`, nor remove
+  its Search/Model Tier decisions or Notification/Completion candidates.
 - Hermes native `plugins validate --json`: PASS on manifest, hooks,
   capability registration, native ABI and safety scan. Validator also
   reported existing private-core-import compatibility warnings; this
   gate did not introduce a new private integration hook.
-- Public allowlist release sanitizer: last clean published revision
-  `c2b4341` produced **136 files, `publish_ready: true`**. This audit
-  adds an allowlisted source document, for a preliminary **137-file** bundle.
-  A final clean-tree sanitizer result for this hardening commit must be
-  checked independently before publication.
+- Public allowlist release sanitizer: the previous hardening revision
+  `48dd68b` produced **137 files, `publish_ready: true`**.
+  This follow-up needs its own clean-tree sanitizer check after commit.
 - No genuine provider-backed Agent E2E; no production recovery enabled.
 
 ## 10. Files, publication and review
@@ -283,10 +284,19 @@ Codex's **third review**, completed 2026-10-14 at 14:06 UTC on
    Hermes/DSH receiver checks.
 
 The comprehensive [Phase 8C Cross-platform Safety Audit](PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md)
-maps all seven P2 findings to tests and documents additional safeguards
+maps all eight P2 findings to tests and documents additional safeguards
 for required top-level request IDs and optional-field nullability.
-This hardening remains **Shadow-only**; third-review fixes have been
-verified locally but are **not** an independent Codex approval.
+Codex's **fourth review**, completed 2026-10-14 at 14:58 UTC on
+`48dd68b`, identified one additional P2 finding:
+8. DSH session cleanup used a raw `${sessionId}:` prefix, so ending
+   `job` could erase the active safety counter for `job:child`.
+   The shared state now uses an unambiguous length-prefixed opaque
+   session key across all Gate families and observer lifecycle paths.
+   The regression reproduced the original unsafe third observation
+   before the fix, and passes with the correction.
+
+This hardening remains **Shadow-only**; fourth-review fixes are subject
+to **new independent Codex review**, not an assumed approval.
 
 The synthetic frozen corpus is **unchanged** (identical SHA256 for all 3
 splits). A separate real-MLX replay after the second review fixes reproduced
@@ -297,7 +307,7 @@ performance claim is made. These fixes are engineering instrumentation and
 observer lifecycle changes; no frozen corpus, gold label, model artifact,
 production config or earlier Gate threshold was edited.
 
-**Fourth Codex re-review and final merge authorization remain separate
+**Fifth Codex re-review and final merge authorization remain separate
 from passing code tests.** The follow-up revision SHA is recorded by
 Git and the PR itself, not embedded recursively into its own commit.
 

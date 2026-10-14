@@ -20,7 +20,7 @@ import {
   isVerifiedReasoningDowngradeRoute,
   resolveConfig,
 } from './policy.js'
-import { TurnDecisionState } from './state.js'
+import { TurnDecisionState, sessionKeyPrefix, turnKey } from './state.js'
 import { operationFromToolName, resultCallId, failureFromToolResult } from './retry.js'
 import type {
   AdapterConfig,
@@ -113,10 +113,6 @@ function toolResultFailed(event: SessionEventLike): boolean {
   const message = event.data?.message
   if (typeof message !== 'object' || message === null) return false
   return (message as Record<string, unknown>).isError === true
-}
-
-function turnKey(sessionId: string, turn: number): string {
-  return `${sessionId}:${turn}`
 }
 
 function errorType(error: unknown): string {
@@ -497,20 +493,20 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
     if (event.type === 'session/end' || event.type === 'session/close') {
       for (const k of retryCounts.keys()) {
-        if (k.startsWith(sessionId + ':')) retryCounts.delete(k)
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retryCounts.delete(k)
       }
       for (const k of retryCallNames.keys()) {
-        if (k.startsWith(sessionId + ':')) retryCallNames.delete(k)
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retryCallNames.delete(k)
       }
       for (const k of retrySeen) {
-        if (k.startsWith(sessionId + ':')) retrySeen.delete(k)
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retrySeen.delete(k)
       }
       state.clearSession(sessionId)
       for (const key of notificationCandidates.keys()) {
-        if (key.startsWith(`${sessionId}:`)) notificationCandidates.delete(key)
+        if (key.startsWith(sessionKeyPrefix(sessionId))) notificationCandidates.delete(key)
       }
       for (const key of completionCandidates.keys()) {
-        if (key.startsWith(`${sessionId}:`)) completionCandidates.delete(key)
+        if (key.startsWith(sessionKeyPrefix(sessionId))) completionCandidates.delete(key)
       }
     }
   })

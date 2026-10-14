@@ -179,6 +179,47 @@ describe('Phase 8C DSH Retry Shadow', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('closing a parent session never resets a colon-delimited child retry budget', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+
+    for (const id of ['child-first', 'child-second']) {
+      call(ctx, 'write', id, 'job:child', 1)
+      result(ctx, id, true, 'job:child', 1)
+      await settle()
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    // A distinct parent session may use an identical turn and call ID.
+    call(ctx, 'write', 'child-first', 'job', 1)
+    result(ctx, 'child-first', true, 'job', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+
+    ctx.fire('session/event', 'job', 'session/end', {})
+    // Parent cleanup must not erase the child's 2-observation counter.
+    call(ctx, 'write', 'child-third', 'job:child', 1)
+    result(ctx, 'child-third', true, 'job:child', 1)
+    result(ctx, 'child-first', true, 'job:child', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+
+    // A new parent session may use its own budget.
+    call(ctx, 'write', 'parent-new', 'job', 2)
+    result(ctx, 'parent-new', true, 'job', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+
+    // Child lifecycle cleanup is independent as well.
+    ctx.fire('session/event', 'job:child', 'session/close', {})
+    call(ctx, 'write', 'child-new', 'job:child', 2)
+    result(ctx, 'child-new', true, 'job:child', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(JSON.stringify(ctx.events)).not.toContain('very private ERROR')
+  })
+
   it('malformed runtime responses fail-open and preserve Agent events', async () => {
     const ctx = new Context()
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"decision":"retry_same"}')))

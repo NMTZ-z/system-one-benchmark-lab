@@ -1,7 +1,17 @@
 import type { StoredModelTierDecision, StoredSearchDecision } from './types.js'
 
-function key(sessionId: string, turn: number): string {
-  return `${sessionId}:${turn}`
+/** Injective, session-scoped prefix for untrusted opaque session IDs.
+ *
+ * Length-prefixing prevents a session ID such as "job" from matching
+ * "job:child" during prefix-based map cleanup. Keep this shared between
+ * Retry, Completion, Notification, Search and Model Tier state.
+ */
+export function sessionKeyPrefix(sessionId: string): string {
+  return `${sessionId.length}:${sessionId}:`
+}
+
+export function turnKey(sessionId: string, turn: number): string {
+  return `${sessionKeyPrefix(sessionId)}${turn}`
 }
 
 export class TurnDecisionState {
@@ -15,26 +25,26 @@ export class TurnDecisionState {
 
   setSearchDecision(sessionId: string, turn: number, decision: StoredSearchDecision): void {
     this.activeTurns.set(sessionId, turn)
-    this.searchDecisions.set(key(sessionId, turn), decision)
+    this.searchDecisions.set(turnKey(sessionId, turn), decision)
   }
 
   setModelTierDecision(sessionId: string, turn: number, decision: StoredModelTierDecision): void {
     this.activeTurns.set(sessionId, turn)
-    this.modelTierDecisions.set(key(sessionId, turn), decision)
+    this.modelTierDecisions.set(turnKey(sessionId, turn), decision)
   }
 
   getCurrentSearchDecision(sessionId: string): StoredSearchDecision | undefined {
     const turn = this.activeTurns.get(sessionId)
-    return turn === undefined ? undefined : this.searchDecisions.get(key(sessionId, turn))
+    return turn === undefined ? undefined : this.searchDecisions.get(turnKey(sessionId, turn))
   }
 
   getCurrentModelTierDecision(sessionId: string): StoredModelTierDecision | undefined {
     const turn = this.activeTurns.get(sessionId)
-    return turn === undefined ? undefined : this.modelTierDecisions.get(key(sessionId, turn))
+    return turn === undefined ? undefined : this.modelTierDecisions.get(turnKey(sessionId, turn))
   }
 
   getModelTierDecision(sessionId: string, turn: number): StoredModelTierDecision | undefined {
-    return this.modelTierDecisions.get(key(sessionId, turn))
+    return this.modelTierDecisions.get(turnKey(sessionId, turn))
   }
 
   // Backward-compatible Search Gate aliases retained for Phase 1 consumers/tests.
@@ -47,7 +57,7 @@ export class TurnDecisionState {
   }
 
   clearTurn(sessionId: string, turn: number): void {
-    const decisionKey = key(sessionId, turn)
+    const decisionKey = turnKey(sessionId, turn)
     this.searchDecisions.delete(decisionKey)
     this.modelTierDecisions.delete(decisionKey)
     if (this.activeTurns.get(sessionId) === turn) {
@@ -58,12 +68,12 @@ export class TurnDecisionState {
   clearSession(sessionId: string): void {
     this.activeTurns.delete(sessionId)
     for (const decisionKey of this.searchDecisions.keys()) {
-      if (decisionKey.startsWith(`${sessionId}:`)) {
+      if (decisionKey.startsWith(sessionKeyPrefix(sessionId))) {
         this.searchDecisions.delete(decisionKey)
       }
     }
     for (const decisionKey of this.modelTierDecisions.keys()) {
-      if (decisionKey.startsWith(`${sessionId}:`)) {
+      if (decisionKey.startsWith(sessionKeyPrefix(sessionId))) {
         this.modelTierDecisions.delete(decisionKey)
       }
     }

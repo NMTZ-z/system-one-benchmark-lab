@@ -96,7 +96,11 @@ without evicting any live turn's counters, reporting
 `retry_turn_capacity_exhausted` as nonblocking fail-open telemetry. Repeated
 `turn/start` does not reset a tracked Retry budget. Counters and seen call IDs
 are released only at `turn/end` or session closure, so the two-observation
-limit persists under concurrent load. Turn/session lifecycle state is cleared.
+limit persists under concurrent load. DSH uses shared length-prefixed,
+collision-free opaque session keys for all Gate state and lifecycle cleanup:
+closing session `job` must never clear the distinct session `job:child`,
+even if both have the same numeric turn and tool call IDs. Turn/session
+lifecycle state is cleared only for the exact session.
 Response failures fail open.
 
 Pinned operation policy is intentionally narrow: Hermes recognizes read_file /

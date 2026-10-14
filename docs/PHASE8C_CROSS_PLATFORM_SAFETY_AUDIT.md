@@ -6,13 +6,13 @@ release and Codex re-review are independent gates.
 
 ## Why this audit exists
 
-The first three Codex reviews on GitHub PR #5 found seven P2 defects. Several
+The first four Codex reviews on GitHub PR #5 found eight P2 defects. Several
 were the *same invariant* violated by different adapters. A passing benchmark
 accuracy score does not establish a safe concurrency or accounting boundary.
 This audit maps every defect to executable regression evidence, then checks
 the shared contracts rather than relying only on the originally commented line.
 
-## The seven findings and their regression guards
+## The eight findings and their regression guards
 
 | Review / finding | Invariant | Code guard | Executable evidence |
 | --- | --- | --- | --- |
@@ -23,6 +23,7 @@ the shared contracts rather than relying only on the originally commented line.
 | R3: direct engine failure is counted twice | An entire Gate call shares the nested error-accounting context | `RetryEscalationGate.decide` wraps `error_accounting_scope` | `test_real_decision_engine_failure_is_counted_once_per_direct_request` (same exception reused across two calls) |
 | R3: Hermes eviction resets an active turn's limit | Keep the 64 active session/turn counters until native session end; do not conflate sessions sharing a turn ID | Hermes Retry observer uses `(session_id, turn_id)`, 64-capacity admission, cleanup by session | `test_retry_concurrent_65th_turn_never_evicts_live_safety_counter`, `test_retry_session_identity_isolated_for_matching_turn_ids`, missing-session fail-open |
 | R3: Python contract silently converts missing required fields into null | A required nullable field must be **present** and type-correct | `validate_decision_envelope`, `envelope_from_runtime`, Hermes response validator | `test_retry_envelope_required_nullable_fields_cannot_be_missing`, `test_retry_runtime_normalization_never_fabricates_required_fields`, Hermes and DSH receiver tests |
+| R4: DSH session prefix collides with `:` inside opaque session IDs | Cleanup of `job` must not mutate any `job:child` state; every Gate must share collision-free keys | Shared `sessionKeyPrefix` / `turnKey` in `src/state.ts` and all DSH `session/event` cleanup paths | Parent-close/child-retry-budget test, `TurnDecisionState` Search/Model Tier isolation test, Notification/Completion candidate preservation test |
 
 ## Shared constraints verified across modules
 
@@ -35,6 +36,10 @@ the shared contracts rather than relying only on the originally commented line.
    at most 96 tracked active turns and 4 in-flight requests. At capacity the
    **new** observation is rejected, not the older live safety state. Both
    retain duplicate-call suppression and explicit end-of-lifecycle cleanup.
+   DSH keys now encode an opaque session ID using its UTF-16 length before
+   a separator, preventing prefix-based cleanup collisions such as `job` vs
+   `job:child`. All Gate decision, call-ID, candidate, and turn-counter
+   storage uses the same shared session-scoped encoding.
 3. **Error accounting:** A nested Engine error is counted once per external
    Gate call, even on direct Python calls and when the same exception object
    is rethrown by two different requests. Completed model inference is not

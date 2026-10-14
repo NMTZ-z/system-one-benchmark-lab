@@ -277,6 +277,62 @@ describe('turn-scoped state', () => {
   })
 })
 
+describe('colon-safe session boundaries', () => {
+  it('preserves Search and Model Tier records for a child session when the parent ends', () => {
+    const state = new TurnDecisionState()
+    state.setSearchDecision('job', 1, { ...hardRuleDecision, observed_at_ms: 1 })
+    state.setModelTierDecision('job', 1, { ...hardFastDecision, observed_at_ms: 1 })
+    state.setSearchDecision('job:child', 1, { ...modelDecision, observed_at_ms: 2 })
+    state.setModelTierDecision('job:child', 1, { ...modelFastDecision, observed_at_ms: 2 })
+
+    state.clearSession('job')
+    expect(state.getCurrentSearchDecision('job')).toBeUndefined()
+    expect(state.getCurrentModelTierDecision('job')).toBeUndefined()
+    expect(state.getCurrentSearchDecision('job:child')?.reason).toBe('model_confident_local_answer')
+    expect(state.getModelTierDecision('job:child', 1)?.tier).toBe('fast')
+    expect(state.decisionCount()).toBe(2)
+
+    state.clearSession('job:child')
+    expect(state.decisionCount()).toBe(0)
+  })
+
+  it('preserves child Notification and Completion candidates across parent session cleanup', async () => {
+    const ctx = new FakeContext()
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    apply(ctx, {
+      mode: 'shadow',
+      search_gate_enabled: false, model_tier_gate_enabled: false,
+      notification_gate_enabled: true, completion_gate_enabled: true,
+      retry_escalation_gate_enabled: false,
+    })
+
+    const event = ctx.one('session/event')
+    await ctx.one('agent/pre-step')(
+      userInput('job:child', 1, 1, 'Provide a specific answer'),
+      async () => ({ kind: 'enter' }),
+    )
+    await event({ id: 'job:child' }, {
+      type: 'assistant/message', data: {
+        turn: 1,
+        message: { role: 'assistant', content: [
+          { type: 'text', text: 'Here is the completed answer.' },
+        ] },
+      },
+    })
+    // This is a *different session*. It cannot delete the child's candidates.
+    await event({ id: 'job' }, { type: 'session/end', data: {} })
+    await event({ id: 'job:child' }, {
+      type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } },
+    })
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const urls = fetchMock.mock.calls.map(call => String(call[0]))
+    expect(urls.filter(url => url.endsWith('/v1/workflows/notification-gate'))).toHaveLength(1)
+    expect(urls.filter(url => url.endsWith('/v1/workflows/completion-gate'))).toHaveLength(1)
+  })
+})
+
 describe('HTTP clients', () => {
   it('normalizes Search and Model Tier into the same versioned adapter contract', () => {
     const search = toDecisionEnvelope('search', hardRuleDecision)
