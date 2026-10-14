@@ -67,6 +67,24 @@ def test_live_http_invalid_payload_400(service,shape):
     assert err.value.code==400
 
 
+@pytest.mark.parametrize("mutation", ["write", "git_push", "pr_create"])
+def test_live_http_rejects_known_mutation_masked_as_no_side_effect(service, mutation):
+    # Validate safety facts before inference. Laya cannot authorize a lie.
+    unsafe = payload(
+        operation={
+            "type": mutation, "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        failure={"outcome_known": True},
+    )
+    with pytest.raises(HTTPError) as err:
+        _post(service, unsafe)
+    assert err.value.code == 400
+    response = json.loads(err.value.read())
+    assert response["error"] == "invalid_request"
+
+
 def test_live_http_security_401_with_explicit_auth():
     server=create_server(NeverCalledEngine(),port=0,auth_token="test-secret")
     thread=threading.Thread(target=server.serve_forever,daemon=True)

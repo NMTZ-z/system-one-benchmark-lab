@@ -9,30 +9,30 @@ independent native Agent E2E, production safety or genuine model generalization.
 
 ## 1. Repositories, versions and isolation
 
-- Baseline GitHub \`main\`: \`ca9d671986dcfc1f4a06931069694d161f6370ac\`
+- Baseline GitHub `main`: `ca9d671986dcfc1f4a06931069694d161f6370ac`
   (Phase 8B PR #4 already merged).
-- NAS \`origin/main\` observed \`afa2512cc66400d111c28cb5fe00e9f83fdba49a\`;
-  separate NAS 8B branch tip \`527f031da038d55573ea1f7104b37e042b397b50\`.
+- NAS `origin/main` observed `afa2512cc66400d111c28cb5fe00e9f83fdba49a`;
+  separate NAS 8B branch tip `527f031da038d55573ea1f7104b37e042b397b50`.
   The two main branches were not assumed identical or force-reset.
-- Phase 8C starts in an isolated worktree from current **public** \`main\`,
-  branch \`feat/phase8c-retry-escalation-shadow\`; no production profile changes.
-- Installed Hermes at audit: \`v0.21.7+495.g6e7b83a\`, commit
-  \`6e7b83a2f1c093e992a8d838ed77ea320fbd8e51\`.
-- Inspected DSH upstream: \`0.1.7-rc.2\` pin
-  \`477b4f420553e8a52c2fbccc464d7561b239c443\`; other peer-range
+- Phase 8C starts in an isolated worktree from current **public** `main`,
+  branch `feat/phase8c-retry-escalation-shadow`; no production profile changes.
+- Installed Hermes at audit: `v0.21.7+495.g6e7b83a`, commit
+  `6e7b83a2f1c093e992a8d838ed77ea320fbd8e51`.
+- Inspected DSH upstream: `0.1.7-rc.2` pin
+  `477b4f420553e8a52c2fbccc464d7561b239c443`; other peer-range
   versions not independently revalidated.
-- New source adapter versions: Hermes \`0.9.0\`, DSH \`0.6.0\`.
+- New source adapter versions: Hermes `0.9.0`, DSH `0.6.0`.
   These are **source updates**, not an automatic installation or upgrade.
 
 ## 2. Native failure hooks and failure taxonomy
 
 The findings are in [PHASE8C_FAILURE_AUDIT.md](PHASE8C_FAILURE_AUDIT.md).
-Hermes emits terminal \`post_tool_call\` with tool IDs, status and error type;
-DSH emits \`session/event\` \`tool/call\` + \`tool/result\` with explicit
-\`isError\`, tool IDs and optional \`error.code\`. Neither supplies an
+Hermes emits terminal `post_tool_call` with tool IDs, status and error type;
+DSH emits `session/event` `tool/call` + `tool/result` with explicit
+`isError`, tool IDs and optional `error.code`. Neither supplies an
 authoritative original-operation execution outcome or verified per-call
 retry budget. Both lack dependable full provider-failure coverage through
-these hooks. Missing evidence is \`unsupported\`, not inferred from error text.
+these hooks. Missing evidence is `unsupported`, not inferred from error text.
 
 Typed categories: timeout, network, rate_limit, server_error, auth,
 validation, tool_error, test_failure, logic_failure, partial_success,
@@ -41,9 +41,9 @@ as interchangeable replay formats.
 
 ## 3. Six decision semantics and hard safety
 
-Advice only: \`retry_same\`, \`try_alternative\`, \`escalate_model\`,
-\`verify_state\`, \`ask_user\`, \`abort\`.
-The first-class \`verify_state\` result is mandatory when a possible
+Advice only: `retry_same`, `try_alternative`, `escalate_model`,
+`verify_state`, `ask_user`, `abort`.
+The first-class `verify_state` result is mandatory when a possible
 non-idempotent side effect has unknown outcome. Applied writes never get
 repeat-action authority. HTTP 401/403 require permission recovery; HTTP 429
 may recommend waiting only when both the trusted Retry-After and caller
@@ -52,30 +52,30 @@ invented. Unknown history budgets are null/unavailable, not infinite.
 
 A safe set of options is built by deterministic rules **before** asking
 Laya; model output outside that set is replaced with a conservative rule.
-The Runtime retains \`raw_model_decision\`, \`guarded_decision\`,
-\`decision_source\` and \`safety_override_reason\`. No rule or model action
+The Runtime retains `raw_model_decision`, `guarded_decision`,
+`decision_source` and `safety_override_reason`. No rule or model action
 actually retries, switches provider, approves, aborts or edits native state.
 
 ## 4. Runtime, Contract and integration changes
 
-Runtime: \`POST /v1/workflows/retry-escalation-gate\`; strict bounded
+Runtime: `POST /v1/workflows/retry-escalation-gate`; strict bounded
 typed-only input schema, request ID, model or rule metadata, decision
 probabilities when model used, latency, advisory marker. Unknown text fields
 such as full trace, raw log or credential are rejected. Failures at the
 observer boundary fail open without affecting original Agent actions.
 
-Adapter Contract v1.0: additive **opt-in** gate \`retry_escalation\`, six
+Adapter Contract v1.0: additive **opt-in** gate `retry_escalation`, six
 enum decision values, typed envelope, Action Outcome and telemetry.
 Older strict client versions might reject a newly delivered enum:
 new retry envelopes are never sent unsolicited; both feature flags default OFF.
 Completion Gate wire semantics and authority remain unchanged.
 
-Hermes: independent \`post_tool_call\` Shadow observer, explicit failure-only
+Hermes: independent `post_tool_call` Shadow observer, explicit failure-only
 status, limited pinned tool operations, 2 observations per turn,
 4 nonblocking daemon workers; metadata-only bounded history and session
-cleanup. DSH: native tool/call-ID pairing with \`tool/result.isError\`,
+cleanup. DSH: native tool/call-ID pairing with `tool/result.isError`,
 matching limits and isolated per-turn/session state. Unknown tools are
-\`unsupported\`. The two adapters do not consume Completion \`continue\`
+`unsupported`. The two adapters do not consume Completion `continue`
 as a retry signal.
 
 ## 5. Real HTTP transport and Shadow observations
@@ -122,7 +122,7 @@ so even the frozen holdout is not an independent real blind set.
 **Interpretation:** The synthetic score is encouraging for typed selection,
 but heavily structured, formulaic features make these numbers unsuitable
 as claims about real Agent recovery. In particular, the benchmark's gold
-label for \`escalate_model\` represents synthetic adviser preference,
+label for `escalate_model` represents synthetic adviser preference,
 not observed benefit from spending more on an LLM. Laya's incremental
 value on independent real failures remains **UNPROVEN**.
 
@@ -130,13 +130,23 @@ value on independent real failures remains **UNPROVEN**.
 
 | Metric | Calibration | Holdout | Adversarial | Interpretation |
 |---|---|---|---|---|
-| Unsafe Retry Rate, B and C | 0/10 | 0/10 | 0/10 | each 95% Wilson upper bound 27.75% |
+| Unsafe Retry Rate, B and C | 0/15 | 0/15 | 0/15 | each 95% Wilson upper bound 20.39% |
 | Missed Verification Rate, B and C | 0/5 | 0/5 | 0/5 | each 95% Wilson upper bound 43.45% |
 | Verify State Recall, B and C | 100% | 100% | 100% | tiny synthetic denominator |
 | Unnecessary Escalation | 0/30 | 0/30 | see machine-readable report | no true external cost observed |
 
 Safety-dominated cases were largely determined by deterministic rules.
-Zero unsafe suggestions in 10 synthetic unsafe cases is **not** an active
+The Unsafe Retry Rate denominator was corrected after Codex PR #5 review
+(P2): each split contains **15** unsafe-to-retry cases, not 10. In addition
+to uncertain writes and general budget/approval restrictions, the predicate
+now includes HTTP 401/403 or `auth`, permanent/validation errors, zero or
+unknown remaining time, attempts exhausted, insufficient 429 Retry-After,
+and unverified idempotency for mutating actions. A deliberately injected
+`retry_same` on two authorization failures and one zero-time case
+is counted as **3/15**; it no longer escapes the numerator. Frozen
+JSONL corpora and their SHA256 hashes are unchanged.
+
+Zero unsafe suggestions in 15 synthetic unsafe cases is **not** an active
 authorization safety guarantee. Do not interpret these deliberately enriched
 samples as production failure or attack base rates. Six-class confusion
 matrices and precision/recall are preserved in the public processed JSON.
@@ -147,20 +157,20 @@ Isolated **real MLX** model-path local wall timing (not native Agent overhead):
 
 | Split | MLX model-path P50 | P95 |
 |---|---:|---:|
-| Calibration | 61.000 ms | 120.390 ms |
-| Holdout | 60.434 ms | 61.701 ms |
-| Adversarial | 61.512 ms | 67.779 ms |
+| Calibration | 61.106 ms | 111.544 ms |
+| Holdout | 61.078 ms | 61.924 ms |
+| Adversarial | 61.087 ms | 65.829 ms |
 
 The installed Laya checkpoint emitted a temperature-clamping warning;
 choice confidence must be treated as **uncalibrated**. There was no power
 measurement or actual LLM token bill reduction in this Shadow pilot.
 
 **ANE/MLX agreement: NOT MEASURED for 8C.** Attempting to load the installed
-published flexible Core ML \`model.mlpackage\` with the existing research
+published flexible Core ML `model.mlpackage` with the existing research
 L512 ANE runtime failed manifest verification: it expects a verified
-\`laya-ane-research\` fixed B1/L512/K32 artifact and adjacent
-\`manifest.json\`, whereas the locally available published package has a
-different \`laya-coreml\` flexible format. No verification bypass or
+`laya-ane-research` fixed B1/L512/K32 artifact and adjacent
+`manifest.json`, whereas the locally available published package has a
+different `laya-coreml` flexible format. No verification bypass or
 fabricated ANE prediction was used. 8B historical agreement is not reused
 as 8C evidence. Correct next step: produce or locate a legitimately
 manifested research L512 artifact and repeat **the frozen** cases without
@@ -178,37 +188,53 @@ modifying gold labels.
   observations, turn isolation, malformed response fail-open, metadata-only.
 - Both client adapters: real loopback Runtime inference and Shadow observation,
   never native provider E2E.
-- Python whole-tree tests: **382/382 PASS**, including existing Gate regressions,
-  Retry failure injection, HTTP and synthetic corpus integrity checks.
+- Python whole-tree tests: **400/400 PASS**, including existing Gate regressions,
+  Retry failure injection, HTTP, synthetic corpus integrity checks,
+  contradiction rejection for mutation types, and deliberate dangerous-retry
+  metric injection that verifies the 401/403/zero-time numerator.
 - DSH Vitest: **50/50 PASS**; TypeScript typecheck and build PASS.
 - Hermes native `plugins validate --json`: PASS on manifest, hooks,
   capability registration, native ABI and safety scan. Validator also
   reported existing private-core-import compatibility warnings; this
   gate did not introduce a new private integration hook.
-- Public allowlist release preview: content sanitizer PASS; the pre-commit
-  preview correctly reports `publish_ready: false` while Git is dirty.
-  Final clean-tree release must be checked again after commit.
+- Public allowlist release sanitizer: prior clean base `e3e258a`
+  produced **136 files, `publish_ready: true`**. The Codex-fix branch
+  must undergo its own post-commit clean-tree sanitizer check.
 - No genuine provider-backed Agent E2E; no production recovery enabled.
 
 ## 10. Files, publication and review
 
 New files include:
-\`local_system_one/workflows/retry_escalation_gate.py\`,
-\`integrations/deepseek-harness/local-system-one-dsh/src/retry.ts\`,
-\`benchmarks/retry/*\`,
-\`docs/PHASE8C_FAILURE_AUDIT.md\`,
-\`docs/PHASE8C_EVALUATION_PROTOCOL.md\`,
-\`docs/RETRY_ESCALATION_GATE.md\`,
+`local_system_one/workflows/retry_escalation_gate.py`,
+`integrations/deepseek-harness/local-system-one-dsh/src/retry.ts`,
+`benchmarks/retry/*`,
+`docs/PHASE8C_FAILURE_AUDIT.md`,
+`docs/PHASE8C_EVALUATION_PROTOCOL.md`,
+`docs/RETRY_ESCALATION_GATE.md`,
 new Python/TypeScript tests, and processed synthetic report.
 Updated existing files include Runtime routing, adapter contract/schema,
 Hermes/DSH plugin config and lifecycle implementation, and public allowlist.
 Existing Completion thresholds/Gold Set/results were not edited.
 
-Branch: \`feat/phase8c-retry-escalation-shadow\`.
-**Development commit SHA, sanitized publication commit SHA, GitHub PR URL,
-Codex Review disposition, exact final test counts and sanitizer status will
-be recorded from the actual checked artifacts. Do not call review PASS or
-merge without evidence.**
+Branch: `feat/phase8c-retry-escalation-shadow` (pushed independently
+to NAS Forgejo and public GitHub; no force push).
+Public GitHub [PR #5](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/5)
+is open and **unmerged**. Initial public revision:
+`e3e258a10bfa751d35020f36b55ab9f096c95eeb`.
+
+The first Codex Review completed on 2026-10-14 at 10:46 UTC with **two valid P2 comments**:
+1. A known mutating `operation.type` could contradict `side_effect: none` and
+   potentially unlock a `retry_same` recommendation. The new validation
+   rejects contradictory metadata before either rules or Laya execute.
+2. Unsafe Retry Rate excluded HTTP 401/403 and exhausted time. The corrected
+   predicate includes these (and other rule-blocked retries) with injection
+   regression tests, making the denominator 15/30 rather than 10/30.
+
+The synthetic frozen corpus is **unchanged** (identical SHA256 for all 3
+splits). Baseline accuracy and six-class F1 are unchanged in the new MLX
+replay. **Follow-up Codex re-review and final merge authorization remain
+separate from passing code tests.** The follow-up revision SHA is recorded
+by Git and the PR itself, not embedded recursively into its own commit.
 
 ## 11. Independent acceptance decisions
 

@@ -112,11 +112,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 10,
+          "denominator": 15,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.27754
+            0.203889
           ]
         },
         "missed_verification_rate": {
@@ -134,8 +134,8 @@
           "rate": 0.0
         },
         "model_activated_count": 0,
-        "p50_wall_ms": 0.005,
-        "p95_wall_ms": 0.016,
+        "p50_wall_ms": 0.002,
+        "p95_wall_ms": 0.008,
         "p50_model_path_ms": null,
         "p95_model_path_ms": null,
         "backend_count": {
@@ -238,11 +238,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 10,
+          "denominator": 15,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.27754
+            0.203889
           ]
         },
         "missed_verification_rate": {
@@ -260,10 +260,10 @@
           "rate": 0.0
         },
         "model_activated_count": 15,
-        "p50_wall_ms": 24.811,
-        "p95_wall_ms": 70.91,
-        "p50_model_path_ms": 61.0,
-        "p95_model_path_ms": 120.39,
+        "p50_wall_ms": 24.467,
+        "p95_wall_ms": 89.793,
+        "p50_model_path_ms": 61.106,
+        "p95_model_path_ms": 111.544,
         "backend_count": {
           "mlx": 15,
           "rule": 15
@@ -368,11 +368,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 10,
+          "denominator": 15,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.27754
+            0.203889
           ]
         },
         "missed_verification_rate": {
@@ -391,7 +391,7 @@
         },
         "model_activated_count": 0,
         "p50_wall_ms": 0.005,
-        "p95_wall_ms": 0.008,
+        "p95_wall_ms": 0.007,
         "p50_model_path_ms": null,
         "p95_model_path_ms": null,
         "backend_count": {
@@ -494,11 +494,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 10,
+          "denominator": 15,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.27754
+            0.203889
           ]
         },
         "missed_verification_rate": {
@@ -516,10 +516,10 @@
           "rate": 0.0
         },
         "model_activated_count": 15,
-        "p50_wall_ms": 24.005,
-        "p95_wall_ms": 61.614,
-        "p50_model_path_ms": 60.434,
-        "p95_model_path_ms": 61.701,
+        "p50_wall_ms": 24.939,
+        "p95_wall_ms": 61.398,
+        "p50_model_path_ms": 61.078,
+        "p95_model_path_ms": 61.924,
         "backend_count": {
           "mlx": 15,
           "rule": 15
@@ -624,11 +624,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 10,
+          "denominator": 15,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.27754
+            0.203889
           ]
         },
         "missed_verification_rate": {
@@ -646,8 +646,8 @@
           "rate": 0.0
         },
         "model_activated_count": 0,
-        "p50_wall_ms": 0.005,
-        "p95_wall_ms": 0.01,
+        "p50_wall_ms": 0.003,
+        "p95_wall_ms": 0.004,
         "p50_model_path_ms": null,
         "p95_model_path_ms": null,
         "backend_count": {
@@ -750,11 +750,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 10,
+          "denominator": 15,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.27754
+            0.203889
           ]
         },
         "missed_verification_rate": {
@@ -772,10 +772,10 @@
           "rate": 0.0
         },
         "model_activated_count": 15,
-        "p50_wall_ms": 24.849,
-        "p95_wall_ms": 62.458,
-        "p50_model_path_ms": 61.512,
-        "p95_model_path_ms": 67.779,
+        "p50_wall_ms": 23.992,
+        "p95_wall_ms": 61.982,
+        "p50_model_path_ms": 61.087,
+        "p95_model_path_ms": 65.829,
         "backend_count": {
           "mlx": 15,
           "rule": 15

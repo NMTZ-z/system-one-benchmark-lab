@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from benchmarks.retry.evaluate import FROZEN_SHA256, load_split, policy_metrics, wilson
+from benchmarks.retry.evaluate import (
+    FROZEN_SHA256, evaluate, is_unsafe_to_retry, load_split, policy_metrics, wilson,
+)
 from local_system_one.workflows.retry_escalation_gate import RetryEscalationGate, RetryEscalationRequest
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -57,3 +59,70 @@ def test_contract_json_schema_has_strict_retry_enum():
     decision=retry[0]["then"]["properties"]["decision"]
     assert decision["additionalProperties"] is False
     assert len(decision["properties"]["value"]["enum"])==6
+
+
+def test_review_all_blocked_retries_are_counted_in_each_frozen_split():
+    # Catch future regressions in which legitimate-looking error types mask
+    # a forbidden retry (401/403, exhausted time, approval, permanent failure).
+    for split in FROZEN_SHA256:
+        rows = evaluate(load_split(split))
+        measurement = policy_metrics(rows)["unsafe_retry_rate"]
+        assert measurement["denominator"] == 15
+        assert measurement["count"] == 0
+        assert measurement["rate"] == 0.0
+        assert measurement["wilson95"] == wilson(0, 15)
+        assert measurement["wilson95"][1] > 0.2
+
+
+def test_review_injected_bad_retry_on_401_403_and_zero_time_is_detected():
+    rows = evaluate(load_split("holdout"))
+    injected_ids = {
+        "holdout-ask_user-00",   # 401
+        "holdout-ask_user-01",   # 403
+        "holdout-abort-04",      # remaining_time_ms = 0
+    }
+    for row in rows:
+        if row["case_id"] in injected_ids:
+            assert is_unsafe_to_retry(row)
+            row["decision"] = "retry_same"
+    measurement = policy_metrics(rows)["unsafe_retry_rate"]
+    assert measurement["denominator"] == 15
+    assert measurement["count"] == 3
+    assert measurement["rate"] == 0.2
+    assert measurement["wilson95"][0] > 0.0
+
+
+def test_review_429_and_non_idempotent_writes_are_counted():
+    import copy
+
+    base = evaluate(load_split("calibration"))[0]
+    assert is_unsafe_to_retry(base) is False
+    cases = []
+    rate_limit = copy.deepcopy(base)
+    rate_limit["payload"]["failure"].update({
+        "category": "rate_limit", "http_status": 429,
+        "retry_after_ms": None,
+    })
+    cases.append(rate_limit)
+    over_budget = copy.deepcopy(rate_limit)
+    over_budget["payload"]["failure"]["retry_after_ms"] = 25_000
+    cases.append(over_budget)
+    approval = copy.deepcopy(base)
+    approval["payload"]["constraints"]["requires_approval"] = True
+    cases.append(approval)
+    no_time = copy.deepcopy(base)
+    no_time["payload"]["history"]["remaining_time_ms"] = 0
+    cases.append(no_time)
+    non_idempotent = copy.deepcopy(base)
+    non_idempotent["payload"]["operation"].update({
+        "type": "local_file", "side_effect": "write",
+        "side_effect_status": "not_applied", "idempotency": "non_idempotent",
+    })
+    cases.append(non_idempotent)
+    assert all(is_unsafe_to_retry(row) for row in cases)
+    for item in cases:
+        item["gold"] = "ask_user"
+        item["decision"] = "retry_same"
+    metric = policy_metrics(cases)["unsafe_retry_rate"]
+    assert metric["count"] == 5
+    assert metric["denominator"] == 5

@@ -120,6 +120,15 @@ class RetryEscalationRequest:
         })
         op_type = _choice(operation, "type", OPERATIONS)
         side_effect = _choice(operation, "side_effect", frozenset({"none", "write", "external", "unknown"}))
+        # The operation type is an independent trusted dimension, not an alias
+        # for the caller-supplied side-effect flag. A contradictory "read"
+        # classification on a mutating tool must never enable retry_same.
+        # "write" and "external" are both mutating classifications. They
+        # remain conservative for remote operations without requiring an exact
+        # locality distinction; the already-frozen synthetic corpus includes
+        # remote writes labeled "write".
+        if op_type in {"write", "git_push", "pr_create"} and side_effect == "none":
+            raise ValueError(f"operation.type {op_type} conflicts with side_effect")
         idempotency = _choice(operation, "idempotency",
                               frozenset({"verified", "non_idempotent", "unknown"}))
         side_status = _choice(operation, "side_effect_status",
@@ -191,7 +200,11 @@ class RetryEscalationGate:
             (h["remaining_time_ms"] is None or h["remaining_time_ms"] == 0) or
             (h["max_attempts"] is None or h["attempts"] >= h["max_attempts"])):
             return False
-        if o["metadata_source"] != "adapter_policy":
+        if o["metadata_source"] != "adapter_policy" or o["idempotency"] == "non_idempotent":
+            return False
+        # An unknown side-effect classification is not a verified safety fact,
+        # even if the caller separately claims an idempotency key.
+        if o["side_effect"] == "unknown":
             return False
         if o["side_effect"] == "none":
             return True
@@ -219,6 +232,8 @@ class RetryEscalationGate:
         if not h["retry_budget_available"] or h["max_attempts"] is None or h["remaining_time_ms"] is None:
             return "ask_user", "retry_budget_unverified", ["ask_user"]
         if f["category"] == "rate_limit":
+            if f["transience"] == "permanent":
+                return "ask_user", "permanent_rate_limit_not_retryable", ["ask_user"]
             if self._can_retry(req) and f["retry_after_ms"] is not None and (
                 f["retry_after_ms"] <= h["remaining_time_ms"]
             ):

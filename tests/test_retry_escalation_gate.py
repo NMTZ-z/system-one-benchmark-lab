@@ -207,3 +207,90 @@ def test_rule_no_engine_still_returns_six_class_semantics():
     for category in ("unknown","partial_success","tool_error","logic_failure"):
         r=decide(failure={"category":category})
         assert r["decision"] in {"verify_state", "ask_user", "abort"}
+
+@pytest.mark.parametrize(
+    ("operation_type", "side_effect"),
+    [
+        ("write", "none"),
+        ("git_push", "none"),
+        ("pr_create", "none"),
+    ],
+)
+def test_phase8c_review_rejects_contradictory_mutation_metadata(
+    operation_type, side_effect
+):
+    # An apparent idempotent read cannot be smuggled into a known mutator.
+    unsafe = payload(
+        failure={"outcome_known": True},
+        operation={
+            "type": operation_type,
+            "side_effect": side_effect,
+            "side_effect_status": "none",
+            "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+    )
+    with pytest.raises(ValueError, match="conflicts with side_effect"):
+        RetryEscalationRequest.from_payload(unsafe)
+
+
+@pytest.mark.parametrize(
+    ("operation_type", "side_effect"),
+    [
+        ("write", "write"), ("write", "external"),
+        ("git_push", "write"), ("git_push", "external"),
+        ("pr_create", "write"), ("pr_create", "external"),
+    ],
+)
+def test_phase8c_review_preserves_valid_mutating_type_metadata(
+    operation_type, side_effect
+):
+    req = RetryEscalationRequest.from_payload(payload(
+        operation={"type": operation_type, "side_effect": side_effect},
+    ))
+    assert RetryEscalationGate().decide(req)["decision"] == "verify_state"
+
+
+def test_explicit_non_idempotent_read_never_enables_retry():
+    req = RetryEscalationRequest.from_payload(payload(
+        operation={
+            "type": "read", "side_effect": "none",
+            "idempotency": "non_idempotent", "side_effect_status": "none",
+            "metadata_source": "adapter_policy",
+        },
+        failure={"outcome_known": True},
+    ))
+    assert RetryEscalationGate._can_retry(req) is False
+    assert RetryEscalationGate().decide(req)["decision"] != "retry_same"
+
+
+def test_permanent_429_never_yields_retry_same():
+    req = RetryEscalationRequest.from_payload(payload(
+        failure={
+            "category": "rate_limit", "transience": "permanent",
+            "http_status": 429, "retry_after_ms": 200,
+            "outcome_known": True,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "idempotency": "verified", "side_effect_status": "none",
+            "metadata_source": "adapter_policy",
+        },
+    ))
+    result = RetryEscalationGate().decide(req)
+    assert result["decision"] == "ask_user"
+    assert result["decision_source"] == "rule"
+
+
+def test_phase8c_review_unknown_side_effect_never_enables_retry():
+    req = RetryEscalationRequest.from_payload(payload(
+        failure={"outcome_known": True},
+        operation={
+            "type": "git_push", "side_effect": "unknown",
+            "idempotency": "verified", "verified_idempotency_key": True,
+            "side_effect_status": "not_applied",
+            "metadata_source": "adapter_policy",
+        },
+    ))
+    assert RetryEscalationGate._can_retry(req) is False
+    assert RetryEscalationGate().decide(req)["decision"] != "retry_same"
