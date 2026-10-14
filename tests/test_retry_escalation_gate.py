@@ -8,6 +8,9 @@ import pytest
 
 from local_system_one.adapter_contract import envelope_from_runtime, validate_decision_envelope
 from local_system_one.metrics import ServiceMetrics
+from local_system_one.engine import DecisionEngine
+from local_system_one.health import ANEHealthGate
+from local_system_one.router import DecisionRouter, RouterConfig
 from local_system_one.workflows.retry_escalation_gate import (
     RetryEscalationGate, RetryEscalationRequest,
 )
@@ -240,6 +243,50 @@ def test_model_path_and_safety_override_do_not_double_count_metrics():
     assert metrics["route_reasons"] == {"synthetic_backend": 1}
 
 
+def test_real_decision_engine_failure_is_counted_once_per_direct_request():
+    # The real engine opens its own nested accounting scope, records a backend
+    # error, then rethrows. The enclosing Retry Gate must reuse that marker.
+    class CrashingRuntime:
+        def __init__(self):
+            self.error = RuntimeError("synthetic failure, never a secret")
+            self.calls = 0
+
+        def token_count(self, state, question):
+            return 64
+
+        def predict(self, state, question):
+            self.calls += 1
+            raise self.error  # Reuse exactly the same exception object.
+
+    runtime = CrashingRuntime()
+    engine = DecisionEngine(
+        mlx=runtime, ane=None,
+        router=DecisionRouter(RouterConfig()),
+        health=ANEHealthGate(available=False),
+    )
+    request = RetryEscalationRequest.from_payload(payload(
+        failure={"outcome_known": True},
+        operation={"type": "read", "side_effect": "none",
+                   "side_effect_status": "none", "idempotency": "verified"},
+        constraints={"alternative_available": True},
+    ))
+    gate = RetryEscalationGate(engine)
+
+    for expected in (1, 2):
+        response = gate.decide(request)  # No HTTP error scope.
+        assert response["decision_source"] == "rule"
+        assert response["reason"] == "inference_failed_rule_fallback"
+        assert response["safety_override_reason"] == "model_or_backend_failure"
+        snapshot = engine.metrics.snapshot()
+        assert snapshot["errors"] == expected
+        assert snapshot["requests"] == expected
+        assert snapshot["backends"] == {"rule": expected}
+        assert snapshot["route_reasons"] == {
+            "retry_escalation_gate:inference_failed_rule_fallback": expected,
+        }
+    assert runtime.calls == 2
+
+
 def test_backend_failure_rule_fallback_is_accounted_once():
     class BrokenEngine:
         def __init__(self):
@@ -289,6 +336,7 @@ def test_model_outside_candidates_guarded():
     {"failure":{"category":"timeout", "http_status":403}},
     {"failure":{"retry_after_ms":-1}},
     {"request_id": "x"*200},
+    {"request_id": ""},
     {"trace":"please send secrets"},
     {"operation":{"untrusted_text":"token secret"}},
 ])

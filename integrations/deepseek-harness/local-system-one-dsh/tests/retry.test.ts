@@ -191,6 +191,12 @@ describe('Phase 8C DSH Retry Shadow', () => {
   it('requires positive evidence, refuses unsafe model schema', () => {
     const value = makeResponse('abc')
     expect(parseRetryEscalationDecision(value).decision).toBe('verify_state')
+    const withoutRaw = { ...value } as Record<string, unknown>
+    delete withoutRaw.raw_model_decision
+    expect(() => parseRetryEscalationDecision(withoutRaw)).toThrow(/invalid/)
+    const withoutOverride = { ...value } as Record<string, unknown>
+    delete withoutOverride.safety_override_reason
+    expect(() => parseRetryEscalationDecision(withoutOverride)).toThrow(/invalid/)
     expect(() => parseRetryEscalationDecision({ ...value, advisory_only: false }))
       .toThrow(/invalid/)
     expect(() => parseRetryEscalationDecision({ ...value, guarded_decision: 'retry_same' }))

@@ -73,11 +73,14 @@ Completion Gate wire semantics and authority remain unchanged.
 Hermes: independent `post_tool_call` Shadow observer, explicit failure-only
 status, limited pinned tool operations, 2 observations per turn,
 4 nonblocking daemon workers; metadata-only bounded history and session
-cleanup. DSH: native tool/call-ID pairing with `tool/result.isError`,
-matching limits and isolated per-turn/session state. **DSH retains the
-observation count of each active turn until `turn/end` / `session/end`;**
-at 96 tracked turns, new observations fail open rather than evicting
-live counters. A duplicate `turn/start` cannot reset the limit.
+cleanup. Its **64 live (session, turn) safety counters are never evicted**
+for capacity; a 65th active turn is skipped until native session-end.
+Different sessions sharing a turn ID remain isolated; unverifiable session
+identity is `unsupported`. DSH: native tool/call-ID pairing with
+`tool/result.isError`, matching limits and isolated per-turn/session state.
+**DSH retains each active turn's observation count until `turn/end` /
+`session/end`;** at 96 tracked turns, new observations fail open rather
+than evict live counters. A duplicate `turn/start` cannot reset the limit.
 Unknown tools are `unsupported`. The two adapters do not consume
 Completion `continue` as a retry signal.
 
@@ -86,7 +89,18 @@ Completion `continue` as a retry signal.
 `backend=rule`, namespaced reason and latency appear in `GET /metrics`.
 Rule fallback after an inference error is also recorded; a successful
 model call already counted by `DecisionEngine` is not double counted
-when a model suggestion is safety-overridden.
+when a model suggestion is safety-overridden. The entire Retry Gate call now
+shares an `error_accounting_scope` with `DecisionEngine.decide()`, preventing
+duplicate counting of a single failed inference under direct Python or HTTP
+calls.
+
+Adapter Contract v1 normalization and validation both require the two
+nullable Retry decision fields to be **present**, and reject their absence.
+The same rule is enforced by Hermes and DSH response parsers. The shared
+envelope also requires an explicitly present `request_id`; optional
+`confidence` and `metadata` cannot be explicitly null when supplied.
+Empty string request IDs and safety override reasons are rejected,
+matching the published schema bounds.
 
 ## 5. Real HTTP transport and Shadow observations
 
@@ -198,24 +212,25 @@ modifying gold labels.
   observations, turn isolation, malformed response fail-open, metadata-only.
 - Both client adapters: real loopback Runtime inference and Shadow observation,
   never native provider E2E.
-- Python whole-tree tests: **406/406 PASS**, including existing Gate regressions,
-  Retry failure injection, HTTP, synthetic corpus integrity checks,
-  mutation metadata contradiction rejection, deliberate dangerous-retry
-  metric injection, 4 parameterized rule-path ServiceMetrics assertions,
-  model safety override without metric double counting, backend failure
-  accounting, and a live `GET /metrics` HTTP probe.
+- Python whole-tree tests: **431/431 PASS**, including existing Gate
+  regressions, Retry failure injection, HTTP, frozen synthetic corpus integrity,
+  mutation metadata consistency, unsafe-retry denominator injection,
+  `GET /metrics` integration, real failing `DecisionEngine` with repeated
+  exception identity, 65th Hermes active-turn overflow, session isolation,
+  and required-nullable JSON Schema / Python / Hermes contract checks.
 - DSH Vitest: **52/52 PASS**; TypeScript typecheck and build PASS.
   Added 96/97 parallel-turn overflow exercise (tracked oldest turn retains its
-  two-observation cap, new turn fails open, ended turn releases capacity)
-  and duplicate `turn/start` regression.
+  two-observation cap, new turn fails open, ended turn releases capacity),
+  duplicate `turn/start` regression and explicit missing-field rejection.
 - Hermes native `plugins validate --json`: PASS on manifest, hooks,
   capability registration, native ABI and safety scan. Validator also
   reported existing private-core-import compatibility warnings; this
   gate did not introduce a new private integration hook.
-- Public allowlist release sanitizer: initial clean base and first
-  Codex-fix revision `a226599` each produced **136 files,
-  `publish_ready: true`**. The second-fix revision must undergo a
-  separate post-commit clean-tree sanitizer check before publication.
+- Public allowlist release sanitizer: last clean published revision
+  `c2b4341` produced **136 files, `publish_ready: true`**. This audit
+  adds an allowlisted source document, for a preliminary **137-file** bundle.
+  A final clean-tree sanitizer result for this hardening commit must be
+  checked independently before publication.
 - No genuine provider-backed Agent E2E; no production recovery enabled.
 
 ## 10. Files, publication and review
@@ -226,6 +241,7 @@ New files include:
 `benchmarks/retry/*`,
 `docs/PHASE8C_FAILURE_AUDIT.md`,
 `docs/PHASE8C_EVALUATION_PROTOCOL.md`,
+`docs/PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md`,
 `docs/RETRY_ESCALATION_GATE.md`,
 new Python/TypeScript tests, and processed synthetic report.
 Updated existing files include Runtime routing, adapter contract/schema,
@@ -256,6 +272,22 @@ Codex's **second review**, completed 2026-10-14 at 11:15 UTC on
    new tracked turns until `turn/end` / `session/end`; duplicate
    `turn/start` cannot reset a live count. Added 97-turn stress regression.
 
+Codex's **third review**, completed 2026-10-14 at 14:06 UTC on
+`c2b4341`, identified three more P2 findings:
+5. `DecisionEngine` failure was counted twice when Retry Gate was invoked
+   directly; the gate now shares its nested error accounting scope.
+6. Hermes evicted the oldest of 64 live Retry turn counters; the observer now
+   refuses overflow without evicting and keys identities by session and turn.
+7. Python normalized missing required nullable Retry fields as JSON null;
+   both normalization and validation now require the keys, with matching
+   Hermes/DSH receiver checks.
+
+The comprehensive [Phase 8C Cross-platform Safety Audit](PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md)
+maps all seven P2 findings to tests and documents additional safeguards
+for required top-level request IDs and optional-field nullability.
+This hardening remains **Shadow-only**; third-review fixes have been
+verified locally but are **not** an independent Codex approval.
+
 The synthetic frozen corpus is **unchanged** (identical SHA256 for all 3
 splits). A separate real-MLX replay after the second review fixes reproduced
 the published synthetic accuracy, Macro F1, six-class confusion matrices,
@@ -265,7 +297,7 @@ performance claim is made. These fixes are engineering instrumentation and
 observer lifecycle changes; no frozen corpus, gold label, model artifact,
 production config or earlier Gate threshold was edited.
 
-**Third Codex re-review and final merge authorization remain separate
+**Fourth Codex re-review and final merge authorization remain separate
 from passing code tests.** The follow-up revision SHA is recorded by
 Git and the PR itself, not embedded recursively into its own commit.
 

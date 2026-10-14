@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..engine import DecisionEngine
-from ..metrics import record_error_once
+from ..metrics import error_accounting_scope, record_error_once
 from ..schemas import DecisionRequest
 
 DECISIONS = (
@@ -82,7 +82,7 @@ class RetryEscalationRequest:
             raise ValueError("unexpected top-level field; raw traces and free-form messages are not accepted")
         request_id = payload.get("request_id")
         if request_id is not None and (
-            not isinstance(request_id, str) or len(request_id) > MAX_REQUEST_ID
+            not isinstance(request_id, str) or not request_id or len(request_id) > MAX_REQUEST_ID
         ):
             raise ValueError("request_id must be a bounded string")
         backend = _choice(payload, "backend", frozenset({"auto", "mlx", "ane"}), default="auto")
@@ -312,6 +312,13 @@ class RetryEscalationGate:
         )
 
     def decide(self, req: RetryEscalationRequest) -> dict[str, Any]:
+        # Share the error marker with nested DecisionEngine.decide() so a
+        # backend failure counts once when called directly, over HTTP, or
+        # through another workflow.
+        with error_accounting_scope():
+            return self._decide_in_scope(req)
+
+    def _decide_in_scope(self, req: RetryEscalationRequest) -> dict[str, Any]:
         started = time.perf_counter()
         forced, reason, candidates = self._resolve_rules(req)
         if forced is not None:

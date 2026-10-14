@@ -52,6 +52,8 @@ rule-only decisions record one `ServiceMetrics` request under `backend=rule`
 with route reason `retry_escalation_gate:<reason>` and measured latency.
 Completed backend inference is already metered by `DecisionEngine` and
 is not counted again when its answer is overridden by safety validation.
+A surrounding `error_accounting_scope` deduplicates errors from nested
+`DecisionEngine` failures on both direct Python and HTTP calls.
 This preserves request counts and the existing `GET /metrics` contract;
 no failure context, tool arguments or raw result enters metrics.
 
@@ -63,8 +65,9 @@ no failure context, tool arguments or raw result enters metrics.
   by `metadata_source: adapter_policy` or a claimed idempotency guarantee.
   Both `write` and `external` remain conservative mutating effect classes;
   the existing frozen benchmark is not rewritten to enforce locality distinctions.
-  An `unknown` side effect is never direct-retry eligible. A verified idempotency key does not by itself establish
-  that an unconfirmed write never happened.
+  An `unknown` side effect is never direct-retry eligible.
+  A verified idempotency key does not by itself establish that an
+  unconfirmed write never happened.
 - HTTP 401/403 cannot become an automatic retry loop. 429 requires a trusted
   Retry-After *and* remaining caller-controlled budgets before even recommending
   `retry_same`. The gate never sleeps, retries, switches models or approves tools.
@@ -84,7 +87,11 @@ No production configuration is changed by this source release. Both adapters
 use existing normal runtime service URL and timeout; they never grant recovery
 action authority even under `mode: canary`. The watcher is bounded (2 failure
 events per turn, 4 in-flight requests) and returns without waiting for inference.
-DSH additionally caps tracked active turns at 96: a 97th turn is skipped
+Hermes also caps tracked live `(session_id, turn_id)` identities at **64**:
+a 65th active turn is skipped rather than evicting a safety counter.
+Different sessions using the same turn ID are isolated; a missing session ID
+is an unsupported identity. Counters are freed by native session end.
+DSH independently caps tracked active turns at 96: a 97th turn is skipped
 without evicting any live turn's counters, reporting
 `retry_turn_capacity_exhausted` as nonblocking fail-open telemetry. Repeated
 `turn/start` does not reset a tracked Retry budget. Counters and seen call IDs
@@ -106,7 +113,13 @@ existing Decision Envelope/Telemetry schema. The version string stays `1.0`,
 but older strict clients may reject this new gate label. Existing gates retain
 their wire formats. New envelopes must **never** be sent unsolicited to old
 adapters; both plugin flags are disabled by default and old agents never
-receive Retry decisions. A cross-platform auto-executing controller would
+receive Retry decisions. The contract requires both `raw_model_decision` and
+`safety_override_reason` to be present, even when their value is JSON null.
+Python normalization, Python validation and the Hermes/DSH response parsers
+all reject missing fields. The enclosing Decision Envelope likewise requires
+an explicitly present `request_id`; optional `confidence` and `metadata`
+cannot be supplied as null. Non-null IDs and override reasons cannot be
+empty strings. A cross-platform auto-executing controller would
 require its own independently versioned contract/authorization design.
 
 ## Limits

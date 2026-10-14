@@ -131,6 +131,10 @@ def validate_decision_envelope(value: Any) -> DecisionEnvelope:
     unknown = set(record) - allowed
     if unknown:
         raise AdapterContractError(f"unknown decision envelope field(s): {sorted(unknown)!r}")
+    # request_id is required-but-nullable in the published JSON Schema.
+    # A missing key is not an explicit null.
+    if "request_id" not in record:
+        raise AdapterContractError("missing decision envelope field: request_id")
 
     version = _string(record.get("adapter_contract_version"), "adapter_contract_version")
     if version != ADAPTER_CONTRACT_VERSION:
@@ -150,10 +154,15 @@ def validate_decision_envelope(value: Any) -> DecisionEnvelope:
     if latency_ms < 0:
         raise AdapterContractError("latency_ms cannot be negative")
 
-    confidence_value = record.get("confidence")
-    confidence = None if confidence_value is None else _probability(confidence_value, "confidence")
-    metadata_value = record.get("metadata")
-    metadata = None if metadata_value is None else dict(_record(metadata_value, "metadata"))
+    # These fields are optional, but NOT nullable under the published schema.
+    confidence = (
+        _probability(record["confidence"], "confidence")
+        if "confidence" in record else None
+    )
+    metadata = (
+        dict(_record(record["metadata"], "metadata"))
+        if "metadata" in record else None
+    )
 
     return DecisionEnvelope(
         adapter_contract_version=version,
@@ -256,7 +265,12 @@ def _validate_gate_decision(gate: str, decision: dict[str, Any]) -> dict[str, An
         unknown = set(decision) - allowed
         if unknown:
             raise AdapterContractError(f"unknown Retry decision field(s): {sorted(unknown)!r}")
-        value = _string(decision.get("value"), "decision.value")
+        # Required-but-nullable is different from optional. A missing key
+        # must not be silently normalized to JSON null.
+        missing = allowed - set(decision)
+        if missing:
+            raise AdapterContractError(f"missing Retry decision field(s): {sorted(missing)!r}")
+        value = _string(decision["value"], "decision.value")
         options = {"retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort"}
         if value not in options:
             raise AdapterContractError(f"invalid Retry decision: {value}")
@@ -273,21 +287,24 @@ def envelope_from_runtime(gate: GateName, payload: Any) -> DecisionEnvelope:
     """Normalize the current Runtime workflow response without changing its API."""
 
     record = _record(payload, "runtime decision")
+    if "request_id" not in record:
+        raise AdapterContractError("missing runtime decision field: request_id")
     common: dict[str, Any] = {
         "adapter_contract_version": ADAPTER_CONTRACT_VERSION,
-        "request_id": record.get("request_id"),
+        "request_id": record["request_id"],
         "gate": gate,
         "decision_source": record.get("decision_source"),
         "reason": record.get("reason"),
         "backend": record.get("backend"),
         "latency_ms": record.get("latency_ms"),
-        "confidence": record.get("confidence"),
         "metadata": {
             key: record[key]
             for key in ("workflow", "route_reason", "token_count")
             if key in record
         },
     }
+    if "confidence" in record:
+        common["confidence"] = record["confidence"]
     if gate == "search":
         common["decision"] = {
             "value": record.get("decision"),
@@ -313,12 +330,25 @@ def envelope_from_runtime(gate: GateName, payload: Any) -> DecisionEnvelope:
             "probability_continue": record.get("probability_continue"),
         }
     elif gate == "retry_escalation":
-        common["decision"] = {
-            "value": record.get("guarded_decision"),
-            "raw_model_decision": record.get("raw_model_decision"),
-            "safety_override_reason": record.get("safety_override_reason"),
+        # Preserve presence at the wire boundary too: .get() here would
+        # fabricate nullable fields and defeat the strict envelope validator.
+        required = {
+            "decision", "guarded_decision", "raw_model_decision",
+            "safety_override_reason", "advisory_only",
         }
-        common["metadata"]["advisory_only"] = record.get("advisory_only", False)
+        missing = required - set(record)
+        if missing:
+            raise AdapterContractError(f"missing Retry runtime field(s): {sorted(missing)!r}")
+        if record["advisory_only"] is not True:
+            raise AdapterContractError("Retry runtime must be advisory_only")
+        if record["decision"] != record["guarded_decision"]:
+            raise AdapterContractError("Retry runtime decision and guard disagree")
+        common["decision"] = {
+            "value": record["guarded_decision"],
+            "raw_model_decision": record["raw_model_decision"],
+            "safety_override_reason": record["safety_override_reason"],
+        }
+        common["metadata"]["advisory_only"] = True
     else:  # pragma: no cover - typing prevents normal callers from reaching this.
         raise AdapterContractError(f"unknown gate: {gate}")
     return validate_decision_envelope(common)

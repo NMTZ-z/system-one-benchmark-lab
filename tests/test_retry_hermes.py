@@ -19,9 +19,12 @@ def _ctx(enabled=True):
     )
 
 
-def _failed(tool="write_file", *, turn="turn-1", call="tool-1", status="error"):
+def _failed(
+    tool="write_file", *, turn="turn-1", call="tool-1",
+    status="error", session="isolated-session",
+):
     return {
-        "turn_id": turn, "session_id": "isolated-session", "tool_call_id": call,
+        "turn_id": turn, "session_id": session, "tool_call_id": call,
         "function_name": tool, "status": status, "error_type": "TimeoutError",
         "error_message": "PRIVATE-BEARER-SECRET",
         "result": '{"password":"NEVER_COPY"}',
@@ -117,6 +120,121 @@ def test_retry_deduplicates_and_cleans_on_session_boundary(monkeypatch):
     ctx.hooks["post_tool_call"](**_failed(call="one"))
     assert len(_wait(ctx,3))==3
     assert len(calls)==3
+
+
+def _wait_calls(calls, minimum=1):
+    for _ in range(300):
+        if len(calls) >= minimum:
+            return
+        time.sleep(0.01)
+    raise AssertionError("Retry observer did not dispatch the expected count")
+
+
+def test_retry_concurrent_65th_turn_never_evicts_live_safety_counter(monkeypatch):
+    """Failure injection for Codex P2: retain counters for 64 active turns."""
+    plugin = load_plugin()
+    calls = []
+    lock = threading.Lock()
+
+    def safe_retry(_url, _payload, _timeout, request_id):
+        with lock:
+            calls.append(request_id)
+        return {"retry": None, "error": "unavailable"}
+
+    monkeypatch.setattr(plugin, "_safe_retry", safe_retry)
+    ctx = _ctx()
+    plugin.register(ctx)
+    hook = ctx.hooks["post_tool_call"]
+
+    for i in range(64):
+        assert hook(**_failed(turn=f"active-{i}", call="first")) is None
+        _wait_calls(calls, i + 1)
+    assert len(calls) == 64
+
+    # New active turn is skipped without giving active-0 another fresh budget.
+    assert hook(**_failed(turn="overflow", call="first")) is None
+    assert ctx.state.values["last_retry_escalation_shadow"]["action_reason"] == (
+        "retry_turn_capacity_exhausted"
+    )
+    assert len(calls) == 64
+
+    # Oldest live turn retains its one remaining observation; the third fails.
+    assert hook(**_failed(turn="active-0", call="second")) is None
+    _wait_calls(calls, 65)
+    assert hook(**_failed(turn="active-0", call="third")) is None
+    time.sleep(0.03)
+    assert len(calls) == 65
+
+    # Capacity returns only after native session cleanup.
+    ctx.hooks["on_session_end"](session_id="isolated-session")
+    assert hook(**_failed(turn="overflow", call="first")) is None
+    _wait_calls(calls, 66)
+    assert len(calls) == 66
+    assert "PRIVATE-BEARER-SECRET" not in str(ctx.state.values)
+
+
+def test_retry_session_identity_isolated_for_matching_turn_ids(monkeypatch):
+    plugin = load_plugin()
+    calls = []
+    monkeypatch.setattr(plugin, "_safe_retry", lambda *_args: (
+        calls.append(1) or {"retry": None, "error": "unavailable"}
+    ))
+    ctx = _ctx()
+    plugin.register(ctx)
+    hook = ctx.hooks["post_tool_call"]
+
+    assert hook(**_failed(session="session-a", turn="reused-id", call="first")) is None
+    _wait_calls(calls, 1)
+    assert hook(**_failed(session="session-b", turn="reused-id", call="first")) is None
+    _wait_calls(calls, 2)
+
+    # Ending session-a must NOT reset the count for session-b's identical turn.
+    ctx.hooks["on_session_end"](session_id="session-a", turn_id="reused-id")
+    for call in ("second", "third"):
+        assert hook(**_failed(session="session-b", turn="reused-id", call=call)) is None
+    _wait_calls(calls, 3)
+    time.sleep(0.03)
+    assert len(calls) == 3
+
+    # The ended session can start fresh without interfering with session-b.
+    assert hook(**_failed(session="session-a", turn="new-turn", call="first")) is None
+    _wait_calls(calls, 4)
+
+
+def test_retry_observer_requires_verified_session_identity(monkeypatch):
+    plugin = load_plugin()
+    calls = []
+    monkeypatch.setattr(plugin, "_safe_retry", lambda *_args: calls.append(1))
+    ctx = _ctx()
+    plugin.register(ctx)
+    incomplete = _failed()
+    incomplete.pop("session_id")
+    assert ctx.hooks["post_tool_call"](**incomplete) is None
+    assert ctx.state.values["last_retry_escalation_shadow"]["action_reason"] == (
+        "tool_identity_unverified"
+    )
+    assert calls == []
+
+
+def test_hermes_retry_receiver_does_not_accept_missing_nullable_fields():
+    plugin = load_plugin()
+    sample = {
+        "workflow": "retry_escalation_gate",
+        "decision": "verify_state", "guarded_decision": "verify_state",
+        "raw_model_decision": None, "safety_override_reason": None,
+        "decision_source": "rule", "advisory_only": True,
+        "reason": "unconfirmed_side_effect_verify_first",
+        "request_id": "strict-test", "backend": "rule",
+        "latency_ms": 0.1, "confidence": 1.0,
+    }
+    assert plugin._valid_retry_response(sample, "strict-test")
+    for key in ("raw_model_decision", "safety_override_reason"):
+        mutated = dict(sample)
+        del mutated[key]
+        assert not plugin._valid_retry_response(mutated, "strict-test")
+    assert not plugin._valid_retry_response(
+        dict(sample, advisory_only=False), "strict-test",
+    )
 
 
 def test_retry_invalid_response_must_fail_open(monkeypatch):

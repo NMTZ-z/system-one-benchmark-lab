@@ -69,7 +69,7 @@
       ],
       "properties": {
         "adapter_contract_version": {"const": "1.0"},
-        "request_id": {"type": ["string", "null"]},
+        "request_id": {"type": ["string", "null"], "minLength": 1},
         "gate": {
           "type": "string",
           "enum": ["search", "model_tier", "notification", "completion", "retry_escalation"]
@@ -171,7 +171,7 @@
                 "properties": {
                   "value": {"type": "string", "enum": ["retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort"]},
                   "raw_model_decision": {"type": ["string", "null"], "enum": [null, "retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort"]},
-                  "safety_override_reason": {"type": ["string", "null"]}
+                  "safety_override_reason": {"type": ["string", "null"], "minLength": 1}
                 }
               }
             }

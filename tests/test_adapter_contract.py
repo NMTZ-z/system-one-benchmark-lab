@@ -29,6 +29,125 @@ def search_envelope():
     }
 
 
+
+def _valid_retry_envelope():
+    value = search_envelope()
+    value["gate"] = "retry_escalation"
+    value["decision"] = {
+        "value": "verify_state",
+        "raw_model_decision": None,
+        "safety_override_reason": None,
+    }
+    return value
+
+
+def _valid_retry_runtime():
+    return {
+        "workflow": "retry_escalation_gate",
+        "decision": "verify_state", "guarded_decision": "verify_state",
+        "raw_model_decision": None, "safety_override_reason": None,
+        "decision_source": "rule", "reason": "unconfirmed_side_effect_verify_first",
+        "backend": "rule", "latency_ms": 0.25, "confidence": 1.0,
+        "request_id": "strict-nullable-test", "advisory_only": True,
+    }
+
+
+@pytest.mark.parametrize("missing", ["request_id"])
+def test_all_gate_envelopes_reject_missing_required_nullable_top_level(missing):
+    for gate in ("search", "model_tier", "notification", "completion", "retry_escalation"):
+        # This checks top-level presence before per-gate content validation.
+        value = search_envelope()
+        value["gate"] = gate
+        del value[missing]
+        with pytest.raises(AdapterContractError, match="missing decision envelope field"):
+            validate_decision_envelope(value)
+
+
+@pytest.mark.parametrize("field", ["confidence", "metadata"])
+def test_optional_contract_fields_do_not_accept_explicit_null(field):
+    value = search_envelope()
+    value[field] = None
+    with pytest.raises(AdapterContractError):
+        validate_decision_envelope(value)
+    del value[field]
+    assert validate_decision_envelope(value).gate == "search"
+
+
+def test_runtime_normalizer_does_not_fabricate_top_level_request_id():
+    runtime = _valid_retry_runtime()
+    runtime.pop("request_id")
+    with pytest.raises(AdapterContractError, match="missing runtime decision field"):
+        envelope_from_runtime("retry_escalation", runtime)
+
+
+def test_runtime_optional_confidence_does_not_fabricate_json_null():
+    runtime = _valid_retry_runtime()
+    runtime.pop("confidence")
+    normalized = envelope_from_runtime("retry_escalation", runtime).as_dict()
+    assert "confidence" not in normalized
+    runtime["confidence"] = None
+    with pytest.raises(AdapterContractError, match="confidence"):
+        envelope_from_runtime("retry_escalation", runtime)
+
+
+@pytest.mark.parametrize("missing", ["value", "raw_model_decision", "safety_override_reason"])
+def test_retry_envelope_required_nullable_fields_cannot_be_missing(missing):
+    value = _valid_retry_envelope()
+    assert validate_decision_envelope(value).decision["raw_model_decision"] is None
+    del value["decision"][missing]
+    with pytest.raises(AdapterContractError, match="missing Retry decision field"):
+        validate_decision_envelope(value)
+
+
+@pytest.mark.parametrize(
+    "missing",
+    ["decision", "guarded_decision", "raw_model_decision",
+     "safety_override_reason", "advisory_only"],
+)
+def test_retry_runtime_normalization_never_fabricates_required_fields(missing):
+    runtime = _valid_retry_runtime()
+    assert envelope_from_runtime("retry_escalation", runtime).metadata["advisory_only"] is True
+    del runtime[missing]
+    with pytest.raises(AdapterContractError, match="missing Retry runtime field"):
+        envelope_from_runtime("retry_escalation", runtime)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("advisory_only", False),
+    ("advisory_only", None),
+    ("decision", "retry_same"),
+    ("raw_model_decision", "unsupported_model"),
+    ("safety_override_reason", 99),
+])
+def test_retry_runtime_normalization_fails_closed_on_wrong_semantics(field, value):
+    runtime = _valid_retry_runtime()
+    runtime[field] = value
+    with pytest.raises(AdapterContractError):
+        envelope_from_runtime("retry_escalation", runtime)
+
+
+def test_retry_contract_json_schema_and_python_agree_on_required_nullable_fields():
+    schema = json.loads(
+        (Path(__file__).parents[1] / "contracts" / "adapter-contract-v1.schema.json").read_text()
+    )
+    clauses = schema["$defs"]["decisionEnvelope"]["allOf"]
+    gate_clause = next(
+        row for row in clauses
+        if row["if"]["properties"]["gate"].get("const") == "retry_escalation"
+    )
+    retry_decision = gate_clause["then"]["properties"]["decision"]
+    assert set(retry_decision["required"]) == {
+        "value", "raw_model_decision", "safety_override_reason",
+    }
+    assert retry_decision["properties"]["raw_model_decision"]["type"] == ["string", "null"]
+    assert retry_decision["properties"]["safety_override_reason"]["type"] == ["string", "null"]
+    assert retry_decision["properties"]["safety_override_reason"]["minLength"] == 1
+    assert schema["$defs"]["decisionEnvelope"]["properties"]["request_id"]["minLength"] == 1
+    assert validate_decision_envelope(_valid_retry_envelope()).decision == {
+        "value": "verify_state", "raw_model_decision": None,
+        "safety_override_reason": None,
+    }
+
 def test_valid_search_decision_envelope_accepts_unknown_metadata():
     value = validate_decision_envelope(search_envelope())
     assert value.gate == "search"

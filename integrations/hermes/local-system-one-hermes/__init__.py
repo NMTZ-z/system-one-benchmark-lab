@@ -312,6 +312,9 @@ def _retry_context(kwargs: dict[str, Any]) -> dict[str, Any] | None:
 def _valid_retry_response(value: Any, request_id: str) -> bool:
     if not isinstance(value, dict) or value.get("workflow") != "retry_escalation_gate":
         return False
+    # A missing required-but-nullable field is malformed, not JSON null.
+    if not {"raw_model_decision", "safety_override_reason"} <= value.keys():
+        return False
     guarded = value.get("guarded_decision")
     if guarded not in _RETRY_CHOICES or value.get("decision") != guarded:
         return False
@@ -852,8 +855,10 @@ def register(ctx):
     # never writes to native tool controls and is disabled by default.
     retry_slots = threading.BoundedSemaphore(4)
     retry_lock = threading.RLock()
-    retry_seen: dict[str, set[str]] = {}
-    retry_turn_sessions: dict[str, str] = {}
+    # Active (session, turn) identities are safety counters, not an LRU cache.
+    # Reclaim them only on the native session-end hook.
+    retry_seen: dict[tuple[str, str], set[str]] = {}
+    retry_max_active_turns = 64
 
     def _retry_record(event: dict[str, Any]) -> None:
         with retry_lock:
@@ -879,23 +884,15 @@ def register(ctx):
                 "platform": "hermes", "adapter_version": _PLUGIN_VERSION,
                 "mode": effective_mode, "request_id": os.urandom(12).hex(),
             }
-            if not isinstance(turn, str) or not turn or len(turn) > 256 or (
-                not isinstance(call, str) or not call or len(call) > 256
+            session = kwargs.get("session_id")
+            if (
+                not isinstance(session, str) or not session or len(session) > 256
+                or not isinstance(turn, str) or not turn or len(turn) > 256
+                or not isinstance(call, str) or not call or len(call) > 256
             ):
                 event.update(action_status="unsupported", action_reason="tool_identity_unverified")
                 _retry_record(event)
                 return None
-            with retry_lock:
-                seen = retry_seen.setdefault(turn, set())
-                if call in seen or len(seen) >= 2:
-                    return None
-                seen.add(call)  # Before dispatch: no duplicate inference.
-                session = kwargs.get("session_id")
-                retry_turn_sessions[turn] = session if isinstance(session, str) else ""
-                while len(retry_seen) > 64:
-                    first = next(iter(retry_seen))
-                    retry_seen.pop(first, None)
-                    retry_turn_sessions.pop(first, None)
             failure_context = _retry_context(kwargs)
             if failure_context is None:
                 event.update(
@@ -903,6 +900,24 @@ def register(ctx):
                 )
                 _retry_record(event)
                 return None
+            with retry_lock:
+                identity = (session, turn)
+                seen = retry_seen.get(identity)
+                if seen is None:
+                    if len(retry_seen) >= retry_max_active_turns:
+                        # Never evict a live turn's safety counter under load.
+                        # Deny this observation, preserve native tool execution.
+                        event.update(
+                            action_status="failed_open",
+                            action_reason="retry_turn_capacity_exhausted",
+                        )
+                        _retry_record(event)
+                        return None
+                    seen = set()
+                    retry_seen[identity] = seen
+                if call in seen or len(seen) >= 2:
+                    return None
+                seen.add(call)  # Before dispatch: no duplicate inference.
             if not retry_slots.acquire(blocking=False):
                 event.update(
                     action_status="failed_open", action_reason="retry_capacity_exhausted",
@@ -958,18 +973,16 @@ def register(ctx):
 
     def _retry_session_end(**kwargs):
         session = kwargs.get("session_id")
-        turn = kwargs.get("turn_id") or kwargs.get("task_id")
+        # Native session/end is authoritative for the *whole session*.
+        # A turn ID alone cannot identify a session; never delete another
+        # session's active safety counter merely because its turn ID matches.
+        if not isinstance(session, str) or not session:
+            return None
         with retry_lock:
-            keys = [
-                key for key in retry_seen
-                if key == turn or (
-                    isinstance(session, str) and session
-                    and retry_turn_sessions.get(key) == session
-                )
-            ]
-            for key in keys:
-                retry_seen.pop(key, None)
-                retry_turn_sessions.pop(key, None)
+            for identity in tuple(retry_seen):
+                if identity[0] == session:
+                    retry_seen.pop(identity, None)
+        return None
 
     ctx.register_hook("post_tool_call", _retry_post_tool)
     ctx.register_hook("on_session_end", _retry_session_end)
