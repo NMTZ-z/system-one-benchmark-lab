@@ -49,46 +49,72 @@ def percentile(values: list[float], p: float) -> float | None:
 
 
 def is_unsafe_to_retry(case: dict[str, Any]) -> bool:
-    """Ground the denominator in policy, *not* the model's decision/label.
+    """Count *all* cases where the Runtime's hard policy forbids retry_same.
 
-    This is the set of cases for which an immediate retry_same recommendation
-    would violate an explicit safety, permission, verification or time rule.
-    Each case contributes at most once even if multiple hazards overlap.
+    The denominator follows the same typed request validation and candidate
+    filtering as the production gate, not a second hand-maintained predicate
+    or the model/gold label. This includes untrusted metadata, too many
+    repeated failures and non-transient errors, as well as explicit hazards.
+    "Unsafe" here means *policy-prohibited*, not observed real-world harm.
+    Invalid typed requests cannot receive retry authority either.
     """
-    data = case["payload"]
-    failure = data["failure"]
-    operation = data["operation"]
-    history = data["history"]
-    constraints = data["constraints"]
+    try:
+        req = RetryEscalationRequest.from_payload(case["payload"])
+    except (TypeError, ValueError, KeyError):
+        return True
+    forced, _reason, allowed = RetryEscalationGate()._resolve_rules(req)
+    return forced != "retry_same" if forced is not None else "retry_same" not in allowed
 
-    if constraints["requires_approval"]:
-        return True
-    if failure["category"] in {"auth", "validation"} or failure.get("http_status") in {401, 403}:
-        return True
-    if failure["transience"] == "permanent":
-        return True
-    if not history["retry_budget_available"]:
-        return True
-    if history["remaining_time_ms"] is None or history["remaining_time_ms"] <= 0:
-        return True
-    if history["max_attempts"] is None or history["attempts"] >= history["max_attempts"]:
-        return True
-    if failure["category"] == "rate_limit":
-        retry_after = failure.get("retry_after_ms")
-        if retry_after is None or retry_after > history["remaining_time_ms"]:
-            return True
-    if operation["idempotency"] == "non_idempotent" or operation["side_effect"] == "unknown":
-        return True
-    if operation["side_effect"] != "none":
-        if (not failure["outcome_known"] or
-            operation["side_effect_status"] in {"unknown", "partial", "applied"}):
-            return True
-        # Confirmed non-execution is not itself proof that a *write* may be retried.
-        if (operation["metadata_source"] != "adapter_policy"
-            or operation["idempotency"] != "verified"
-            or not operation["verified_idempotency_key"]):
-            return True
-    return False
+
+class _InferenceProbe:
+    """Observe actual Engine calls independently of guarded decision_source.
+
+    The gate may safely replace a completed or malformed model answer with a
+    rule. That must not erase the already incurred inference call/latency.
+    This wrapper is benchmark-only; it does not change the Runtime response
+    schema, execute native Agent actions or intercept tool requests.
+    """
+
+    def __init__(self, engine: Any):
+        self._engine = engine
+        self.attempts = 0
+        self.completed = 0
+        self.last_latency_ms: float | None = None
+        self.last_backend: str | None = None
+
+    @property
+    def metrics(self):
+        # Preserve the real Engine's single-request error accounting behavior.
+        return self._engine.metrics
+
+    def decide(self, request: Any) -> Any:
+        self.attempts += 1
+        self.last_backend = None
+        start = time.perf_counter()
+        try:
+            result = self._engine.decide(request)
+            self.completed += 1
+            if isinstance(result, dict) and isinstance(result.get("backend"), str):
+                self.last_backend = result["backend"]
+            return result
+        finally:
+            self.last_latency_ms = (time.perf_counter() - start) * 1000
+
+
+def _inference_attempted(row: dict[str, Any]) -> bool:
+    # evaluate() supplies an explicit call observation. The legacy fallback
+    # supports hand-built/older rows but cannot infer a failed invisible call.
+    return bool(row.get(
+        "model_inference_attempted",
+        row.get("decision_source") == "model" or row.get("raw_model_decision") is not None,
+    ))
+
+
+def _inference_completed(row: dict[str, Any]) -> bool:
+    return bool(row.get(
+        "model_inference_completed",
+        row.get("decision_source") == "model" or row.get("raw_model_decision") is not None,
+    ))
 
 
 def policy_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -118,7 +144,16 @@ def policy_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     missed=sum(x["decision"] in ("retry_same","try_alternative","escalate_model") for x in verify_required)
     unnecessary=sum(x["decision"]=="escalate_model" and x["gold"]!="escalate_model" for x in rows)
     attempts=[x["latency_ms"] for x in rows]
-    model_latencies=[x["latency_ms"] for x in rows if x["decision_source"]=="model"]
+    # Track real inference work, not the *guarded* final decision label.
+    # A safety override or malformed response can have decision_source=rule
+    # even though Engine.decide() actually ran (or failed).
+    inferred=[x for x in rows if _inference_attempted(x)]
+    model_latencies=[x["latency_ms"] for x in inferred]
+    engine_latencies=[
+        x["model_inference_latency_ms"] for x in inferred
+        if isinstance(x.get("model_inference_latency_ms"), (int, float))
+        and not isinstance(x["model_inference_latency_ms"], bool)
+    ]
     correct=sum(x["gold"]==x["decision"] for x in rows)
     return {
         "n":n, "accuracy":round(correct/n,4) if n else None,
@@ -138,12 +173,21 @@ def policy_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "count":unnecessary,"denominator":n,
             "rate":round(unnecessary/n,4) if n else None,
         },
-        "model_activated_count":len(model_latencies),
+        "model_activated_count":len(inferred),
+        "model_inference_completed_count":sum(_inference_completed(x) for x in inferred),
+        "model_inference_failed_count":sum(not _inference_completed(x) for x in inferred),
         "p50_wall_ms":percentile(attempts,0.5),
         "p95_wall_ms":percentile(attempts,0.95),
         "p50_model_path_ms":percentile(model_latencies,0.5),
         "p95_model_path_ms":percentile(model_latencies,0.95),
+        "p50_engine_call_ms":percentile(engine_latencies,0.5),
+        "p95_engine_call_ms":percentile(engine_latencies,0.95),
+        # Backend on guarded output may be 'rule' after a genuine MLX call.
+        # Keep this distinct from the actual inference backend.
         "backend_count":dict(Counter(x["backend"] for x in rows)),
+        "inference_backend_count":dict(Counter(
+            x.get("model_inference_backend") or "unknown" for x in inferred
+        )),
         "safety_override_count":sum(bool(x["safety_override_reason"]) for x in rows),
     }
 
@@ -176,14 +220,21 @@ def make_engine(source: str, ane_package: str | None):
 
 
 def evaluate(rows: list[dict], engine=None, backend="mlx") -> list[dict]:
-    gate=RetryEscalationGate(engine)
+    # Capture inference work at the call boundary. A guarded fallback can
+    # erase the model's *decision*, never its actual compute cost.
+    probe = _InferenceProbe(engine) if engine is not None else None
+    gate=RetryEscalationGate(probe)
     output=[]
     for row in rows:
         payload=dict(row["payload"])
         payload["backend"] = backend if engine is not None else "auto"
         request=RetryEscalationRequest.from_payload(payload)
+        before_calls = probe.attempts if probe is not None else 0
+        before_completed = probe.completed if probe is not None else 0
         started=time.perf_counter()
         decision=gate.decide(request)
+        attempted = probe is not None and probe.attempts > before_calls
+        completed = attempted and probe.completed > before_completed
         output.append({
             "case_id":row["case_id"],"gold":row["gold"],
             "decision":decision["guarded_decision"],
@@ -192,6 +243,13 @@ def evaluate(rows: list[dict], engine=None, backend="mlx") -> list[dict]:
             "safety_override_reason":decision["safety_override_reason"],
             "backend":decision["backend"],
             "latency_ms":round((time.perf_counter()-started)*1000,3),
+            "model_inference_attempted":attempted,
+            "model_inference_completed":completed,
+            "model_inference_backend":probe.last_backend if attempted else None,
+            "model_inference_latency_ms":(
+                round(probe.last_latency_ms,3)
+                if attempted and probe.last_latency_ms is not None else None
+            ),
             "payload":payload,
         })
     return output
@@ -233,8 +291,14 @@ def main():
             if args.ane_package:
                 ane=evaluate(rows,engine,"ane")
                 entry["rules_laya_ane"]=policy_metrics(ane)
-                pairs=[(m,a) for m,a in zip(model,ane) if m["decision_source"]=="model"]
-                valid=[(m,a) for m,a in pairs if a["backend"]=="ane"]
+                # Pair actual inference observations. A safety override
+                # must not make completed backend work disappear from coverage.
+                pairs=[(m,a) for m,a in zip(model,ane)
+                       if m["model_inference_attempted"] and a["model_inference_attempted"]]
+                valid=[(m,a) for m,a in pairs
+                       if (a["model_inference_backend"]=="ane"
+                           and m["raw_model_decision"] is not None
+                           and a["raw_model_decision"] is not None)]
                 entry["ane_mlx_comparison"]={
                     "model_eligible_pairs":len(pairs),
                     "ane_actual_pairs":len(valid),

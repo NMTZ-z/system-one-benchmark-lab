@@ -6,13 +6,13 @@ release and Codex re-review are independent gates.
 
 ## Why this audit exists
 
-The first four Codex reviews on GitHub PR #5 found eight P2 defects. Several
+The first five Codex reviews on GitHub PR #5 found ten P2 defects. Several
 were the *same invariant* violated by different adapters. A passing benchmark
 accuracy score does not establish a safe concurrency or accounting boundary.
 This audit maps every defect to executable regression evidence, then checks
 the shared contracts rather than relying only on the originally commented line.
 
-## The eight findings and their regression guards
+## The ten findings and their regression guards
 
 | Review / finding | Invariant | Code guard | Executable evidence |
 | --- | --- | --- | --- |
@@ -24,6 +24,8 @@ the shared contracts rather than relying only on the originally commented line.
 | R3: Hermes eviction resets an active turn's limit | Keep the 64 active session/turn counters until native session end; do not conflate sessions sharing a turn ID | Hermes Retry observer uses `(session_id, turn_id)`, 64-capacity admission, cleanup by session | `test_retry_concurrent_65th_turn_never_evicts_live_safety_counter`, `test_retry_session_identity_isolated_for_matching_turn_ids`, missing-session fail-open |
 | R3: Python contract silently converts missing required fields into null | A required nullable field must be **present** and type-correct | `validate_decision_envelope`, `envelope_from_runtime`, Hermes response validator | `test_retry_envelope_required_nullable_fields_cannot_be_missing`, `test_retry_runtime_normalization_never_fabricates_required_fields`, Hermes and DSH receiver tests |
 | R4: DSH session prefix collides with `:` inside opaque session IDs | Cleanup of `job` must not mutate any `job:child` state; every Gate must share collision-free keys | Shared `sessionKeyPrefix` / `turnKey` in `src/state.ts` and all DSH `session/event` cleanup paths | Parent-close/child-retry-budget test, `TurnDecisionState` Search/Model Tier isolation test, Notification/Completion candidate preservation test |
+| R5: untrusted metadata omitted from forbidden-retry denominator | The evaluator must use Runtime typed validation and the *same* `retry_same` candidate filter | `benchmarks/retry/evaluate.py:is_unsafe_to_retry` calls `RetryEscalationGate._resolve_rules` | `test_safety_denominator_tracks_runtime_retry_permission_on_all_frozen_cases`, `test_untrusted_no_effect_metadata_is_forbidden_and_detected_if_injected`, `test_repeat_limit_and_unknown_transience_are_policy_blocked` |
+| R5: model inference overridden by safety guard is invisible to benchmark | Count actual Engine calls, even when final source becomes `rule`, and report completed/failed calls and backend separately | Benchmark-only `_InferenceProbe` + `model_inference_attempted/completed` observations | `test_review_count_engine_calls_even_when_final_decision_is_rule`, `test_no_backend_call_is_charged_to_a_deterministic_hard_rule` |
 
 ## Shared constraints verified across modules
 
@@ -56,7 +58,16 @@ the shared contracts rather than relying only on the originally commented line.
    constraints metadata. Error text, arguments, secret-bearing result bodies,
    provider credentials and native tool action handles do not enter the Gate
    or its telemetry. Synthetic identifiers only in regression fixtures.
-6. **Authority and compatibility:** OFF remains the default; Shadow is
+6. **Benchmark metric integrity:** Policy-prohibited `retry_same` is now
+   computed using the same Runtime rule candidates, rather than a second
+   incomplete predicate. The frozen splits therefore contain 25/30 blocked
+   cases (previously reported 15/30), but their gold labels and predictions
+   are unchanged. `model_activated_count` counts *attempted* Engine calls,
+   even if a malformed or unsafe model answer is guarded to a rule.
+   Completed/failed Engine calls, inference backend, and call time are
+   tracked separately from the final guarded decision. This does not
+   establish real-world safety or model economic benefit.
+7. **Authority and compatibility:** OFF remains the default; Shadow is
    advice-only. No automatic retry, write, abort, provider/model escalation,
    approval bypass or production-config mutation has been added. Existing
    Completion Gate threshold/contract and frozen synthetic benchmark SHA256

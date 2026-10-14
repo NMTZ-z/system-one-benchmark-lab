@@ -154,24 +154,26 @@ value on independent real failures remains **UNPROVEN**.
 
 | Metric | Calibration | Holdout | Adversarial | Interpretation |
 |---|---|---|---|---|
-| Unsafe Retry Rate, B and C | 0/15 | 0/15 | 0/15 | each 95% Wilson upper bound 20.39% |
+| Unsafe Retry Rate, B and C | 0/25 | 0/25 | 0/25 | policy-forbidden retries; each 95% Wilson upper bound 13.32% |
 | Missed Verification Rate, B and C | 0/5 | 0/5 | 0/5 | each 95% Wilson upper bound 43.45% |
 | Verify State Recall, B and C | 100% | 100% | 100% | tiny synthetic denominator |
 | Unnecessary Escalation | 0/30 | 0/30 | see machine-readable report | no true external cost observed |
 
 Safety-dominated cases were largely determined by deterministic rules.
-The Unsafe Retry Rate denominator was corrected after Codex PR #5 review
-(P2): each split contains **15** unsafe-to-retry cases, not 10. In addition
-to uncertain writes and general budget/approval restrictions, the predicate
-now includes HTTP 401/403 or `auth`, permanent/validation errors, zero or
-unknown remaining time, attempts exhausted, insufficient 429 Retry-After,
-and unverified idempotency for mutating actions. A deliberately injected
-`retry_same` on two authorization failures and one zero-time case
-is counted as **3/15**; it no longer escapes the numerator. Frozen
-JSONL corpora and their SHA256 hashes are unchanged.
+After the fifth Codex review, the Unsafe Retry denominator now follows the
+same typed input checks and `_resolve_rules()` candidate filter used by the
+Runtime, rather than a separately maintained list of hazards. Across each
+30-case frozen split, **25 cases** prohibit `retry_same` (earlier incomplete
+predicates counted 10, then 15). This includes untrusted operation metadata,
+unknown transience and repeated failures as well as authorization, approval,
+write uncertainty and budget exhaustion. The metric means **policy-forbidden
+retry**, not independently demonstrated physical or financial harm. A
+deliberately injected `retry_same` on two auth failures and one zero-time
+case is correctly measured as **3/25**, rather than the previous 3/15.
+Frozen JSONL corpora, gold labels and SHA256 hashes are unchanged.
 
-Zero unsafe suggestions in 15 synthetic unsafe cases is **not** an active
-authorization safety guarantee. Do not interpret these deliberately enriched
+Zero unsafe suggestions in 25 synthetic policy-blocked cases is **not** an
+active authorization safety guarantee. Do not interpret these deliberately enriched
 samples as production failure or attack base rates. Six-class confusion
 matrices and precision/recall are preserved in the public processed JSON.
 
@@ -181,9 +183,21 @@ Isolated **real MLX** model-path local wall timing (not native Agent overhead):
 
 | Split | MLX model-path P50 | P95 |
 |---|---:|---:|
-| Calibration | 61.106 ms | 111.544 ms |
-| Holdout | 61.078 ms | 61.924 ms |
-| Adversarial | 61.087 ms | 65.829 ms |
+| Calibration | 61.454 ms | 105.250 ms |
+| Holdout | 61.459 ms | 63.485 ms |
+| Adversarial | 61.162 ms | 65.608 ms |
+
+Each of the three MLX splits records **15 attempted / 15 completed**
+Engine decisions, independently from whether their final guarded output is
+`rule` or `model`. Additional `p50/p95_engine_call_ms` fields measure
+the actual Engine-call interval, while the table shows full local Gate wall
+time for attempted inference. Synthetic injected tests also verify that
+blocked raw model choices and malformed post-inference results are counted
+as real model activations, including failures and unknown backend labels.
+The previously published `backend_count` remains the *final decision*
+backend; `inference_backend_count` separately reports the observed Engine
+backend, avoiding hidden model-cost attribution. Timing is not a controlled
+benchmark and can vary between runs.
 
 The installed Laya checkpoint emitted a temperature-clamping warning;
 choice confidence must be treated as **uncalibrated**. There was no power
@@ -212,12 +226,14 @@ modifying gold labels.
   observations, turn isolation, malformed response fail-open, metadata-only.
 - Both client adapters: real loopback Runtime inference and Shadow observation,
   never native provider E2E.
-- Python whole-tree tests: **431/431 PASS**, including existing Gate
+- Python whole-tree tests: **438/438 PASS**, including existing Gate
   regressions, Retry failure injection, HTTP, frozen synthetic corpus integrity,
-  mutation metadata consistency, unsafe-retry denominator injection,
-  `GET /metrics` integration, real failing `DecisionEngine` with repeated
-  exception identity, 65th Hermes active-turn overflow, session isolation,
-  and required-nullable JSON Schema / Python / Hermes contract checks.
+  mutation metadata consistency, policy-forbidden retry denominator parity,
+  untrusted metadata and additional blocked conditions, guarded model
+  inference-call and malformed-response accounting, `GET /metrics` integration,
+  real failing `DecisionEngine` with repeated exception identity, 65th
+  Hermes active-turn overflow, session isolation, and required-nullable JSON
+  Schema / Python / Hermes contract checks.
 - DSH Vitest: **55/55 PASS**; TypeScript typecheck and build PASS.
   Added 96/97 parallel-turn overflow exercise (tracked oldest turn retains its
   two-observation cap, new turn fails open, ended turn releases capacity),
@@ -229,9 +245,10 @@ modifying gold labels.
   capability registration, native ABI and safety scan. Validator also
   reported existing private-core-import compatibility warnings; this
   gate did not introduce a new private integration hook.
-- Public allowlist release sanitizer: the previous hardening revision
-  `48dd68b` produced **137 files, `publish_ready: true`**.
-  This follow-up needs its own clean-tree sanitizer check after commit.
+- Public allowlist release sanitizer: the previous revision
+  `50699e0` produced **137 files, `publish_ready: true`**.
+  This metric-correction revision needs a separate clean-tree sanitizer
+  check after commit.
 - No genuine provider-backed Agent E2E; no production recovery enabled.
 
 ## 10. Files, publication and review
@@ -284,7 +301,7 @@ Codex's **third review**, completed 2026-10-14 at 14:06 UTC on
    Hermes/DSH receiver checks.
 
 The comprehensive [Phase 8C Cross-platform Safety Audit](PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md)
-maps all eight P2 findings to tests and documents additional safeguards
+maps all ten P2 findings to tests and documents additional safeguards
 for required top-level request IDs and optional-field nullability.
 Codex's **fourth review**, completed 2026-10-14 at 14:58 UTC on
 `48dd68b`, identified one additional P2 finding:
@@ -295,19 +312,35 @@ Codex's **fourth review**, completed 2026-10-14 at 14:58 UTC on
    The regression reproduced the original unsafe third observation
    before the fix, and passes with the correction.
 
-This hardening remains **Shadow-only**; fourth-review fixes are subject
-to **new independent Codex review**, not an assumed approval.
+Codex's **fifth review**, completed 2026-10-14 at 15:16 UTC on
+`50699e0`, identified two Benchmark P2 findings:
+9. The unsafe retry denominator omitted untrusted metadata for operations
+   claiming `side_effect=none`. The evaluator now uses the actual Runtime
+   typed validation and `_resolve_rules` retry candidate set, covering
+   *all* policy-prohibited same-action retries. Invalid typed metadata cannot
+   authorize a retry. Frozen data remain unchanged while the denominator
+   increases from 15 to 25 per 30-case split.
+10. The benchmark inferred model activation from *guarded*
+    `decision_source=model`. A completed unsafe or malformed inference
+    that falls back to a rule still consumes model compute. A benchmark-only
+    `_InferenceProbe` now captures attempted/completed/failed Engine calls,
+    backend identity and elapsed time independent of the final decision.
+    Safety override and malformed/inference-failure regressions verify this.
+
+The patch remains **Shadow-only**; fifth-review fixes are subject to
+**new independent Codex review**, not an assumed approval.
 
 The synthetic frozen corpus is **unchanged** (identical SHA256 for all 3
-splits). A separate real-MLX replay after the second review fixes reproduced
-the published synthetic accuracy, Macro F1, six-class confusion matrices,
-unsafe-retry and missed-verification rates, and model call counts for all
-three splits. Latency samples vary from run to run; no new real-Agent
-performance claim is made. These fixes are engineering instrumentation and
-observer lifecycle changes; no frozen corpus, gold label, model artifact,
-production config or earlier Gate threshold was edited.
+splits). An isolated real-MLX replay after the fifth review reproduced
+the previous accuracy, Macro F1, six-class confusion matrices, missed
+verification and unnecessary escalation counts, and 15 model calls per
+split. The **Unsafe Retry denominator and Wilson intervals changed** due
+to corrected policy coverage, not different predictions or examples.
+Latency samples vary from run to run; no new real-Agent performance claim
+is made. No frozen corpus, gold label, model artifact, production config
+or earlier Gate threshold was edited.
 
-**Fifth Codex re-review and final merge authorization remain separate
+**Sixth Codex re-review and final merge authorization remain separate
 from passing code tests.** The follow-up revision SHA is recorded by
 Git and the PR itself, not embedded recursively into its own commit.
 

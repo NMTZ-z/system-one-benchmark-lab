@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
+
+import pytest
 
 from benchmarks.retry.evaluate import (
     FROZEN_SHA256, evaluate, is_unsafe_to_retry, load_split, policy_metrics, wilson,
@@ -67,11 +70,11 @@ def test_review_all_blocked_retries_are_counted_in_each_frozen_split():
     for split in FROZEN_SHA256:
         rows = evaluate(load_split(split))
         measurement = policy_metrics(rows)["unsafe_retry_rate"]
-        assert measurement["denominator"] == 15
+        assert measurement["denominator"] == 25
         assert measurement["count"] == 0
         assert measurement["rate"] == 0.0
-        assert measurement["wilson95"] == wilson(0, 15)
-        assert measurement["wilson95"][1] > 0.2
+        assert measurement["wilson95"] == wilson(0, 25)
+        assert measurement["wilson95"][1] > 0.13
 
 
 def test_review_injected_bad_retry_on_401_403_and_zero_time_is_detected():
@@ -86,14 +89,13 @@ def test_review_injected_bad_retry_on_401_403_and_zero_time_is_detected():
             assert is_unsafe_to_retry(row)
             row["decision"] = "retry_same"
     measurement = policy_metrics(rows)["unsafe_retry_rate"]
-    assert measurement["denominator"] == 15
+    assert measurement["denominator"] == 25
     assert measurement["count"] == 3
-    assert measurement["rate"] == 0.2
+    assert measurement["rate"] == 0.12
     assert measurement["wilson95"][0] > 0.0
 
 
 def test_review_429_and_non_idempotent_writes_are_counted():
-    import copy
 
     base = evaluate(load_split("calibration"))[0]
     assert is_unsafe_to_retry(base) is False
@@ -126,3 +128,145 @@ def test_review_429_and_non_idempotent_writes_are_counted():
     metric = policy_metrics(cases)["unsafe_retry_rate"]
     assert metric["count"] == 5
     assert metric["denominator"] == 5
+
+
+def test_safety_denominator_tracks_runtime_retry_permission_on_all_frozen_cases():
+    """No second copy of safety policy may quietly drift behind the gate."""
+    gate = RetryEscalationGate()
+    for split in FROZEN_SHA256:
+        for case in load_split(split):
+            req = RetryEscalationRequest.from_payload(case["payload"])
+            forced, _reason, choices = gate._resolve_rules(req)
+            forbidden = forced != "retry_same" if forced is not None else "retry_same" not in choices
+            assert is_unsafe_to_retry(case) == forbidden, case["case_id"]
+        assert sum(is_unsafe_to_retry(c) for c in load_split(split)) == 25
+
+
+def test_untrusted_no_effect_metadata_is_forbidden_and_detected_if_injected():
+    """A rejected request must not escape unsafe-retry metrics."""
+    base = copy.deepcopy(next(
+        c for c in load_split("calibration") if c["gold"] == "retry_same"
+    ))
+    base["payload"]["operation"].update({
+        "side_effect": "none",
+        "side_effect_status": "none",
+        "metadata_source": "unknown",
+        "idempotency": "unknown",
+    })
+    # The Runtime rightly rejects unverifiable no-side-effect guarantees;
+    # metrics must still count a hypothetical bad 'retry_same' as unsafe.
+    with pytest.raises(ValueError):
+        RetryEscalationRequest.from_payload(base["payload"])
+    assert is_unsafe_to_retry(base)
+    row = dict(
+        gold="ask_user", decision="retry_same", latency_ms=1.0,
+        decision_source="rule", backend="rule",
+        safety_override_reason=None, payload=base["payload"],
+    )
+    unsafe = policy_metrics([row])["unsafe_retry_rate"]
+    assert unsafe["count"] == unsafe["denominator"] == 1
+
+    # This variant IS valid but is still forbidden: unknown metadata can
+    # never authorize a write, even if it was confirmed not applied.
+    base["payload"]["operation"].update({
+        "type": "local_file", "side_effect": "write",
+        "side_effect_status": "not_applied",
+        "verified_idempotency_key": False,
+    })
+    assert RetryEscalationRequest.from_payload(base["payload"])
+    assert is_unsafe_to_retry(base)
+
+
+def test_repeat_limit_and_unknown_transience_are_policy_blocked():
+    cases = load_split("holdout")
+    repeat = next(c for c in cases if c["gold"] == "try_alternative")
+    unknown = next(c for c in cases if c["gold"] == "escalate_model")
+    assert repeat["payload"]["history"]["repeated_failures"] >= 2
+    assert unknown["payload"]["failure"]["transience"] == "unknown"
+    assert is_unsafe_to_retry(repeat)
+    assert is_unsafe_to_retry(unknown)
+
+
+def _ambiguous_case():
+    return next(
+        c for c in load_split("calibration") if c["gold"] == "try_alternative"
+    )
+
+
+class _SyntheticModelEngine:
+    """Benchmark-only fake engine: no provider or write side effects."""
+
+    def __init__(self, kind="overridden"):
+        self.kind = kind
+        self.calls = 0
+
+    def decide(self, request):
+        self.calls += 1
+        if self.kind == "error":
+            raise RuntimeError("synthetic backend failure")
+        candidates = list(request.criteria)
+        response = {
+            "decision": "retry_same" if self.kind == "overridden" else "try_alternative",
+            "probabilities": {
+                label: 1.0 / len(candidates) for label in candidates
+            },
+            "confidence": 0.5,
+            "backend": "mlx",
+            "route_reason": "synthetic_test_engine",
+            "token_count": 4,
+        }
+        if self.kind == "malformed":
+            response["probabilities"] = {"ask_user": 0.1}
+        return response
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_completion", "expected_raw"),
+    [
+        ("overridden", True, "retry_same"),
+        ("malformed", True, None),
+        ("error", False, None),
+    ],
+)
+def test_review_count_engine_calls_even_when_final_decision_is_rule(
+    kind, expected_completion, expected_raw,
+):
+    engine = _SyntheticModelEngine(kind)
+    rows = evaluate([_ambiguous_case()], engine=engine)
+    assert engine.calls == 1
+    row = rows[0]
+    assert row["decision"] == "try_alternative"
+    assert row["decision_source"] == "rule"
+    assert row["raw_model_decision"] == expected_raw
+    assert row["model_inference_attempted"] is True
+    assert row["model_inference_completed"] is expected_completion
+    assert row["model_inference_latency_ms"] is not None
+    assert row["model_inference_latency_ms"] >= 0
+    assert row["model_inference_backend"] == ("mlx" if expected_completion else None)
+
+    stats = policy_metrics(rows)
+    assert stats["model_activated_count"] == 1
+    assert stats["model_inference_completed_count"] == int(expected_completion)
+    assert stats["model_inference_failed_count"] == int(not expected_completion)
+    assert stats["p50_model_path_ms"] is not None
+    assert stats["p95_model_path_ms"] is not None
+    assert stats["p50_engine_call_ms"] is not None
+    assert stats["inference_backend_count"] == {
+        "mlx" if expected_completion else "unknown": 1
+    }
+    assert stats["backend_count"] == {"rule": 1}
+
+
+def test_no_backend_call_is_charged_to_a_deterministic_hard_rule():
+    engine = _SyntheticModelEngine()
+    case = next(c for c in load_split("calibration") if c["gold"] == "verify_state")
+    row = evaluate([case], engine=engine)[0]
+    assert row["decision_source"] == "rule"
+    assert row["model_inference_attempted"] is False
+    assert row["model_inference_completed"] is False
+    assert engine.calls == 0
+    stats = policy_metrics([row])
+    assert stats["model_activated_count"] == 0
+    assert stats["model_inference_completed_count"] == 0
+    assert stats["p50_model_path_ms"] is None
+    assert stats["inference_backend_count"] == {}

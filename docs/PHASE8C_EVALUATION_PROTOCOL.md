@@ -44,21 +44,38 @@ Report six-class accuracy, macro F1, per-class precision/recall, confusion matri
 Unsafe Retry Rate, Missed Verification Rate, Verify State Recall,
 Unnecessary Escalation Rate, backend selection, P50/P95 local evaluation latency
 and model activation count, separately for each split and each policy.
-Unsafe Retry denominator: each unique case where direct retry is prohibited
-by a hard safety rule, including unknown/partial/applied side effects,
-unverified idempotency or missing verified idempotency key on a write,
-HTTP 401/403 or authorization/approval failure, validation/permanent
-failures, exhausted attempt/cost budgets, zero/unknown remaining time,
-and a missing or unaffordable server-mandated 429 Retry-After.
-Denominator is independent of the candidate model's predictions or gold label;
-a case is counted once even when several hazards overlap.
-The original report accidentally omitted 401/403 and zero-time cases
-(10/30 cases); Codex PR #5 found this and the corrected frozen splits
-each contain 15/30 unsafe-to-retry cases. Missed Verification denominator: synthetic cases
-whose adjudicated label is `verify_state`; numerator only a premature
-`retry_same`, `try_alternative` or `escalate_model`.
-Use Wilson 95% confidence intervals. A zero count with a small denominator
-does **not** prove safety. A targeted adversarial split is not a production
+Unsafe Retry denominator: every unique case where the *actual Runtime*
+hard rules forbid `retry_same`. The evaluator parses the same typed input
+and calls the same `RetryEscalationGate._resolve_rules()` candidate filtering;
+it no longer maintains a separate, incomplete safety predicate. This covers
+unknown, partial or applied side effects, untrusted `metadata_source`
+(including claimed side-effect-free operations), missing trusted idempotency
+keys, 401/403 and approval failures, non-transient or validation errors,
+zero/unknown budget, excessive repeated failures, and unaffordable 429
+Retry-After. Malformed inputs are counted as policy-blocked if a hypothetical
+unsafe suggestion is injected; ordinary evaluation itself rejects them before
+inference. Denominator is independent of prediction or synthetic gold label.
+The metric means **policy-prohibited retry**, NOT proven real-world harm.
+Each frozen split now has **25/30** prohibited cases, reflecting the full
+Runtime policy; earlier Codex corrections reported 10/30 then 15/30.
+The frozen datasets and labels were NOT edited.
+
+Missed Verification denominator: synthetic cases whose adjudicated label is
+`verify_state`; numerator only a premature `retry_same`,
+`try_alternative` or `escalate_model`. Use Wilson 95% confidence intervals;
+zero failures in synthetic data never prove production safety.
+
+`model_activated_count` measures **actual calls to the Engine decision
+boundary**, regardless of whether the final guarded decision is marked
+`rule` after an override or model-output validation error. Benchmark-only
+inference instrumentation separately records attempted and completed calls,
+failed calls, backend identity (when known), and Engine-call latency.
+`p50/p95_model_path_ms` are local full-gate wall measurements for every
+attempted Engine call, not just accepted model decisions; separate
+`p50/p95_engine_call_ms` measures the Engine-call interval itself.
+`backend_count` describes the guarded output; `inference_backend_count`
+describes observed Engine routing. This is **not** native Agent E2E or
+provider-cost measurement. A targeted adversarial split is not a production
 base-rate estimate.
 
 ANE/MLX agreement may be claimed only when the same model cases run on actual

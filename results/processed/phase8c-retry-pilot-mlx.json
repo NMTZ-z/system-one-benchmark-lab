@@ -112,11 +112,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 15,
+          "denominator": 25,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.203889
+            0.133196
           ]
         },
         "missed_verification_rate": {
@@ -134,13 +134,18 @@
           "rate": 0.0
         },
         "model_activated_count": 0,
-        "p50_wall_ms": 0.002,
-        "p95_wall_ms": 0.008,
+        "model_inference_completed_count": 0,
+        "model_inference_failed_count": 0,
+        "p50_wall_ms": 0.011,
+        "p95_wall_ms": 0.026,
         "p50_model_path_ms": null,
         "p95_model_path_ms": null,
+        "p50_engine_call_ms": null,
+        "p95_engine_call_ms": null,
         "backend_count": {
           "rule": 30
         },
+        "inference_backend_count": {},
         "safety_override_count": 0
       },
       "engine": "laya_421m",
@@ -238,11 +243,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 15,
+          "denominator": 25,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.203889
+            0.133196
           ]
         },
         "missed_verification_rate": {
@@ -260,13 +265,20 @@
           "rate": 0.0
         },
         "model_activated_count": 15,
-        "p50_wall_ms": 24.467,
-        "p95_wall_ms": 89.793,
-        "p50_model_path_ms": 61.106,
-        "p95_model_path_ms": 111.544,
+        "model_inference_completed_count": 15,
+        "model_inference_failed_count": 0,
+        "p50_wall_ms": 24.304,
+        "p95_wall_ms": 77.126,
+        "p50_model_path_ms": 61.454,
+        "p95_model_path_ms": 105.25,
+        "p50_engine_call_ms": 61.401,
+        "p95_engine_call_ms": 105.175,
         "backend_count": {
           "mlx": 15,
           "rule": 15
+        },
+        "inference_backend_count": {
+          "mlx": 15
         },
         "safety_override_count": 0
       },
@@ -368,11 +380,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 15,
+          "denominator": 25,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.203889
+            0.133196
           ]
         },
         "missed_verification_rate": {
@@ -390,13 +402,18 @@
           "rate": 0.0
         },
         "model_activated_count": 0,
-        "p50_wall_ms": 0.005,
-        "p95_wall_ms": 0.007,
+        "model_inference_completed_count": 0,
+        "model_inference_failed_count": 0,
+        "p50_wall_ms": 0.01,
+        "p95_wall_ms": 0.018,
         "p50_model_path_ms": null,
         "p95_model_path_ms": null,
+        "p50_engine_call_ms": null,
+        "p95_engine_call_ms": null,
         "backend_count": {
           "rule": 30
         },
+        "inference_backend_count": {},
         "safety_override_count": 0
       },
       "engine": "laya_421m",
@@ -494,11 +511,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 15,
+          "denominator": 25,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.203889
+            0.133196
           ]
         },
         "missed_verification_rate": {
@@ -516,13 +533,20 @@
           "rate": 0.0
         },
         "model_activated_count": 15,
-        "p50_wall_ms": 24.939,
-        "p95_wall_ms": 61.398,
-        "p50_model_path_ms": 61.078,
-        "p95_model_path_ms": 61.924,
+        "model_inference_completed_count": 15,
+        "model_inference_failed_count": 0,
+        "p50_wall_ms": 24.412,
+        "p95_wall_ms": 63.271,
+        "p50_model_path_ms": 61.459,
+        "p95_model_path_ms": 63.485,
+        "p50_engine_call_ms": 61.401,
+        "p95_engine_call_ms": 63.421,
         "backend_count": {
           "mlx": 15,
           "rule": 15
+        },
+        "inference_backend_count": {
+          "mlx": 15
         },
         "safety_override_count": 0
       },
@@ -624,11 +648,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 15,
+          "denominator": 25,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.203889
+            0.133196
           ]
         },
         "missed_verification_rate": {
@@ -646,13 +670,18 @@
           "rate": 0.0
         },
         "model_activated_count": 0,
-        "p50_wall_ms": 0.003,
-        "p95_wall_ms": 0.004,
+        "model_inference_completed_count": 0,
+        "model_inference_failed_count": 0,
+        "p50_wall_ms": 0.01,
+        "p95_wall_ms": 0.025,
         "p50_model_path_ms": null,
         "p95_model_path_ms": null,
+        "p50_engine_call_ms": null,
+        "p95_engine_call_ms": null,
         "backend_count": {
           "rule": 30
         },
+        "inference_backend_count": {},
         "safety_override_count": 0
       },
       "engine": "laya_421m",
@@ -750,11 +779,11 @@
         },
         "unsafe_retry_rate": {
           "count": 0,
-          "denominator": 15,
+          "denominator": 25,
           "rate": 0.0,
           "wilson95": [
             0,
-            0.203889
+            0.133196
           ]
         },
         "missed_verification_rate": {
@@ -772,13 +801,20 @@
           "rate": 0.0
         },
         "model_activated_count": 15,
-        "p50_wall_ms": 23.992,
-        "p95_wall_ms": 61.982,
-        "p50_model_path_ms": 61.087,
-        "p95_model_path_ms": 65.829,
+        "model_inference_completed_count": 15,
+        "model_inference_failed_count": 0,
+        "p50_wall_ms": 24.156,
+        "p95_wall_ms": 62.949,
+        "p50_model_path_ms": 61.162,
+        "p95_model_path_ms": 65.608,
+        "p50_engine_call_ms": 61.091,
+        "p95_engine_call_ms": 65.541,
         "backend_count": {
           "mlx": 15,
           "rule": 15
+        },
+        "inference_backend_count": {
+          "mlx": 15
         },
         "safety_override_count": 0
       },
