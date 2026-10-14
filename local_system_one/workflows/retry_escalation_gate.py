@@ -287,20 +287,43 @@ class RetryEscalationGate:
             "advisory_only": True,
         }
 
+    def _rule_result(
+        self,
+        req: RetryEscalationRequest,
+        decision: str,
+        reason: str,
+        *,
+        started: float,
+        raw: str | None = None,
+        probabilities: dict[str, float] | None = None,
+        override: str | None = None,
+        record_metric: bool = True,
+    ) -> dict[str, Any]:
+        """Account for a rule-only request without double-counting model inference."""
+        latency_ms = (time.perf_counter() - started) * 1000
+        route_reason = f"retry_escalation_gate:{reason}"
+        metrics = getattr(self.engine, "metrics", None)
+        if record_metric and metrics is not None:
+            metrics.record(backend="rule", route_reason=route_reason, latency_ms=latency_ms)
+        return self._output(
+            req, decision, "rule", reason,
+            raw=raw, probabilities=probabilities, override=override,
+            backend="rule", route_reason=route_reason, latency_ms=latency_ms,
+        )
+
     def decide(self, req: RetryEscalationRequest) -> dict[str, Any]:
         started = time.perf_counter()
         forced, reason, candidates = self._resolve_rules(req)
         if forced is not None:
-            return self._output(
-                req, forced, "rule", reason,
-                latency_ms=(time.perf_counter() - started) * 1000,
-            )
+            return self._rule_result(req, forced, reason, started=started)
 
         # Without an authenticated, local decision backend we preserve the
         # deterministic fallback; there is never implied Agent execution authority.
         fallback = "try_alternative" if "try_alternative" in candidates else "ask_user"
         if self.engine is None:
-            return self._output(req, fallback, "rule", "model_unavailable_rule_only")
+            return self._rule_result(
+                req, fallback, "model_unavailable_rule_only", started=started,
+            )
         state = {
             "failure": {key: req.failure[key] for key in ("category", "transience", "outcome_known")},
             "operation": {
@@ -318,12 +341,16 @@ class RetryEscalationGate:
             "All actions are passive suggestions. Prefer safe alternatives to repeated failures. "
             "Do not invent permissions, idempotency, tools, or observed execution outcomes."
         )
+        model_inference_completed = False
         try:
             model = self.engine.decide(DecisionRequest(
                 primitive="choice", state=state, instructions=question,
                 criteria=list(candidates), request_id=req.request_id,
                 backend=req.backend,  # type: ignore[arg-type]
             ))
+            # DecisionEngine recorded backend/latency for a completed inference.
+            # A safety override must not add a second request to /metrics.
+            model_inference_completed = True
             raw = str(model["decision"])
             if raw not in DECISIONS:
                 raise ValueError("invalid raw recovery choice")
@@ -358,8 +385,8 @@ class RetryEscalationGate:
         except Exception as error:  # noqa: BLE001 - safe fail-open at recovery classifier boundary
             if hasattr(self.engine, "metrics"):
                 record_error_once(self.engine.metrics, error)
-            return self._output(
-                req, fallback, "rule", "inference_failed_rule_fallback",
-                override="model_or_backend_failure",
-                latency_ms=(time.perf_counter() - started) * 1000,
+            return self._rule_result(
+                req, fallback, "inference_failed_rule_fallback",
+                started=started, override="model_or_backend_failure",
+                record_metric=not model_inference_completed,
             )

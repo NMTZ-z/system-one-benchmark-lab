@@ -7,6 +7,7 @@ from dataclasses import replace
 import pytest
 
 from local_system_one.adapter_contract import envelope_from_runtime, validate_decision_envelope
+from local_system_one.metrics import ServiceMetrics
 from local_system_one.workflows.retry_escalation_gate import (
     RetryEscalationGate, RetryEscalationRequest,
 )
@@ -128,6 +129,49 @@ def test_no_trusted_budget_is_not_fabricated():
     assert r["reason"]=="retry_budget_unverified"
 
 
+class RuleMetricsEngine:
+    def __init__(self):
+        self.metrics = ServiceMetrics()
+        self.calls = 0
+
+    def decide(self, request):
+        self.calls += 1
+        raise AssertionError("hard rule must not invoke the model")
+
+
+@pytest.mark.parametrize(("patch", "expected_reason"), [
+    ({}, "unconfirmed_side_effect_verify_first"),
+    ({"operation": {"side_effect_status": "applied"},
+      "failure": {"outcome_known": True}}, "side_effect_already_applied_no_duplicate_action"),
+    ({"operation": {"type": "read", "side_effect": "none",
+                    "idempotency": "verified", "side_effect_status": "none"},
+      "history": {"max_attempts": None, "remaining_time_ms": None,
+                  "retry_budget_available": False},
+      "failure": {"outcome_known": True}}, "retry_budget_unverified"),
+    ({"operation": {"type": "read", "side_effect": "none",
+                    "idempotency": "verified", "side_effect_status": "none"},
+      "failure": {"category": "rate_limit", "outcome_known": True,
+                  "http_status": 429, "retry_after_ms": 200}},
+     "rate_limit_wait_required_by_caller"),
+])
+def test_rule_paths_increment_metrics_once_without_running_model(patch, expected_reason):
+    engine = RuleMetricsEngine()
+    response = RetryEscalationGate(engine).decide(
+        RetryEscalationRequest.from_payload(payload(**patch)),
+    )
+    metric = engine.metrics.snapshot()
+    key = f"retry_escalation_gate:{expected_reason}"
+    assert engine.calls == 0
+    assert response["reason"] == expected_reason
+    assert response["route_reason"] == key
+    assert response["backend"] == "rule"
+    assert metric["requests"] == 1
+    assert metric["backends"] == {"rule": 1}
+    assert metric["route_reasons"] == {key: 1}
+    assert metric["recent_latency_ms"]["samples"] == 1
+    assert metric["recent_latency_ms"]["max"] >= 0
+
+
 class FakeEngine:
     def __init__(self, chosen, probabilities=None):
         self.chosen=chosen
@@ -164,6 +208,64 @@ def test_model_cannot_override_hard_unsafe_rule():
     r=RetryEscalationGate(engine).decide(RetryEscalationRequest.from_payload(payload()))
     assert r["decision"]=="verify_state"
     assert engine.seen is None
+
+
+def test_model_path_and_safety_override_do_not_double_count_metrics():
+    class AlreadyMeteredEngine(FakeEngine):
+        def __init__(self):
+            super().__init__("escalate_model")
+            self.metrics = ServiceMetrics()
+
+        def decide(self, request):
+            self.metrics.record(
+                backend="mlx", route_reason="synthetic_backend", latency_ms=1.5,
+            )
+            return super().decide(request)
+
+    engine = AlreadyMeteredEngine()
+    response = RetryEscalationGate(engine).decide(
+        RetryEscalationRequest.from_payload(payload(
+            failure={"outcome_known": True},
+            operation={"type": "read", "side_effect": "none",
+                       "side_effect_status": "none", "idempotency": "verified"},
+            constraints={"alternative_available": True},
+        )),
+    )
+    assert response["decision"] == "try_alternative"
+    assert response["decision_source"] == "rule"
+    assert response["safety_override_reason"] == "raw_model_decision_not_permitted"
+    metrics = engine.metrics.snapshot()
+    assert metrics["requests"] == 1
+    assert metrics["backends"] == {"mlx": 1}
+    assert metrics["route_reasons"] == {"synthetic_backend": 1}
+
+
+def test_backend_failure_rule_fallback_is_accounted_once():
+    class BrokenEngine:
+        def __init__(self):
+            self.metrics = ServiceMetrics()
+
+        def decide(self, request):
+            raise RuntimeError("synthetic backend failure")
+
+    engine = BrokenEngine()
+    result = RetryEscalationGate(engine).decide(
+        RetryEscalationRequest.from_payload(payload(
+            failure={"outcome_known": True},
+            operation={"type": "read", "side_effect": "none",
+                       "side_effect_status": "none", "idempotency": "verified"},
+            constraints={"alternative_available": True},
+        )),
+    )
+    assert result["decision"] == "try_alternative"
+    assert result["reason"] == "inference_failed_rule_fallback"
+    metrics = engine.metrics.snapshot()
+    assert metrics["requests"] == 1
+    assert metrics["errors"] == 1
+    assert metrics["backends"] == {"rule": 1}
+    assert metrics["route_reasons"] == {
+        "retry_escalation_gate:inference_failed_rule_fallback": 1,
+    }
 
 
 def test_model_outside_candidates_guarded():

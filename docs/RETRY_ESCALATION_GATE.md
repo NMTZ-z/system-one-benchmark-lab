@@ -47,6 +47,14 @@ The deterministic result recommends `verify_state`. Output includes
 Model choice is allowed **only** after all hard rules have filtered candidate
 decisions. No execution or network writes are performed by the Gate.
 
+**Metrics:** When an engine is present, hard-rule and backend-failure
+rule-only decisions record one `ServiceMetrics` request under `backend=rule`
+with route reason `retry_escalation_gate:<reason>` and measured latency.
+Completed backend inference is already metered by `DecisionEngine` and
+is not counted again when its answer is overridden by safety validation.
+This preserves request counts and the existing `GET /metrics` contract;
+no failure context, tool arguments or raw result enters metrics.
+
 ### Permission and retry-budget invariants
 
 - An unknown write, Git Push, PR create, or external side effect must be
@@ -76,7 +84,13 @@ No production configuration is changed by this source release. Both adapters
 use existing normal runtime service URL and timeout; they never grant recovery
 action authority even under `mode: canary`. The watcher is bounded (2 failure
 events per turn, 4 in-flight requests) and returns without waiting for inference.
-Turn/session lifecycle state is cleared. Response failures fail open.
+DSH additionally caps tracked active turns at 96: a 97th turn is skipped
+without evicting any live turn's counters, reporting
+`retry_turn_capacity_exhausted` as nonblocking fail-open telemetry. Repeated
+`turn/start` does not reset a tracked Retry budget. Counters and seen call IDs
+are released only at `turn/end` or session closure, so the two-observation
+limit persists under concurrent load. Turn/session lifecycle state is cleared.
+Response failures fail open.
 
 Pinned operation policy is intentionally narrow: Hermes recognizes read_file /
 web_search / web_extract as reads and write_file / file_edit as writes; DSH

@@ -10,12 +10,19 @@ from urllib.request import Request, urlopen
 import pytest
 
 from local_system_one.service import create_server
+from local_system_one.metrics import ServiceMetrics
 from test_retry_escalation_gate import payload
 
 
 class NeverCalledEngine:
+    def __init__(self):
+        self.metrics = ServiceMetrics()
+
     def decide(self, request):
         raise AssertionError("hard rule must not invoke Laya")
+
+    def metrics_snapshot(self):
+        return self.metrics.snapshot()
 
 
 @pytest.fixture
@@ -48,6 +55,14 @@ def test_live_http_write_timeout_verified_state(service):
     assert body["advisory_only"] is True
     assert body["backend"] == "rule"
     assert body["request_id"] == "phase8c-t1"
+    with urlopen(f"{service}/metrics", timeout=2) as response:
+        metrics = json.loads(response.read())
+    assert metrics["requests"] == 1
+    assert metrics["backends"] == {"rule": 1}
+    assert metrics["route_reasons"] == {
+        "retry_escalation_gate:unconfirmed_side_effect_verify_first": 1,
+    }
+    assert metrics["recent_latency_ms"]["samples"] == 1
 
 
 def test_live_http_fails_closed_on_bad_context_without_leaking(service):

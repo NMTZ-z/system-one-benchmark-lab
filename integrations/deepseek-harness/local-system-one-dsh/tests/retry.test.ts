@@ -118,6 +118,67 @@ describe('Phase 8C DSH Retry Shadow', () => {
     await settle()
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
+  it('preserves oldest live-turn counts at 96 concurrent turns and frees capacity at end', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+
+    // 96 simultaneous tracked turns. Await only the observer network work,
+    // not a turn/end, so all 96 counters stay live in the Map.
+    for (let i = 0; i < 96; i += 1) {
+      const session = `busy-${i}`
+      call(ctx, 'write', 'first', session, 1)
+      result(ctx, 'first', true, session, 1)
+      if (i % 4 === 3) await settle()
+    }
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(96)
+
+    // The 97th turn is denied instead of silently evicting busy-0's count.
+    call(ctx, 'write', 'overflow-call', 'overflow', 1)
+    result(ctx, 'overflow-call', true, 'overflow', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(96)
+    expect(ctx.events.some(e => e.includes('retry_turn_capacity_exhausted'))).toBe(true)
+
+    // A previously admitted turn still gets its *second* observation, never
+    // a third, even after many new turn events tried to exhaust the Map.
+    call(ctx, 'write', 'second', 'busy-0', 1)
+    result(ctx, 'second', true, 'busy-0', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(97)
+    call(ctx, 'write', 'third', 'busy-0', 1)
+    result(ctx, 'third', true, 'busy-0', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(97)
+
+    // Once the original turn ends, capacity can be reused.
+    ctx.fire('session/event', 'busy-0', 'turn/end', {
+      turn: 1, reason: { kind: 'completed' },
+    })
+    call(ctx, 'write', 'accepted-after-end', 'overflow', 1)
+    result(ctx, 'accepted-after-end', true, 'overflow', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(98)
+  })
+
+  it('does not reset an active observation budget on a duplicate turn/start', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+    call(ctx, 'write', 'first')
+    result(ctx, 'first', true)
+    await settle()
+    ctx.fire('session/event', 's', 'turn/start', { turn: 1 })
+    call(ctx, 'write', 'second')
+    result(ctx, 'second', true)
+    await settle()
+    call(ctx, 'write', 'third')
+    result(ctx, 'third', true)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('malformed runtime responses fail-open and preserve Agent events', async () => {
     const ctx = new Context()
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"decision":"retry_same"}')))
