@@ -1,8 +1,9 @@
 # Model Backend Pilot v1
 
-**Status:** engineering implementation under review; real Jev API integration
-is **BLOCKED until explicitly authorized**. The pinned API parser and HTTP
-transport have Mock coverage; Mock success is not Jev live success.
+**Status:** research engineering and real Jev 1.13.0 API pilot **PASS** on the
+public 12-case synthetic corpus as of 2026-10-16. Production/Active use is
+**NOT AUTHORIZED**. PR #6 remains subject to independent code review. This
+is a verified live API run, not a declaration of real-world model superiority.
 
 Base: GitHub main commit b9a497402411b6f0492787860e54ed8f44cfb3b4,
 merged PR #5 (Phase 8C, Shadow-only). Independent worktree/branch:
@@ -97,7 +98,7 @@ are rejected before writing.
 
 ## TypeSafe API and network safety
 
-References verified 2026-10-15:
+References rechecked 2026-10-16:
 https://docs.typesafe.ai/api and https://docs.typesafe.ai/models
 
 - POST https://api.typesafe.ai/v1/systemone (fixed HTTPS host, certificate
@@ -180,24 +181,86 @@ Published per-case, public-synthetic outputs (without source task text):
 - Python tests: 523 passed. DSH Vitest: 55 passed; typecheck/build passed.
 - The Laya checkpoint triggers an MLX temperature-clamping warning for an
   affected Choice bucket; do **not** treat those probabilities as calibrated.
-- Jev: **NOT_RUN** live. The Jev-side parser/HTTP tests used Mock responses.
-  Therefore the two-model comparison remains incomplete.
+- As of **this earlier 2026-10-15 frozen snapshot**, Jev was **NOT_RUN** live.
+  The 2026-10-16 paired, real-API experiment below supersedes that status;
+  this earlier run is retained without silently replacing historical evidence.
 
 Scores are illustrative, not independent blind estimates or evidence of
 real-world quality. This 12-case frozen corpus is available for inspection,
 not suitable for statistically meaningful cross-model rankings.
 
+## Paired real-API pilot evidence (2026-10-16)
+
+After fixing PR #6's two second-round Codex P2 findings, the isolated research
+code was frozen and committed as
+`935c58f19b8ccf6817b7e7561276b7141e9549e3`. All three provider runs were
+made against that **same clean checkout**, frozen dataset SHA-256
+`215c35e52e0c1abbe1c3219f7d24828db1fe9298d43cb2e2b5baf27c9c176c90`,
+and experimental Gate policy `frozen-original-gate-policy-v1`.
+The `compare` command verified source/data/strategy consistency, sample IDs,
+actual requested/resolved models and the clean checkout evidence.
+
+The four result JSONs are saved as public-synthetic-only artifacts:
+
+- `results/processed/model-backend-pilot-20261016-rule.json`
+- `results/processed/model-backend-pilot-20261016-laya.json`
+- `results/processed/model-backend-pilot-20261016-jev.json`
+- `results/processed/model-backend-pilot-20261016-comparison.json`
+
+| Metric | Rule-only | Rule + Laya / MLX | Rule + Jev / remote HTTP |
+| --- | ---: | ---: | ---: |
+| Valid cases | 9 / 12 (3 unsupported primitives) | 12 / 12 | **12 / 12** |
+| Discrete accuracy (all 11 classification requests) | 7 / 11 (63.6%) | 9 / 11 (81.8%) | **11 / 11 (100%)** |
+| Score absolute error (1 case) | N/A | 0.1777 | **0.01** |
+| Model-invoked cases | 0 | 6 | 6 |
+| Early `complete` errors | 0 | 0 | 0 |
+| `complete` recall (1 gold case) | 0 / 1 | 0 / 1 | 1 / 1 |
+| Unsafe raw suggestions | 0 | 1 | 0 |
+| Unsafe guarded suggestions | 0 | 0 | 0 |
+| Client wall-clock P50 of model-invoked cases | N/A | 61.3 ms | 1481.2 ms |
+
+**Jev live evidence:** On the explicitly approved 2026-10-16 test, a single
+synthetic Noul smoke probe returned `jev-1.13.0` with 285 input tokens and
+20 output tokens. The separate twelve-case run made exactly **6 real HTTPS API
+requests**, since the unchanged Gate rules resolved the other six cases
+without a model. All six returned actual model `jev-1.13.0`, valid typed
+answers and usage; there were zero API errors and **zero unknown-usage
+attempts**. Those six calls reported **2,397 input tokens**, corresponding
+to **USD 0.000100674** *usage-derived estimated charges* at the published
+rate. The initial smoke accounted for another 285 input tokens
+(approximately USD 0.00001197 by the same estimator). This is **not a verified
+TypeSafe invoice**. Remote budget control during the paired run was a maximum
+of 12 requests, 4,096 body bytes/request, USD 0.01 estimated spend and an
+8-second timeout; no retries or arbitrary destinations. Only the prepublished
+synthetic data were sent; the API key was read from the existing macOS Keychain
+and was never logged or exported.
+
+**Interpretation limits:** The tiny demonstration corpus was designed to
+exercise the integration, with only 1 gold `complete` and 1 Score sample.
+Although Jev outscored Laya on this specific set, the data cannot establish
+that Jev is generally better, calibrated, safer or more cost-effective. Local
+MLX vs network HTTPS latencies represent different hardware and geography.
+Neither real Agent provider-backed E2E nor ANE parity is established. Production
+permissions are unchanged. The Laya temperature-clamping warning remains
+relevant to any confidence-dependent claim.
+
 ## Status and acceptance gates
 
-- **Core Engineering: PASS** (offline research contract, parser, safety tests,
-  report integrity and public release sanitizer).
-- **Laya Non-regression: PASS** within tested inputs and existing 523-test suite;
-  ANE-specific parity not remeasured in this pilot.
-- **Jev Live Integration: BLOCKED** until a separately authorized data scope,
-  concrete version, request cap and USD budget permit genuine HTTP evidence.
-- **Comparative Evaluation: PARTIAL**, rules vs Laya only; Jev live absent.
+- **Core Engineering: PASS**, code/version/input integrity and full tests.
+- **Laya Non-regression: PASS**, scoped to actual MLX test cases; ANE-specific
+  model parity not evaluated under this pilot.
+- **Jev Live Integration: PASS**, for pinned `jev-1.13.0`, Choice/Score/Noul,
+  plus Completion/Retry through the unchanged experimental Gate rules.
+- **Comparative Evaluation: COMPLETE (pilot synthetic 12-case scope only)**;
+  external independent-blind evaluation and real Agent E2E remain **PARTIAL**.
 - **Real-world Model Advantage: NOT_ESTABLISHED**.
 - **Production / Active Activation: NOT_AUTHORIZED**.
+
+This acceptance establishes that *two real decision providers can be invoked,
+validated and compared fairly under shared rules*. It does **not** license
+automatic model switching, cloud fallback, action execution or paid escalation.
+PR #6 must still complete subsequent independent code-review gates before merge.
+
 
 Nothing here modifies launchd, default 127.0.0.1:8787 server, Hermes Catalog,
 DeepSeek Harness install branch, or OFF/Shadow/Canary permissions. This is an
