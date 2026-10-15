@@ -68,9 +68,13 @@ no failure context, tool arguments or raw result enters metrics.
   An `unknown` side effect is never direct-retry eligible.
   A verified idempotency key does not by itself establish that an
   unconfirmed write never happened.
-- HTTP 401/403 cannot become an automatic retry loop. 429 requires a trusted
-  Retry-After *and* remaining caller-controlled budgets before even recommending
-  `retry_same`. The gate never sleeps, retries, switches models or approves tools.
+- HTTP 401/403 cannot become an automatic retry loop. HTTP 429 requires
+  confirmed transient failure, a trusted Retry-After that fits within the
+  caller-controlled budget, and **fewer than 2 repeated failures** before
+  even recommending `retry_same`. The repeated-failure limit is identical
+  to the one for other transient failures, regardless of whether an
+  alternative operation exists. The gate never sleeps, retries, switches
+  models or approves tools.
 - Null retry budget or missing attempt ceiling means **unknown**, not unlimited.
 - Unknown tool identity or failed-event evidence is `unsupported` at the adapter;
   ambiguous provider errors are not fabricated into tool failures.

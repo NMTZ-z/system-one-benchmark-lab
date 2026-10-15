@@ -234,9 +234,12 @@ class RetryEscalationGate:
         if f["category"] == "rate_limit":
             if f["transience"] == "permanent":
                 return "ask_user", "permanent_rate_limit_not_retryable", ["ask_user"]
-            if self._can_retry(req) and f["retry_after_ms"] is not None and (
-                f["retry_after_ms"] <= h["remaining_time_ms"]
-            ):
+            # A 429 Retry-After is *not* an exemption from the general
+            # transient-failure repetition cap. Both conditions must hold
+            # before we can even advise the caller to retry.
+            if (f["transience"] == "transient" and h["repeated_failures"] < 2
+                and self._can_retry(req) and f["retry_after_ms"] is not None
+                and f["retry_after_ms"] <= h["remaining_time_ms"]):
                 return "retry_same", "rate_limit_wait_required_by_caller", ["retry_same"]
             return "ask_user", "rate_limit_delay_or_budget_unavailable", ["ask_user"]
         if f["category"] == "validation":

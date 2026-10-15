@@ -6,13 +6,13 @@ release and Codex re-review are independent gates.
 
 ## Why this audit exists
 
-The first five Codex reviews on GitHub PR #5 found ten P2 defects. Several
+The first six Codex reviews on GitHub PR #5 found eleven P2 defects. Several
 were the *same invariant* violated by different adapters. A passing benchmark
 accuracy score does not establish a safe concurrency or accounting boundary.
 This audit maps every defect to executable regression evidence, then checks
 the shared contracts rather than relying only on the originally commented line.
 
-## The ten findings and their regression guards
+## The eleven findings and their regression guards
 
 | Review / finding | Invariant | Code guard | Executable evidence |
 | --- | --- | --- | --- |
@@ -26,6 +26,7 @@ the shared contracts rather than relying only on the originally commented line.
 | R4: DSH session prefix collides with `:` inside opaque session IDs | Cleanup of `job` must not mutate any `job:child` state; every Gate must share collision-free keys | Shared `sessionKeyPrefix` / `turnKey` in `src/state.ts` and all DSH `session/event` cleanup paths | Parent-close/child-retry-budget test, `TurnDecisionState` Search/Model Tier isolation test, Notification/Completion candidate preservation test |
 | R5: untrusted metadata omitted from forbidden-retry denominator | The evaluator must use Runtime typed validation and the *same* `retry_same` candidate filter | `benchmarks/retry/evaluate.py:is_unsafe_to_retry` calls `RetryEscalationGate._resolve_rules` | `test_safety_denominator_tracks_runtime_retry_permission_on_all_frozen_cases`, `test_untrusted_no_effect_metadata_is_forbidden_and_detected_if_injected`, `test_repeat_limit_and_unknown_transience_are_policy_blocked` |
 | R5: model inference overridden by safety guard is invisible to benchmark | Count actual Engine calls, even when final source becomes `rule`, and report completed/failed calls and backend separately | Benchmark-only `_InferenceProbe` + `model_inference_attempted/completed` observations | `test_review_count_engine_calls_even_when_final_decision_is_rule`, `test_no_backend_call_is_charged_to_a_deterministic_hard_rule` |
+| R6: HTTP 429 bypasses repeated failure limit | Verified Retry-After never exempts a rate limit from the shared `repeated_failures < 2` and transient checks | `RetryEscalationGate._resolve_rules` rate-limit branch | `test_repeated_rate_limit_obeys_same_retry_cap_as_other_transient_failures`, `test_429_requires_confirmed_transience_before_retry_advice`, `test_rate_limit_retry_cap_is_reflected_in_unsafe_retry_metrics` |
 
 ## Shared constraints verified across modules
 

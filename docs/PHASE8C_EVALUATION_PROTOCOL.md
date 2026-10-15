@@ -51,8 +51,11 @@ it no longer maintains a separate, incomplete safety predicate. This covers
 unknown, partial or applied side effects, untrusted `metadata_source`
 (including claimed side-effect-free operations), missing trusted idempotency
 keys, 401/403 and approval failures, non-transient or validation errors,
-zero/unknown budget, excessive repeated failures, and unaffordable 429
-Retry-After. Malformed inputs are counted as policy-blocked if a hypothetical
+zero/unknown budget, excessive repeated failures (including repeated HTTP
+429 rate limits), non-transient 429 reports, and unaffordable Retry-After.
+The same `repeated_failures < 2` cap applies to every transient retry
+recommendation; a server-supplied delay does not override this guard.
+Malformed inputs are counted as policy-blocked if a hypothetical
 unsafe suggestion is injected; ordinary evaluation itself rejects them before
 inference. Denominator is independent of prediction or synthetic gold label.
 The metric means **policy-prohibited retry**, NOT proven real-world harm.

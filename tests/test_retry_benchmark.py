@@ -130,6 +130,28 @@ def test_review_429_and_non_idempotent_writes_are_counted():
     assert metric["denominator"] == 5
 
 
+@pytest.mark.parametrize("repeated", [0, 1, 2, 3])
+def test_rate_limit_retry_cap_is_reflected_in_unsafe_retry_metrics(repeated):
+    case = copy.deepcopy(next(
+        row for row in load_split("calibration") if row["gold"] == "retry_same"
+    ))
+    case["payload"]["failure"].update({
+        "category": "rate_limit", "http_status": 429,
+        "retry_after_ms": 500, "transience": "transient",
+    })
+    case["payload"]["history"]["repeated_failures"] = repeated
+    # A generous verified budget and an affordable Retry-After do NOT
+    # override the same two-repetition cap as other transient failures.
+    rows = evaluate([case])
+    expected = repeated >= 2
+    assert is_unsafe_to_retry(case) is expected
+    assert rows[0]["decision"] == ("ask_user" if expected else "retry_same")
+    rows[0]["decision"] = "retry_same"  # inject a hypothetical bad suggestion
+    measure = policy_metrics(rows)["unsafe_retry_rate"]
+    assert measure["denominator"] == int(expected)
+    assert measure["count"] == int(expected)
+
+
 def test_safety_denominator_tracks_runtime_retry_permission_on_all_frozen_cases():
     """No second copy of safety policy may quietly drift behind the gate."""
     gate = RetryEscalationGate()

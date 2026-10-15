@@ -173,7 +173,11 @@ case is correctly measured as **3/25**, rather than the previous 3/15.
 Frozen JSONL corpora, gold labels and SHA256 hashes are unchanged.
 
 Zero unsafe suggestions in 25 synthetic policy-blocked cases is **not** an
-active authorization safety guarantee. Do not interpret these deliberately enriched
+active authorization safety guarantee. An additional injected 429 case
+regression confirms that repeated rate-limit failures (2 or more) are
+policy-blocked despite valid Retry-After and budget. This case is not
+added to any frozen set, so published synthetic denominators and
+accuracy remain unchanged. Do not interpret these deliberately enriched
 samples as production failure or attack base rates. Six-class confusion
 matrices and precision/recall are preserved in the public processed JSON.
 
@@ -226,7 +230,7 @@ modifying gold labels.
   observations, turn isolation, malformed response fail-open, metadata-only.
 - Both client adapters: real loopback Runtime inference and Shadow observation,
   never native provider E2E.
-- Python whole-tree tests: **438/438 PASS**, including existing Gate
+- Python whole-tree tests: **452/452 PASS**, including existing Gate
   regressions, Retry failure injection, HTTP, frozen synthetic corpus integrity,
   mutation metadata consistency, policy-forbidden retry denominator parity,
   untrusted metadata and additional blocked conditions, guarded model
@@ -301,7 +305,7 @@ Codex's **third review**, completed 2026-10-14 at 14:06 UTC on
    Hermes/DSH receiver checks.
 
 The comprehensive [Phase 8C Cross-platform Safety Audit](PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md)
-maps all ten P2 findings to tests and documents additional safeguards
+maps all eleven P2 findings to tests and documents additional safeguards
 for required top-level request IDs and optional-field nullability.
 Codex's **fourth review**, completed 2026-10-14 at 14:58 UTC on
 `48dd68b`, identified one additional P2 finding:
@@ -327,7 +331,18 @@ Codex's **fifth review**, completed 2026-10-14 at 15:16 UTC on
     backend identity and elapsed time independent of the final decision.
     Safety override and malformed/inference-failure regressions verify this.
 
-The patch remains **Shadow-only**; fifth-review fixes are subject to
+Codex's **sixth review**, completed 2026-10-14 at 15:52 UTC on
+`7e87ab8`, identified one additional P2 finding:
+11. HTTP 429 handling with valid Retry-After and budget bypassed
+    `repeated_failures < 2`, despite that cap being enforced for ordinary
+    transient failures. The rate-limit branch now requires both confirmed
+    transient status and the same repetition cap. Repeated 429 responses
+    at or beyond the limit recommend `ask_user` rather than `retry_same`,
+    including when alternative tools exist. New 0/1/2/3 repetition
+    regressions cover both alternative-available states and verify that
+    policy-prohibited 429 retries enter the unsafe denominator.
+
+The patch remains **Shadow-only**; sixth-review fixes are subject to
 **new independent Codex review**, not an assumed approval.
 
 The synthetic frozen corpus is **unchanged** (identical SHA256 for all 3
@@ -340,7 +355,7 @@ Latency samples vary from run to run; no new real-Agent performance claim
 is made. No frozen corpus, gold label, model artifact, production config
 or earlier Gate threshold was edited.
 
-**Sixth Codex re-review and final merge authorization remain separate
+**Seventh Codex re-review and final merge authorization remain separate
 from passing code tests.** The follow-up revision SHA is recorded by
 Git and the PR itself, not embedded recursively into its own commit.
 

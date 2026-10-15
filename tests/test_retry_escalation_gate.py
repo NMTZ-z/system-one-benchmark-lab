@@ -112,6 +112,55 @@ def test_429_retry_after_has_to_be_bounded_and_caller_managed():
     assert r["decision"]=="ask_user"
 
 
+@pytest.mark.parametrize("repeated", [0, 1, 2, 3])
+@pytest.mark.parametrize("alternative_available", [False, True])
+def test_repeated_rate_limit_obeys_same_retry_cap_as_other_transient_failures(
+    repeated, alternative_available,
+):
+    req = RetryEscalationRequest.from_payload(payload(
+        failure={
+            "category": "rate_limit", "transience": "transient",
+            "http_status": 429, "retry_after_ms": 500,
+            "outcome_known": True,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        history={"repeated_failures": repeated},
+        constraints={"alternative_available": alternative_available},
+    ))
+    # Limit is conservative even if there are other candidate tools.
+    # This gate is advisory only; it never sleeps or retries itself.
+    engine = RuleMetricsEngine()
+    result = RetryEscalationGate(engine).decide(req)
+    expected = "retry_same" if repeated < 2 else "ask_user"
+    assert result["decision"] == expected
+    assert result["decision_source"] == "rule"
+    assert engine.calls == 0  # a hard rule, not a model suggestion
+    assert engine.metrics.snapshot()["requests"] == 1
+
+
+@pytest.mark.parametrize("transience", ["unknown", "permanent"])
+def test_429_requires_confirmed_transience_before_retry_advice(transience):
+    r = decide(
+        failure={
+            "category": "rate_limit", "transience": transience,
+            "http_status": 429, "retry_after_ms": 500,
+            "outcome_known": True,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        history={"repeated_failures": 0},
+    )
+    assert r["decision"] == "ask_user"
+    assert r["raw_model_decision"] is None
+
+
 def test_known_transient_read_with_no_alternative_falls_back_without_execution():
     r=decide(
         failure={"outcome_known": True},
