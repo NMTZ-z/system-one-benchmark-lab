@@ -92,3 +92,4 @@ tests/test_runtime_sources.py
 tests/test_model_backend_pilot.py
 tests/test_model_backend_http.py
 tests/test_model_backend_review_fixes.py
+tests/test_model_backend_second_review.py

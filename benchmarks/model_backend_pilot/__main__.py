@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from local_system_one.model_backends.contract import PROTOCOL_VERSION, TypedRequest
+from local_system_one.model_backends.contract import PROTOCOL_VERSION, TypedRequest, validate_json
 from local_system_one.model_backends.laya import ResearchEngine, RuleOnlyEngine
 from local_system_one.workflows.completion_gate import CompletionGate, CompletionGateRequest
 from local_system_one.workflows.retry_escalation_gate import RetryEscalationGate, RetryEscalationRequest
@@ -49,9 +49,15 @@ def _records(path: Path) -> tuple[str, list[dict[str, Any]]]:
         if not line.strip():
             continue
         try:
-            item = json.loads(line)
+            item = json.loads(
+                line,
+                parse_constant=lambda constant: (_ for _ in ()).throw(
+                    ValueError(f"dataset contains non-finite constant {constant}")
+                ),
+            )
         except json.JSONDecodeError as exc:
             raise ValueError(f"dataset line {lineno} malformed") from exc
+        validate_json(item)
         if not isinstance(item, dict) or set(item) - {
             "id", "family", "primitive", "payload", "gold",
             "unsafe", "requires_verification",
@@ -286,7 +292,10 @@ def run(args: argparse.Namespace) -> int:
         "data_classification": "PUBLIC_SYNTHETIC_REQUIRED",
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     print(f"{args.provider}: {len(cases)} cases, {summary['valid']} valid, "
           f"{summary['failures_or_unsupported']} failed/unsupported; {args.output}")
     return 0 if summary["failures_or_unsupported"] == 0 else 2
@@ -295,7 +304,16 @@ def run(args: argparse.Namespace) -> int:
 def compare(args: argparse.Namespace) -> int:
     if args.output.resolve() in {path.resolve() for path in args.reports}:
         raise ValueError("comparison output must not overwrite an input report")
-    reports = [json.loads(path.read_text(encoding="utf-8")) for path in args.reports]
+    reports = [json.loads(
+        path.read_text(encoding="utf-8"),
+        parse_constant=lambda constant: (_ for _ in ()).throw(
+            ValueError(f"comparison report contains non-finite {constant}")
+        ),
+    ) for path in args.reports]
+    # A HEAD SHA alone cannot identify code with uncommitted changes.
+    # Reject both legacy reports lacking cleanliness evidence and dirty runs.
+    if any(r.get("code_checkout_clean_at_run") is not True for r in reports):
+        raise ValueError("comparison requires clean committed code at every run")
     if len(reports) != 3 or {r["provider"] for r in reports} != {"rule", "laya", "jev"}:
         raise ValueError("compare requires exactly rule, laya and jev reports")
     for field in ("dataset_sha256", "strategy", "git_sha", "schema_version"):
@@ -319,12 +337,13 @@ def compare(args: argparse.Namespace) -> int:
         "schema_version": PROTOCOL_VERSION,
         "dataset_sha256": reports[0]["dataset_sha256"],
         "git_sha": reports[0]["git_sha"], "strategy": reports[0]["strategy"],
+        "code_checkout_clean_at_run": True,
         "results": {r["provider"]: r["summary"] for r in reports},
         "real_world_advantage": "NOT_ESTABLISHED",
         "latency_note": "Client wall-clock latency, not matched hardware inference latency",
         "production_activation": "NOT_AUTHORIZED",
     }
-    args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     print(f"Compared {len(ids[0])} aligned cases: {args.output}")
     return 0
 

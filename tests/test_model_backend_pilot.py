@@ -319,9 +319,13 @@ def test_comparison_rejects_incomplete_or_fake_jev(tmp_path):
     assert main(["run", "--provider", "rule", "--dataset", str(dataset),
                  "--output", str(p)]) == 2
     report = json.loads(p.read_text())
+    # The isolated test worktree is dirty during development; mark our
+    # synthetic fixtures clean only to reach the separate Jev-live guard.
+    report["code_checkout_clean_at_run"] = True
+    p.write_text(json.dumps(report))
     a, b = tmp_path / "a.json", tmp_path / "b.json"
     for path, provider in ((a, "laya"), (b, "jev")):
-        fake = {**report, "provider": provider}
+        fake = {**report, "provider": provider, "code_checkout_clean_at_run": True}
         path.write_text(json.dumps(fake))
     with pytest.raises(ValueError, match="real remote evidence"):
         from benchmarks.model_backend_pilot.__main__ import compare
