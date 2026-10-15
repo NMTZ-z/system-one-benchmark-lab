@@ -146,16 +146,48 @@ A 12-item synthetic harness proves plumbing, not performance in the field.
 Historical benchmark runs are regression context, not newly independent blind
 tests. No general Jev-vs-Laya quality claim is justified from this pilot alone.
 
+## Frozen baseline evidence (2026-10-15)
+
+Published per-case, public-synthetic outputs (without source task text):
+`results/processed/model-backend-pilot-rule-v1.json` and
+`results/processed/model-backend-pilot-laya-v1.json`.
+
+- Experiment source SHA: `be1bf1a5469402f1e3361229107c28151ff14f6b` (clean checkout).
+- Dataset SHA-256: `215c35e52e0c1abbe1c3219f7d24828db1fe9298d43cb2e2b5baf27c9c176c90`.
+- Rule-only: 9/12 valid outcomes; 3 direct primitive cases explicitly
+  `unsupported`. Discrete classification: 7/11 (63.6%) **all requests**,
+  or 7/9 (77.8%) among valid results. There is no score prediction.
+- Rules + real Laya/MLX: 12/12 valid. Discrete classification: 9/11
+  (81.8%), one Score absolute error 0.1777. Six samples called Laya;
+  six were handled by rules. Model-invoked client P50: **57.7 ms**.
+- Both approaches had zero dangerous *guarded* suggestions on these twelve
+  synthetic cases. Laya produced one potentially unsafe **raw Completion**
+  suggestion (C04: `complete` for a case labeled `verify`), downgraded to
+  `verify` by the unchanged Completion threshold. Laya recalled zero out of
+  one gold `complete` samples; a missed completion is NOT an early-stop error.
+- Real Laya paired old-vs-wrapper checks on Choice, Score and Noul agreed
+  in decision, raw probabilities and execution backend; three inputs only.
+- Python tests: 523 passed. DSH Vitest: 55 passed; typecheck/build passed.
+- The Laya checkpoint triggers an MLX temperature-clamping warning for an
+  affected Choice bucket; do **not** treat those probabilities as calibrated.
+- Jev: **NOT_RUN** live. The Jev-side parser/HTTP tests used Mock responses.
+  Therefore the two-model comparison remains incomplete.
+
+Scores are illustrative, not independent blind estimates or evidence of
+real-world quality. This 12-case frozen corpus is available for inspection,
+not suitable for statistically meaningful cross-model rankings.
+
 ## Status and acceptance gates
 
-- Core Engineering: see tests/test_model_backend_pilot.py and main Python suite.
-- Laya Non-regression: original inference code untouched; real MLX and
-  old-vs-wrapper comparison should be separately reported.
-- Jev Live Integration: **BLOCKED**, until specific remote data/cost authorization
-  and genuine response evidence are available.
-- Comparative Evaluation: **PARTIAL**, since Jev is not live.
-- Real-world Model Advantage: **NOT_ESTABLISHED**.
-- Production / Active Activation: **NOT_AUTHORIZED**.
+- **Core Engineering: PASS** (offline research contract, parser, safety tests,
+  report integrity and public release sanitizer).
+- **Laya Non-regression: PASS** within tested inputs and existing 523-test suite;
+  ANE-specific parity not remeasured in this pilot.
+- **Jev Live Integration: BLOCKED** until a separately authorized data scope,
+  concrete version, request cap and USD budget permit genuine HTTP evidence.
+- **Comparative Evaluation: PARTIAL**, rules vs Laya only; Jev live absent.
+- **Real-world Model Advantage: NOT_ESTABLISHED**.
+- **Production / Active Activation: NOT_AUTHORIZED**.
 
 Nothing here modifies launchd, default 127.0.0.1:8787 server, Hermes Catalog,
 DeepSeek Harness install branch, or OFF/Shadow/Canary permissions. This is an

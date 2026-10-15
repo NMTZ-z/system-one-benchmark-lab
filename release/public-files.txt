@@ -66,6 +66,8 @@ results/reports/Phase8A-Completion-Gate-v0.1.md
 results/processed/completion-gate-v0.1.json
 results/processed/phase8b-completion-pilot-v1.json
 results/processed/phase8c-retry-pilot-mlx.json
+results/processed/model-backend-pilot-laya-v1.json
+results/processed/model-backend-pilot-rule-v1.json
 
 benchmarks/__init__.py
 benchmarks/completion/
