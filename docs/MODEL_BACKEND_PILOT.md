@@ -74,8 +74,9 @@ python -m benchmarks.model_backend_pilot run \
 ~~~
 
 For a separately approved, public/synthetic-only Jev experiment, an operator
-must set TYPESAFE_API_KEY through an appropriate secret source (never in CLI
-arguments) and explicitly enable ALL of the following: --allow-remote,
+must provide a TypeSafe credential via TYPESAFE_API_KEY or the existing
+macOS Keychain service `typesafe-systemone` (never in CLI arguments), and
+explicitly enable ALL of the following: --allow-remote,
 --public-data-confirmed, --max-requests, --max-input-bytes, --max-usd and
 --timeout. The pinned --model defaults to jev-1.13.0; use only a verified
 concrete version, not jev-latest/jev-preview aliases. **This is documentation
@@ -91,6 +92,8 @@ python -m benchmarks.model_backend_pilot compare \
 
 Compare rejects mixed dataset/strategy/code hashes, missing/duplicate/reordered
 case IDs, version drift, and a Jev result lacking real remote attempts.
+Comparison output paths resolving to an input report (even via symlinks)
+are rejected before writing.
 
 ## TypeSafe API and network safety
 
@@ -101,7 +104,10 @@ https://docs.typesafe.ai/api and https://docs.typesafe.ai/models
   verification, no redirects). Model, state and question map are explicit.
 - Stable jev-latest currently points to jev-1.13.0; jev-preview currently
   points to jev-1.14.0. This pilot defaults to the pinned 1.13.0.
-- Credential lookup is TYPESAFE_API_KEY only; no key is logged or persisted.
+- Credential lookup prefers `TYPESAFE_API_KEY`; on macOS it falls back to
+  the existing Keychain generic-password entry `typesafe-systemone` for the
+  current OS user. Keychain retrieval is disabled until explicit
+  remote/data/budget controls are satisfied. No key is logged or persisted.
 - External calls require explicit remote enablement, data classification
   confirmation, request-count bound, input-byte bound, USD estimate budget
   and bounded timeout. Zero automatic HTTP retries. Network/protocol failure
@@ -113,7 +119,9 @@ https://docs.typesafe.ai/api and https://docs.typesafe.ai/models
   future paid run). The reservation based on request byte length is a
   conservative *planning estimate*, **not a contractual billing cap**.
   The usage-derived cost estimate is not the verified billing invoice.
-  Actual billing and errors with unavailable usage remain uncertain.
+  Valid server usage is counted even when model/version/answer validation fails.
+  `remote_usage_unknown_attempts` counts requests without reliable usage,
+  including HTTP failures; these are not treated as zero actual spend.
 - Absolutely no NAS private raw logs, production transcripts, prompt history,
   credentials, or unapproved real-world observations may be sent. Synthetic
   test descriptions are included in the public dataset only.
@@ -134,6 +142,8 @@ The results record:
 - account token usage when supplied; no fabricated local/remote usage;
 - explicit warning that latency is user-side wall clock, not identical-hardware
   inference time; Shadow results do not establish actual Agent token savings.
+- unsafe raw model advice still counts when later rejected by the legacy Gate;
+  failed inferences are not silently dropped from safety accounting.
 
 Deterministic Gate rules run **before** either model. Models never add new
 permitted candidates. Completion's existing 0.70 threshold is reused as a

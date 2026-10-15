@@ -91,3 +91,4 @@ tests/test_public_release.py
 tests/test_runtime_sources.py
 tests/test_model_backend_pilot.py
 tests/test_model_backend_http.py
+tests/test_model_backend_review_fixes.py

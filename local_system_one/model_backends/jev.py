@@ -6,7 +6,10 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import re
+import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -21,6 +24,32 @@ from .contract import (
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 PRICE_USD_PER_INPUT_TOKEN = 0.042 / 1_000_000  # Docs checked 2026-10-15.
 MAX_RESPONSE_BYTES = 65536
+KEYCHAIN_SERVICE = "typesafe-systemone"
+
+
+def _load_api_key() -> str | None:
+    """Prefer the environment; reuse the existing macOS Keychain item safely.
+
+    Never pass the secret on the command line or print/capture it in logs.
+    Retrieval happens only when the caller opted into a bounded remote request.
+    """
+    env_key = os.environ.get("TYPESAFE_API_KEY")
+    if env_key:
+        return env_key
+    if sys.platform != "darwin":
+        return None
+    try:
+        user = pwd.getpwuid(os.getuid()).pw_name
+        result = subprocess.run(
+            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
+             "-a", user, "-w"],
+            capture_output=True, text=True, check=False, timeout=4,
+        )
+    except (OSError, subprocess.TimeoutExpired, KeyError):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.rstrip("\r\n") or None
 
 
 class RemoteDisabled(PermissionError):
@@ -71,7 +100,7 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def parse_response(raw: bytes, request: TypedRequest, model: str, elapsed_ms: float) -> TypedResult:
+def _decode_response(raw: bytes) -> dict[str, Any]:
     if not isinstance(raw, bytes) or len(raw) > MAX_RESPONSE_BYTES:
         raise ModelContractError("remote response invalid or too large")
     try:
@@ -81,7 +110,28 @@ def parse_response(raw: bytes, request: TypedRequest, model: str, elapsed_ms: fl
         )
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ModelContractError("invalid remote JSON") from exc
-    if not isinstance(payload, dict) or not isinstance(payload.get("model"), str):
+    if not isinstance(payload, dict):
+        raise ModelContractError("remote JSON must be an object")
+    return payload
+
+
+def _validated_usage(payload: dict[str, Any]) -> dict[str, int] | None:
+    # A response can be billable even if its model ID or answer is invalid.
+    # Isolate trustworthy top-level usage from the rest of answer validation.
+    usage = payload.get("usage")
+    if usage is None:
+        return None
+    if not isinstance(usage, dict) or set(usage) != {"input_tokens", "output_tokens"}:
+        raise ModelContractError("invalid remote token usage")
+    if any(type(v) is not int or not 0 <= v <= 2**53 - 1 for v in usage.values()):
+        raise ModelContractError("invalid remote token usage")
+    return usage
+
+
+def parse_response(raw: bytes, request: TypedRequest, model: str, elapsed_ms: float) -> TypedResult:
+    payload = _decode_response(raw)
+    usage = _validated_usage(payload)
+    if not isinstance(payload.get("model"), str):
         raise ModelContractError("remote model ID missing")
     resolved = payload["model"]
     if resolved != model:
@@ -95,12 +145,6 @@ def parse_response(raw: bytes, request: TypedRequest, model: str, elapsed_ms: fl
     confidence = answer.get("confidence")
     if confidence is not None:
         confidence = probability(confidence, "confidence")
-    usage = payload.get("usage")  # Absent usage is unknown, not zero.
-    if usage is not None:
-        if not isinstance(usage, dict) or set(usage) != {"input_tokens", "output_tokens"}:
-            raise ModelContractError("invalid remote token usage")
-        if any(type(v) is not int or not 0 <= v <= 2**53 - 1 for v in usage.values()):
-            raise ModelContractError("invalid remote token usage")
     if request.primitive == "choice":
         decision = answer.get("choice")
         probs = answer.get("probabilities")
@@ -156,6 +200,7 @@ class JEVProvider:
         self._attempts = 0
         self._reserved_estimate_usd = 0.0
         self._measured_usd = 0.0
+        self._usage_unknown_attempts = 0
 
     @property
     def attempts(self) -> int:
@@ -163,7 +208,12 @@ class JEVProvider:
 
     @property
     def measured_usd(self) -> float:
+        # Usage-based lower bound; never claim this is the account invoice.
         return self._measured_usd
+
+    @property
+    def usage_unknown_attempts(self) -> int:
+        return self._usage_unknown_attempts
 
     def evaluate(self, request: TypedRequest) -> TypedResult:
         if not (self.allow_remote and self.public_data_confirmed):
@@ -183,10 +233,11 @@ class JEVProvider:
                 self._reserved_estimate_usd + reserve_usd > self.max_total_usd or
                 self._measured_usd > self.max_total_usd):
                 raise BudgetExhausted("remote attempt/estimated cost budget exhausted")
-            key = os.environ.get("TYPESAFE_API_KEY")
+            key = _load_api_key()
             if not key:
-                raise RemoteDisabled("TYPESAFE_API_KEY not configured")
+                raise RemoteDisabled("TypeSafe credential unavailable")
             self._attempts += 1  # Count failures too. Zero automatic retries.
+            self._usage_unknown_attempts += 1
             self._reserved_estimate_usd += reserve_usd
         req = urllib.request.Request(
             ENDPOINT, data=body, method="POST",
@@ -194,8 +245,11 @@ class JEVProvider:
         )
         started = time.perf_counter()
         raw = self._transport(req, self.timeout_seconds, MAX_RESPONSE_BYTES)
-        result = parse_response(raw, request, self.model, (time.perf_counter() - started) * 1000)
-        if result.usage:
+        # Count reliable usage even if model/version/answer validation later fails.
+        # Unknown usage remains an explicit unknown-billing attempt.
+        usage = _validated_usage(_decode_response(raw))
+        if usage is not None:
             with self._lock:
-                self._measured_usd += result.usage["input_tokens"] * PRICE_USD_PER_INPUT_TOKEN
-        return result
+                self._measured_usd += usage["input_tokens"] * PRICE_USD_PER_INPUT_TOKEN
+                self._usage_unknown_attempts -= 1
+        return parse_response(raw, request, self.model, (time.perf_counter() - started) * 1000)

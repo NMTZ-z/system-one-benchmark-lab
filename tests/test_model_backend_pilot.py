@@ -153,6 +153,9 @@ def test_remote_off_default_and_no_implicit_key_lookup(monkeypatch):
 
 
 def test_remote_requires_key_without_calling_transport(monkeypatch):
+    # A developer's real macOS Keychain may have a configured credential.
+    # Isolate this negative test from the host Keychain without ever reading it.
+    monkeypatch.setattr("local_system_one.model_backends.jev._load_api_key", lambda: None)
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     calls = []
     client = JEVProvider(
