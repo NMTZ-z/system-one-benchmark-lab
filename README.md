@@ -49,6 +49,8 @@ The goal is not "use a small model for everything". The goal is to use a small l
 
 This distinction matters: the project deliberately separates **technical capability** from **what has enough evidence to activate automatically**.
 
+**Experimental model providers:** [Model Backend Pilot v1](docs/MODEL_BACKEND_PILOT.md) adds an offline-first, research-only Laya/Jev comparison interface. Default production use remains Laya-only; Jev remote calls and Active Gate execution are not enabled.
+
 ## Quick start
 
 ### Requirements

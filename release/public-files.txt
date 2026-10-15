@@ -42,6 +42,8 @@ docs/PHASE8C_EVALUATION_PROTOCOL.md
 docs/PHASE8C_FINAL_REPORT.md
 docs/PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md
 docs/RETRY_ESCALATION_GATE.md
+docs/MODEL_BACKEND_CONTRACT.md
+docs/MODEL_BACKEND_PILOT.md
 docs/MCP_DEPLOYMENT.md
 docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md
 docs/HERMES_SYSTEM_ONE_CALIBRATION.md
@@ -68,6 +70,7 @@ results/processed/phase8c-retry-pilot-mlx.json
 benchmarks/__init__.py
 benchmarks/completion/
 benchmarks/retry/
+benchmarks/model_backend_pilot/
 
 tests/test_local_system_one.py
 tests/test_adapter_contract.py
@@ -84,3 +87,5 @@ tests/test_retry_hermes.py
 tests/test_retry_http.py
 tests/test_public_release.py
 tests/test_runtime_sources.py
+tests/test_model_backend_pilot.py
+tests/test_model_backend_http.py
