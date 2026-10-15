@@ -1,6 +1,7 @@
 # Public Local System One source bundle allowlist.
 # A trailing slash includes tracked files recursively under that prefix.
 README.md
+.gitignore
 LICENSE
 pyproject.toml
 pytest.ini
@@ -36,6 +37,11 @@ docs/COMPLETION_GATE.md
 docs/PHASE8B_BASELINE_AUDIT.md
 docs/PHASE8B_EVALUATION_PROTOCOL.md
 docs/PHASE8B_FINAL_REPORT.md
+docs/PHASE8C_FAILURE_AUDIT.md
+docs/PHASE8C_EVALUATION_PROTOCOL.md
+docs/PHASE8C_FINAL_REPORT.md
+docs/PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md
+docs/RETRY_ESCALATION_GATE.md
 docs/MCP_DEPLOYMENT.md
 docs/HERMES_SYSTEM_ONE_SHADOW_EVAL.md
 docs/HERMES_SYSTEM_ONE_CALIBRATION.md
@@ -57,9 +63,11 @@ results/reports/Phase4-421M-ANE-Engineering-Final-v1.0.md
 results/reports/Phase8A-Completion-Gate-v0.1.md
 results/processed/completion-gate-v0.1.json
 results/processed/phase8b-completion-pilot-v1.json
+results/processed/phase8c-retry-pilot-mlx.json
 
 benchmarks/__init__.py
 benchmarks/completion/
+benchmarks/retry/
 
 tests/test_local_system_one.py
 tests/test_adapter_contract.py
@@ -70,5 +78,9 @@ tests/test_completion_gate.py
 tests/test_phase8b_replay_integrity.py
 tests/test_hermes_system_one_plugin.py
 tests/test_hermes_system_one_scripts.py
+tests/test_retry_benchmark.py
+tests/test_retry_escalation_gate.py
+tests/test_retry_hermes.py
+tests/test_retry_http.py
 tests/test_public_release.py
 tests/test_runtime_sources.py

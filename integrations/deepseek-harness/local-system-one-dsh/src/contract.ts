@@ -4,10 +4,11 @@ import type {
   ModelTierDecision,
   NotificationDecision,
   SearchDecision,
+  RetryEscalationDecision,
 } from './types.js'
 
 export const ADAPTER_CONTRACT_VERSION = '1.0'
-export type GateName = 'search' | 'model_tier' | 'notification' | 'completion'
+export type GateName = 'search' | 'model_tier' | 'notification' | 'completion' | 'retry_escalation'
 export type ActionStatus = 'observed' | 'applied' | 'skipped' | 'failed_open' | 'unsupported'
 
 export interface ActionOutcome {
@@ -27,12 +28,13 @@ export interface DecisionEnvelope {
   confidence?: number
 }
 
-export type RuntimeDecision = SearchDecision | ModelTierDecision | NotificationDecision | CompletionDecision
+export type RuntimeDecision = SearchDecision | ModelTierDecision | NotificationDecision | CompletionDecision | RetryEscalationDecision
 
 export function toDecisionEnvelope(gate: 'search', decision: SearchDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: 'model_tier', decision: ModelTierDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: 'notification', decision: NotificationDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: 'completion', decision: CompletionDecision): DecisionEnvelope
+export function toDecisionEnvelope(gate: 'retry_escalation', decision: RetryEscalationDecision): DecisionEnvelope
 export function toDecisionEnvelope(gate: GateName, decision: RuntimeDecision): DecisionEnvelope {
   const common = {
     adapter_contract_version: ADAPTER_CONTRACT_VERSION,
@@ -77,6 +79,19 @@ export function toDecisionEnvelope(gate: GateName, decision: RuntimeDecision): D
         value: value.delivery,
         notify_now: value.notify_now,
         priority_score: value.priority_score,
+      },
+      confidence: value.confidence,
+    }
+  }
+  if (gate === 'retry_escalation') {
+    const value = decision as RetryEscalationDecision
+    return {
+      ...common,
+      gate,
+      decision: {
+        value: value.guarded_decision,
+        raw_model_decision: value.raw_model_decision,
+        safety_override_reason: value.safety_override_reason,
       },
       confidence: value.confidence,
     }

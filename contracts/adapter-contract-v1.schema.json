@@ -69,10 +69,10 @@
       ],
       "properties": {
         "adapter_contract_version": {"const": "1.0"},
-        "request_id": {"type": ["string", "null"]},
+        "request_id": {"type": ["string", "null"], "minLength": 1},
         "gate": {
           "type": "string",
-          "enum": ["search", "model_tier", "notification", "completion"]
+          "enum": ["search", "model_tier", "notification", "completion", "retry_escalation"]
         },
         "decision": {"type": "object"},
         "decision_source": {"type": "string", "enum": ["rule", "model"]},
@@ -159,6 +159,23 @@
               }
             }
           }
+        },
+        {
+          "if": {"properties": {"gate": {"const": "retry_escalation"}}},
+          "then": {
+            "properties": {
+              "decision": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["value", "raw_model_decision", "safety_override_reason"],
+                "properties": {
+                  "value": {"type": "string", "enum": ["retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort"]},
+                  "raw_model_decision": {"type": ["string", "null"], "enum": [null, "retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort"]},
+                  "safety_override_reason": {"type": ["string", "null"], "minLength": 1}
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -178,7 +195,7 @@
         "adapter_contract_version": {"const": "1.0"},
         "platform": {"type": "string", "minLength": 1},
         "adapter_version": {"type": "string", "minLength": 1},
-        "gate": {"type": "string", "enum": ["search", "model_tier", "notification", "completion"]},
+        "gate": {"type": "string", "enum": ["search", "model_tier", "notification", "completion", "retry_escalation"]},
         "mode": {"$ref": "#/$defs/mode"},
         "decision": {},
         "decision_source": {"type": ["string", "null"]},

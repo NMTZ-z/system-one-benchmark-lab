@@ -19,6 +19,8 @@ from .workflows import (
     NotificationGateRequest,
     SearchGate,
     SearchGateRequest,
+    RetryEscalationGate,
+    RetryEscalationRequest,
 )
 
 MAX_BODY_BYTES = 1_048_576
@@ -32,6 +34,7 @@ def create_server(
     auth_token: str | None = None,
 ) -> ThreadingHTTPServer:
     completion_gate = CompletionGate(engine)
+    retry_escalation_gate = RetryEscalationGate(engine)
     search_gate = SearchGate(engine)
     model_tier_gate = ModelTierGate(engine)
     notification_gate = NotificationGate(engine)
@@ -91,6 +94,22 @@ def create_server(
             if not self._authorized():
                 self._json(401, {"error": "unauthorized"})
                 return
+            if self.path == "/v1/workflows/retry-escalation-gate":
+                try:
+                    payload = self._read_payload()
+                    request = RetryEscalationRequest.from_payload(payload)
+                    response = retry_escalation_gate.decide(request)
+                except (ValueError, TypeError) as error:
+                    # No user-provided data is echoed in errors/logs.
+                    self._json(400, {"error": "invalid_request", "detail": type(error).__name__})
+                    return
+                except Exception as error:  # noqa: BLE001 - HTTP fail-open boundary
+                    record_error_once(engine.metrics, error)
+                    self._json(500, {"error": "decision_failed", "detail": type(error).__name__})
+                    return
+                self._json(200, response)
+                return
+
             if self.path == "/v1/workflows/completion-gate":
                 try:
                     payload = self._read_payload()

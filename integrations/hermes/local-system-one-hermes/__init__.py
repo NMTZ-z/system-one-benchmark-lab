@@ -1,6 +1,6 @@
 """Hermes native plugin for Local System One.
 
-Safety invariant for v0.8.0:
+Safety invariant for v0.9.0:
 - mode=off: no Local System One network call and no behavior change.
 - mode=shadow: observe privacy-safe recommendations without rewriting requests.
 - mode=canary: request mutation requires explicit ``canary_acknowledged=true``.
@@ -9,7 +9,7 @@ Safety invariant for v0.8.0:
 - Any Local System One error, timeout, incomplete decision, unsupported model,
   or disabled Canary feature fails open to the original Hermes request.
 
-Search, Model Tier, Notification, and Completion observation can be enabled independently.
+Search, Model Tier, Notification, Completion, and Retry observation can be enabled independently.
 Notification and Completion are Shadow-only; experimental reasoning downgrade is disabled by default.
 """
 
@@ -25,7 +25,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.8.0"
+_PLUGIN_VERSION = "0.9.0"
 _ADAPTER_CONTRACT_VERSION = "1.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
@@ -236,6 +236,134 @@ def _safe_completion(
     return result
 
 
+_RETRY_CHOICES = frozenset({
+    "retry_same", "try_alternative", "escalate_model",
+    "verify_state", "ask_user", "abort",
+})
+# Names pinned to explicit read/write semantics. All generic shell tools are unsupported.
+_RETRY_READ_TOOLS = frozenset({"read_file", "web_search", "web_extract"})
+_RETRY_WRITE_TOOLS = frozenset({"write_file", "file_edit"})
+
+
+def _retry_operation(name: str) -> dict[str, Any] | None:
+    if not isinstance(name, str):
+        return None
+    if name in _RETRY_READ_TOOLS:
+        return {
+            "type": "read", "side_effect": "none", "idempotency": "verified",
+            "side_effect_status": "none", "verified_idempotency_key": False,
+            "reversibility": "yes", "metadata_source": "adapter_policy",
+        }
+    if name in _RETRY_WRITE_TOOLS:
+        return {
+            "type": "local_file", "side_effect": "write", "idempotency": "unknown",
+            "side_effect_status": "unknown", "verified_idempotency_key": False,
+            "reversibility": "unknown", "metadata_source": "adapter_policy",
+        }
+    return None
+
+
+def _retry_failure(kwargs: dict[str, Any]) -> dict[str, Any] | None:
+    """Use native typed status/error_type, never error_message, result text or args."""
+    status = kwargs.get("status")
+    if status not in {"error", "failed", "timeout", "cancelled"}:
+        return None
+    error_type = kwargs.get("error_type")
+    category, transience = "tool_error", "unknown"
+    if status == "timeout" or error_type in {"tool_timeout", "TimeoutError", "ETIMEDOUT"}:
+        category, transience = "timeout", "transient"
+    elif error_type in {"invalid_tool_arguments", "validation_error"}:
+        category, transience = "validation", "permanent"
+    elif error_type in {"rate_limit"}:
+        category, transience = "rate_limit", "transient"
+    elif error_type in {"permission_denied"}:
+        category, transience = "auth", "permanent"
+    elif error_type in {"connection_error", "ECONNRESET", "ENOTFOUND"}:
+        category, transience = "network", "transient"
+    return {
+        "category": category, "transience": transience,
+        # Even an explicit tool error can be post-commit; do not infer non-execution.
+        "outcome_known": error_type == "invalid_tool_arguments",
+    }
+
+
+def _retry_context(kwargs: dict[str, Any]) -> dict[str, Any] | None:
+    op = _retry_operation(kwargs.get("function_name"))
+    failure = _retry_failure(kwargs)
+    if op is None or failure is None:
+        return None
+    if failure["outcome_known"] and op["side_effect"] != "none":
+        op = dict(op, side_effect_status="not_applied")
+    return {
+        "failure": failure,
+        "operation": op,
+        # The native hook provides no verified attempt/time/monetary budget.
+        "history": {
+            "attempts": 0, "max_attempts": None, "repeated_failures": 0,
+            "remaining_time_ms": None, "retry_budget_available": False,
+        },
+        "constraints": {
+            "requires_approval": False, "escalation_allowed": False,
+            "escalation_budget_available": False, "alternative_available": False,
+        },
+    }
+
+
+def _valid_retry_response(value: Any, request_id: str) -> bool:
+    if not isinstance(value, dict) or value.get("workflow") != "retry_escalation_gate":
+        return False
+    # A missing required-but-nullable field is malformed, not JSON null.
+    if not {"raw_model_decision", "safety_override_reason"} <= value.keys():
+        return False
+    guarded = value.get("guarded_decision")
+    if guarded not in _RETRY_CHOICES or value.get("decision") != guarded:
+        return False
+    raw = value.get("raw_model_decision")
+    if raw is not None and raw not in _RETRY_CHOICES:
+        return False
+    override = value.get("safety_override_reason")
+    if override is not None and (not isinstance(override, str) or not override):
+        return False
+    if value.get("decision_source") not in {"rule", "model"}:
+        return False
+    if value.get("advisory_only") is not True:
+        return False
+    if value.get("request_id") != request_id:
+        return False
+    reason = value.get("reason")
+    if not isinstance(reason, str) or not 1 <= len(reason) <= 80:
+        return False
+    if not all(char in "abcdefghijklmnopqrstuvwxyz0123456789_" for char in reason):
+        return False
+    if override is not None and (
+        len(override) > 80 or not all(
+            char in "abcdefghijklmnopqrstuvwxyz0123456789_" for char in override
+        )
+    ):
+        return False
+    if value.get("backend") not in {"rule", "mlx", "ane"}:
+        return False
+    return (
+        _valid_completion_number(value.get("latency_ms"))
+        and _valid_completion_number(value.get("confidence"), maximum=1.0)
+    )
+
+
+def _safe_retry(
+    base_url: str, failure_context: dict[str, Any], timeout: float, request_id: str,
+) -> dict[str, Any]:
+    try:
+        value = _post_json(
+            base_url, "/v1/workflows/retry-escalation-gate",
+            dict(failure_context, request_id=request_id), timeout,
+        )
+        return {"retry": value, "error": None} if _valid_retry_response(value, request_id) else {
+            "retry": None, "error": "invalid_response",
+        }
+    except (OSError, TimeoutError, ValueError, TypeError, urllib.error.URLError) as error:
+        return {"retry": None, "error": type(error).__name__}
+
+
 def _strip_cron_wrapper(text: str) -> str:
     marker = "[IMPORTANT: You are running as a scheduled cron job."
     clean = text.strip()
@@ -414,6 +542,9 @@ def register(ctx):
     model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", True), True)
     notification_enabled = _as_bool(ctx.get_config("notification_gate_enabled", True), True)
     completion_enabled = _as_bool(ctx.get_config("completion_gate_enabled", True), True)
+    retry_escalation_enabled = _as_bool(
+        ctx.get_config("retry_escalation_gate_enabled", False), False
+    )
     # Separate, experimental mid-loop observation. Default OFF: end-of-turn stays unchanged.
     completion_loop_probe_enabled = _as_bool(
         ctx.get_config("completion_loop_probe_enabled", False), False
@@ -448,6 +579,7 @@ def register(ctx):
             "model_tier_gate_enabled": model_tier_enabled,
             "notification_gate_enabled": notification_enabled,
             "completion_gate_enabled": completion_enabled,
+            "retry_escalation_gate_enabled": retry_escalation_enabled,
             "completion_loop_probe_enabled": completion_loop_probe_enabled,
             "canary_acknowledged": canary_acknowledged,
             "canary_web_filter_enabled": canary_web_filter_enabled,
@@ -718,6 +850,142 @@ def register(ctx):
     ctx.register_hook("post_llm_call", _completion_post_llm)
     ctx.register_hook("post_tool_call", _completion_post_tool)
     ctx.register_hook("on_session_end", _completion_session_end)
+
+    # Independent Phase 8C observer. This never reads Completion's loop state,
+    # never writes to native tool controls and is disabled by default.
+    retry_slots = threading.BoundedSemaphore(4)
+    retry_lock = threading.RLock()
+    # Active (session, turn) identities are safety counters, not an LRU cache.
+    # Reclaim them only on the native session-end hook.
+    retry_seen: dict[tuple[str, str], set[str]] = {}
+    retry_max_active_turns = 64
+
+    def _retry_record(event: dict[str, Any]) -> None:
+        with retry_lock:
+            history = _state_get(ctx, "retry_escalation_shadow_history", [])
+            if not isinstance(history, list):
+                history = []
+            history.append(event)
+            _state_set(ctx, "retry_escalation_shadow_history", history[-100:])
+            _state_set(ctx, "last_retry_escalation_shadow", event)
+
+    def _retry_post_tool(**kwargs):
+        if effective_mode.startswith("off") or not retry_escalation_enabled:
+            return None
+        try:
+            failure = _retry_failure(kwargs)
+            if failure is None:
+                return None  # Never classify a successful tool as a failure.
+            turn = kwargs.get("turn_id") or kwargs.get("task_id")
+            call = kwargs.get("tool_call_id")
+            event = {
+                "ts": time.time(), "gate": "retry_escalation",
+                "adapter_contract_version": _ADAPTER_CONTRACT_VERSION,
+                "platform": "hermes", "adapter_version": _PLUGIN_VERSION,
+                "mode": effective_mode, "request_id": os.urandom(12).hex(),
+            }
+            session = kwargs.get("session_id")
+            if (
+                not isinstance(session, str) or not session or len(session) > 256
+                or not isinstance(turn, str) or not turn or len(turn) > 256
+                or not isinstance(call, str) or not call or len(call) > 256
+            ):
+                event.update(action_status="unsupported", action_reason="tool_identity_unverified")
+                _retry_record(event)
+                return None
+            failure_context = _retry_context(kwargs)
+            if failure_context is None:
+                event.update(
+                    action_status="unsupported", action_reason="operation_unverified",
+                )
+                _retry_record(event)
+                return None
+            with retry_lock:
+                identity = (session, turn)
+                seen = retry_seen.get(identity)
+                if seen is None:
+                    if len(retry_seen) >= retry_max_active_turns:
+                        # Never evict a live turn's safety counter under load.
+                        # Deny this observation, preserve native tool execution.
+                        event.update(
+                            action_status="failed_open",
+                            action_reason="retry_turn_capacity_exhausted",
+                        )
+                        _retry_record(event)
+                        return None
+                    seen = set()
+                    retry_seen[identity] = seen
+                if call in seen or len(seen) >= 2:
+                    return None
+                seen.add(call)  # Before dispatch: no duplicate inference.
+            if not retry_slots.acquire(blocking=False):
+                event.update(
+                    action_status="failed_open", action_reason="retry_capacity_exhausted",
+                )
+                _retry_record(event)
+                return None
+
+            def _observe():
+                try:
+                    result = _safe_retry(
+                        base_url, failure_context, timeout, event["request_id"]
+                    )
+                    recommendation = result.get("retry")
+                    if isinstance(recommendation, dict):
+                        event.update({
+                            "decision": recommendation["guarded_decision"],
+                            "raw_model_decision": recommendation.get("raw_model_decision"),
+                            "decision_source": recommendation["decision_source"],
+                            "safety_override_reason": recommendation.get("safety_override_reason"),
+                            "reason": recommendation["reason"],
+                            "backend": recommendation["backend"],
+                            "latency_ms": recommendation["latency_ms"],
+                            "action_status": "observed",
+                            "action_reason": "retry_shadow_advisory_only",
+                        })
+                    else:
+                        event.update(
+                            action_status="failed_open", action_reason="retry_runtime_unavailable",
+                        )
+                except Exception:  # noqa: BLE001 - never propagate into native hook
+                    event.update(
+                        action_status="failed_open", action_reason="retry_observer_exception",
+                    )
+                finally:
+                    try:
+                        _retry_record(event)
+                    finally:
+                        retry_slots.release()
+
+            try:
+                threading.Thread(
+                    target=_observe, daemon=True, name="system-one-retry-shadow",
+                ).start()
+            except Exception:  # noqa: BLE001 - thread dispatch fail-open
+                retry_slots.release()
+                event.update(
+                    action_status="failed_open", action_reason="retry_dispatch_failed",
+                )
+                _retry_record(event)
+        except Exception:  # noqa: BLE001 - malformed host event is never fatal
+            return None
+        return None
+
+    def _retry_session_end(**kwargs):
+        session = kwargs.get("session_id")
+        # Native session/end is authoritative for the *whole session*.
+        # A turn ID alone cannot identify a session; never delete another
+        # session's active safety counter merely because its turn ID matches.
+        if not isinstance(session, str) or not session:
+            return None
+        with retry_lock:
+            for identity in tuple(retry_seen):
+                if identity[0] == session:
+                    retry_seen.pop(identity, None)
+        return None
+
+    ctx.register_hook("post_tool_call", _retry_post_tool)
+    ctx.register_hook("on_session_end", _retry_session_end)
 
     def _observe_post_llm_call(**kwargs):
         if effective_mode.startswith("off") or not notification_enabled:

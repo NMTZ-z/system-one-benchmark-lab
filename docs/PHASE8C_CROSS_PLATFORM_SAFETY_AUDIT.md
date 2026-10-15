@@ -1,0 +1,106 @@
+# Phase 8C — Cross-platform safety audit and Codex P2 closure
+
+**Scope:** Local System One Retry / Escalation Gate, Hermes adapter, DeepSeek
+Harness adapter and Adapter Contract v1. **Status:** source/test audit only;
+release and Codex re-review are independent gates.
+
+## Why this audit exists
+
+The first seven Codex reviews on GitHub PR #5 found twelve P2 defects. Several
+were the *same invariant* violated by different adapters. A passing benchmark
+accuracy score does not establish a safe concurrency or accounting boundary.
+This audit maps every defect to executable regression evidence, then checks
+the shared contracts rather than relying only on the originally commented line.
+
+## The twelve findings and their regression guards
+
+| Review / finding | Invariant | Code guard | Executable evidence |
+| --- | --- | --- | --- |
+| R1: mutating type masquerades as a side-effect-free read | `write`, `git_push`, `pr_create` cannot claim `side_effect=none` | `RetryEscalationRequest.from_payload` | `test_phase8c_review_rejects_contradictory_mutation_metadata`, HTTP 400 mutation test |
+| R1: unsafe-retry denominator omits auth/time exhaustion | Every explicitly forbidden `retry_same` contributes to the denominator, independent of the prediction | `benchmarks/retry/evaluate.py:is_unsafe_to_retry` | `test_review_all_blocked_retries_are_counted_in_each_frozen_split`, `test_review_injected_bad_retry_on_401_403_and_zero_time_is_detected` |
+| R2: hard-rule decisions absent from metrics | Rule-only requests are metered; completed inference is not double-counted | `RetryEscalationGate._rule_result` | `test_rule_paths_increment_metrics_once_without_running_model`, `test_model_path_and_safety_override_do_not_double_count_metrics`, HTTP `/metrics` test |
+| R2: DSH eviction resets an active turn's two-observation limit | Never evict an active safety counter at capacity | DSH `retryCounts` capped at 96 active turns | 96/97-turn overflow, oldest-turn third failure and duplicate-start Vitest |
+| R3: direct engine failure is counted twice | An entire Gate call shares the nested error-accounting context | `RetryEscalationGate.decide` wraps `error_accounting_scope` | `test_real_decision_engine_failure_is_counted_once_per_direct_request` (same exception reused across two calls) |
+| R3: Hermes eviction resets an active turn's limit | Keep the 64 active session/turn counters until native session end; do not conflate sessions sharing a turn ID | Hermes Retry observer uses `(session_id, turn_id)`, 64-capacity admission, cleanup by session | `test_retry_concurrent_65th_turn_never_evicts_live_safety_counter`, `test_retry_session_identity_isolated_for_matching_turn_ids`, missing-session fail-open |
+| R3: Python contract silently converts missing required fields into null | A required nullable field must be **present** and type-correct | `validate_decision_envelope`, `envelope_from_runtime`, Hermes response validator | `test_retry_envelope_required_nullable_fields_cannot_be_missing`, `test_retry_runtime_normalization_never_fabricates_required_fields`, Hermes and DSH receiver tests |
+| R4: DSH session prefix collides with `:` inside opaque session IDs | Cleanup of `job` must not mutate any `job:child` state; every Gate must share collision-free keys | Shared `sessionKeyPrefix` / `turnKey` in `src/state.ts` and all DSH `session/event` cleanup paths | Parent-close/child-retry-budget test, `TurnDecisionState` Search/Model Tier isolation test, Notification/Completion candidate preservation test |
+| R5: untrusted metadata omitted from forbidden-retry denominator | The evaluator must use Runtime typed validation and the *same* `retry_same` candidate filter | `benchmarks/retry/evaluate.py:is_unsafe_to_retry` calls `RetryEscalationGate._resolve_rules` | `test_safety_denominator_tracks_runtime_retry_permission_on_all_frozen_cases`, `test_untrusted_no_effect_metadata_is_forbidden_and_detected_if_injected`, `test_repeat_limit_and_unknown_transience_are_policy_blocked` |
+| R5: model inference overridden by safety guard is invisible to benchmark | Count actual Engine calls, even when final source becomes `rule`, and report completed/failed calls and backend separately | Benchmark-only `_InferenceProbe` + `model_inference_attempted/completed` observations | `test_review_count_engine_calls_even_when_final_decision_is_rule`, `test_no_backend_call_is_charged_to_a_deterministic_hard_rule` |
+| R6: HTTP 429 bypasses repeated failure limit | Verified Retry-After never exempts a rate limit from the shared `repeated_failures < 2` and transient checks | `RetryEscalationGate._resolve_rules` rate-limit branch | `test_repeated_rate_limit_obeys_same_retry_cap_as_other_transient_failures`, `test_429_requires_confirmed_transience_before_retry_advice`, `test_rate_limit_retry_cap_is_reflected_in_unsafe_retry_metrics` |
+| R7: other HTTP 4xx client errors can claim transient network failures | Ordinary non-retryable 4xx statuses cannot enter `retry_same` candidate space, regardless of caller's category/transience | `RetryEscalationRequest.from_payload` rejects incompatible transient classifications; `RetryEscalationGate._resolve_rules` blocks remaining 4xx | `test_non_retryable_http_4xx_rejects_contradictory_transient_category`, `test_non_retryable_http_4xx_forces_rule_even_with_alternatives`, `test_live_http_rejects_transient_nonretryable_client_error`, `test_nonretryable_http_4xx_cannot_escape_unsafe_retry_denominator` |
+
+## Shared constraints verified across modules
+
+1. **Permissions and effects:** Neither adapter infers a write succeeded or
+   did not happen from raw logs. Unknown effects require `verify_state`, and
+   user approval / exhausted budgets cannot authorize `retry_same`.
+2. **Bounded observation:** Hermes uses at most 2 failure observations per
+   active `(session, turn)`, at most 64 tracked active turns and 4 nonblocking
+   observer workers. DSH uses at most 2 observations per `(session, turn)`,
+   at most 96 tracked active turns and 4 in-flight requests. At capacity the
+   **new** observation is rejected, not the older live safety state. Both
+   retain duplicate-call suppression and explicit end-of-lifecycle cleanup.
+   DSH keys now encode an opaque session ID using its UTF-16 length before
+   a separator, preventing prefix-based cleanup collisions such as `job` vs
+   `job:child`. All Gate decision, call-ID, candidate, and turn-counter
+   storage uses the same shared session-scoped encoding.
+3. **Error accounting:** A nested Engine error is counted once per external
+   Gate call, even on direct Python calls and when the same exception object
+   is rethrown by two different requests. Completed model inference is not
+   counted a second time due to a guarded recommendation.
+4. **Wire contracts:** The runtime emits both `raw_model_decision` and
+   `safety_override_reason` explicitly, using JSON null when appropriate.
+   The Python envelope validator and runtime normalizer refuse their absence;
+   the Hermes/DSH response validators also refuse missing fields. The
+   top-level `request_id` is also required-but-nullable, optional `confidence`
+   and `metadata` reject explicit null, and non-null request IDs / override
+   reasons have matching nonempty-string schema bounds. Python and JSON
+   Schema agree on these required, nullable and nonempty semantics.
+5. **Privacy:** Retry payloads remain structured failure/operation/history/
+   constraints metadata. Error text, arguments, secret-bearing result bodies,
+   provider credentials and native tool action handles do not enter the Gate
+   or its telemetry. Synthetic identifiers only in regression fixtures.
+6. **Benchmark metric integrity:** Policy-prohibited `retry_same` is now
+   computed using the same Runtime rule candidates, rather than a second
+   incomplete predicate. The frozen splits therefore contain 25/30 blocked
+   cases (previously reported 15/30), but their gold labels and predictions
+   are unchanged. `model_activated_count` counts *attempted* Engine calls,
+   even if a malformed or unsafe model answer is guarded to a rule.
+   Completed/failed Engine calls, inference backend, and call time are
+   tracked separately from the final guarded decision. This does not
+   establish real-world safety or model economic benefit.
+7. **Authority and compatibility:** OFF remains the default; Shadow is
+   advice-only. No automatic retry, write, abort, provider/model escalation,
+   approval bypass or production-config mutation has been added. Existing
+   Completion Gate threshold/contract and frozen synthetic benchmark SHA256
+   are not altered by this audit.
+
+## Deliberate safety trade-offs
+
+- When all 64 Hermes or 96 DSH tracking slots are active, future untracked
+  turns are **not observed** until slots are released. This prioritizes safety
+  and bounded memory over Shadow coverage; it must not be reported as a
+  successful classification.
+- If the native lifecycle never emits the expected session-end event, an
+  active Hermes safety counter is retained until the plugin instance ends.
+  Exhausting the pool causes advisory observations to fail open, **not** a
+  forced deletion that would reset the two-observation safety budget. The
+  native hook's event shape/lifecycle should be confirmed in provider-backed
+  E2E before extending coverage.
+- DSH tracks matched upstream call IDs. Its separate bounded pre-call name
+  cache can evict an unmatched tool name under exceptional load; a missing
+  name is `unsupported` rather than guessed, with no unauthorized retry.
+- The MLX synthetic split and formulaic labels cannot establish real
+  generalization, rate of harmful retries, cost savings or actual Agent
+  recovery effectiveness. MLX confidence is not calibrated, and a verified
+  fixed-L512 ANE artifact is still missing.
+
+## Release gate
+
+An independent clean-tree public bundle/sanitizer run, complete Python/DSH
+regressions, Hermes plugin validation and GitHub Codex re-review must be
+reported with actual outcomes and commit SHA. **Passing all source-level
+checks is not the same as Engineering Acceptance:** real Hermes + DSH
+provider-backed Agent E2E and independently adjudicated task outcomes remain
+missing. Keep **Engineering Acceptance: BLOCKED**, **Model Quality: NO-GO**
+and **Active Readiness: NO-GO** until those separate gates are satisfied.

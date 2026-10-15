@@ -1,0 +1,8 @@
+# Local build/test byproducts, never publish these artifacts.
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+node_modules/
+dist/
+.DS_Store

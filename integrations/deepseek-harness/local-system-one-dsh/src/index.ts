@@ -4,6 +4,7 @@ import {
   ModelTierGateClient,
   NotificationGateClient,
   SearchGateClient,
+  RetryEscalationGateClient,
 } from './client.js'
 import {
   ADAPTER_CONTRACT_VERSION,
@@ -19,7 +20,8 @@ import {
   isVerifiedReasoningDowngradeRoute,
   resolveConfig,
 } from './policy.js'
-import { TurnDecisionState } from './state.js'
+import { TurnDecisionState, sessionKeyPrefix, turnKey } from './state.js'
+import { operationFromToolName, resultCallId, failureFromToolResult } from './retry.js'
 import type {
   AdapterConfig,
   AdapterMode,
@@ -33,13 +35,14 @@ import type {
   PreStepInputLike,
   SearchDecision,
   SessionEventLike,
+  RetryEscalationDecision,
   SessionLike,
   ToolExecutionLike,
   UserMessageLike,
 } from './types.js'
 
 export const name = 'local-system-one-dsh'
-export const version = '0.5.0'
+export const version = '0.6.0'
 const MAX_COMPLETION_TASK_CHARS = 4000
 const MAX_NOTIFICATION_CHARS = 6000
 
@@ -110,10 +113,6 @@ function toolResultFailed(event: SessionEventLike): boolean {
   const message = event.data?.message
   if (typeof message !== 'object' || message === null) return false
   return (message as Record<string, unknown>).isError === true
-}
-
-function turnKey(sessionId: string, turn: number): string {
-  return `${sessionId}:${turn}`
 }
 
 function errorType(error: unknown): string {
@@ -244,6 +243,30 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
   const modelTierClient = new ModelTierGateClient(config.serviceUrl, config.timeoutMs)
   const notificationClient = new NotificationGateClient(config.serviceUrl, config.timeoutMs)
   const completionClient = new CompletionGateClient(config.serviceUrl, config.timeoutMs)
+  const retryClient = new RetryEscalationGateClient(config.serviceUrl, config.timeoutMs)
+  const retryCallNames = new Map<string, string>()
+  const retrySeen = new Set<string>()
+  const retryCounts = new Map<string, number>()
+  let retryInFlight = 0
+  const RETRY_MAX_OBSERVATIONS = 2
+  const RETRY_MAX_ACTIVE_TURNS = 96
+  const RETRY_MAX_INFLIGHT = 4
+
+  function retryStatus(status: 'unsupported' | 'failed_open', reason: string): void {
+    ctx.logger?.info?.('[local-system-one-dsh] ' + JSON.stringify({
+      adapter_contract_version: ADAPTER_CONTRACT_VERSION,
+      platform: 'deepseek_harness', adapter_version: version,
+      gate: 'retry_escalation', mode: config.effectiveMode,
+      action_status: status, action_reason: reason, request_id: null,
+    }))
+  }
+  function retryDecision(decision: RetryEscalationDecision): void {
+    ctx.logger?.info?.('[local-system-one-dsh] ' + JSON.stringify(telemetryRecord(
+      version, config.effectiveMode, toDecisionEnvelope('retry_escalation', decision),
+      actionOutcome('observed', 'retry_shadow_advisory_only'),
+    )))
+  }
+
   const notificationCandidates = new Map<string, string>()
   const completionCandidates = new Map<string, CompletionCandidate>()
 
@@ -261,6 +284,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
         && !config.modelTierGateEnabled
         && !config.notificationGateEnabled
         && !config.completionGateEnabled
+        && !config.retryEscalationGateEnabled
       )
     ) return
 
@@ -269,7 +293,31 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
     const turn = asPositiveInteger(event.data?.turn)
     if (event.type === 'turn/start' && turn !== null) {
+      const key = turnKey(sessionId, turn)
+      // A duplicated turn/start must not reset a live Retry observation
+      // counter. Only turn/end or session/end may release its budget.
+      if (!retryCounts.has(key)) {
+        for (const k of retryCallNames.keys()) {
+          if (k.startsWith(key + ':')) retryCallNames.delete(k)
+        }
+        for (const k of retrySeen) {
+          if (k.startsWith(key + ':')) retrySeen.delete(k)
+        }
+      }
       state.beginTurn(sessionId, turn)
+      return
+    }
+
+    if (config.retryEscalationGateEnabled && event.type === 'tool/call' && turn !== null) {
+      // Join exact upstream call id to a pinned tool policy; do not retain arguments.
+      const callId = event.data?.callId
+      const toolName = event.data?.name
+      if (typeof callId === 'string' && callId.length > 0 && callId.length <= 128) {
+        const key = turnKey(sessionId, turn)
+        retryCallNames.set(key + ':' + callId,
+          typeof toolName === 'string' && operationFromToolName(toolName) ? toolName : '')
+        while (retryCallNames.size > 256) retryCallNames.delete(retryCallNames.keys().next().value!)
+      }
       return
     }
 
@@ -287,6 +335,43 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
         completionCandidates.set(key, candidate)
       }
       return
+    }
+
+    if (config.retryEscalationGateEnabled && event.type === 'tool/result' && turn !== null) {
+      const message = event.data?.message
+      if (typeof message === 'object' && message !== null &&
+          (message as Record<string, unknown>).isError === true) {
+        const key = turnKey(sessionId, turn)
+        const callId = resultCallId(event)
+        const callKey = callId ? key + ':' + callId : ''
+        // Never evict an active turn to make room for a new one: doing
+        // so would reset its 2-observation safety limit. Reject new turn
+        // observations at capacity and keep existing counts until end.
+        if (!retryCounts.has(key) && retryCounts.size >= RETRY_MAX_ACTIVE_TURNS) {
+          retryStatus('failed_open', 'retry_turn_capacity_exhausted')
+        } else if ((retryCounts.get(key) ?? 0) < RETRY_MAX_OBSERVATIONS &&
+            (!callKey || !retrySeen.has(callKey))) {
+          retryCounts.set(key, (retryCounts.get(key) ?? 0) + 1)
+          if (callKey) retrySeen.add(callKey)
+          // At most 96 tracked turns x 2 observations = 192 seen IDs.
+          // FIFO eviction is unsafe here because call IDs can reappear.
+          const name = retryCallNames.get(callKey)
+          const operation = name ? operationFromToolName(name) : null
+          const failure = operation ? failureFromToolResult(event, operation) : null
+          if (!callKey || !operation || !failure) {
+            retryStatus('unsupported', 'failure_identity_or_operation_unverified')
+          } else if (retryInFlight >= RETRY_MAX_INFLIGHT) {
+            retryStatus('failed_open', 'retry_observer_capacity_exhausted')
+          } else {
+            retryInFlight += 1
+            void retryClient.decide(failure, randomUUID())
+              .then(value => retryDecision(value))
+              .catch(_error => retryStatus('failed_open', 'retry_runtime_unavailable'))
+              .finally(() => { retryInFlight -= 1 })
+          }
+        }
+      }
+      // Completion keeps its independent tool-result accounting.
     }
 
     if (config.completionGateEnabled && event.type === 'tool/result' && turn !== null) {
@@ -325,6 +410,13 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
     if (event.type === 'turn/end' && turn !== null) {
       const candidateKey = turnKey(sessionId, turn)
+      retryCounts.delete(candidateKey)
+      for (const k of retryCallNames.keys()) {
+        if (k.startsWith(candidateKey + ':')) retryCallNames.delete(k)
+      }
+      for (const k of retrySeen) {
+        if (k.startsWith(candidateKey + ':')) retrySeen.delete(k)
+      }
       let eventText = notificationCandidates.get(candidateKey) ?? ''
       notificationCandidates.delete(candidateKey)
       const completionCandidate = completionCandidates.get(candidateKey)
@@ -400,12 +492,21 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
     }
 
     if (event.type === 'session/end' || event.type === 'session/close') {
+      for (const k of retryCounts.keys()) {
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retryCounts.delete(k)
+      }
+      for (const k of retryCallNames.keys()) {
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retryCallNames.delete(k)
+      }
+      for (const k of retrySeen) {
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retrySeen.delete(k)
+      }
       state.clearSession(sessionId)
       for (const key of notificationCandidates.keys()) {
-        if (key.startsWith(`${sessionId}:`)) notificationCandidates.delete(key)
+        if (key.startsWith(sessionKeyPrefix(sessionId))) notificationCandidates.delete(key)
       }
       for (const key of completionCandidates.keys()) {
-        if (key.startsWith(`${sessionId}:`)) completionCandidates.delete(key)
+        if (key.startsWith(sessionKeyPrefix(sessionId))) completionCandidates.delete(key)
       }
     }
   })
@@ -645,10 +746,12 @@ export {
   CompletionGateClient,
   NotificationGateClient,
   SearchGateClient,
+  RetryEscalationGateClient,
   parseCompletionDecision,
   parseModelTierDecision,
   parseNotificationDecision,
   parseSearchDecision,
+  parseRetryEscalationDecision,
 } from './client.js'
 export {
   AUDITED_HARD_FAST_REASONS,
