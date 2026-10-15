@@ -50,7 +50,9 @@ and calls the same `RetryEscalationGate._resolve_rules()` candidate filtering;
 it no longer maintains a separate, incomplete safety predicate. This covers
 unknown, partial or applied side effects, untrusted `metadata_source`
 (including claimed side-effect-free operations), missing trusted idempotency
-keys, 401/403 and approval failures, non-transient or validation errors,
+keys, 401/403 and approval failures, non-retryable 4xx client errors
+(e.g. 400/404/409/422 regardless of claimed category), non-transient or
+validation errors,
 zero/unknown budget, excessive repeated failures (including repeated HTTP
 429 rate limits), non-transient 429 reports, and unaffordable Retry-After.
 The same `repeated_failures < 2` cap applies to every transient retry

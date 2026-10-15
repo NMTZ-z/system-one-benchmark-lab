@@ -100,6 +100,47 @@ def test_live_http_rejects_known_mutation_masked_as_no_side_effect(service, muta
     assert response["error"] == "invalid_request"
 
 
+def test_live_http_rejects_transient_nonretryable_client_error(service):
+    bad = payload(
+        failure={
+            "category": "network", "transience": "transient",
+            "outcome_known": True, "http_status": 400,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+    )
+    with pytest.raises(HTTPError) as error:
+        _post(service, bad)
+    assert error.value.code == 400
+    response = json.loads(error.value.read())
+    assert response["error"] == "invalid_request"
+    # HTTP boundary deliberately exposes the exception type, not caller data.
+    assert response["detail"] == "ValueError"
+
+
+def test_live_http_hard_blocks_unknown_422_even_with_alternatives(service):
+    conservative = payload(
+        failure={
+            "category": "tool_error", "transience": "unknown",
+            "outcome_known": True, "http_status": 422,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        constraints={"alternative_available": True},
+    )
+    status, response = _post(service, conservative)
+    assert status == 200
+    assert response["decision"] == "ask_user"
+    assert response["decision_source"] == "rule"
+    assert response["reason"] == "http_client_error_not_retryable"
+
+
 def test_live_http_security_401_with_explicit_auth():
     server=create_server(NeverCalledEngine(),port=0,auth_token="test-secret")
     thread=threading.Thread(target=server.serve_forever,daemon=True)

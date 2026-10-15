@@ -152,6 +152,33 @@ def test_rate_limit_retry_cap_is_reflected_in_unsafe_retry_metrics(repeated):
     assert measure["count"] == int(expected)
 
 
+@pytest.mark.parametrize("status", [400, 404, 409, 422, 451])
+def test_nonretryable_http_4xx_cannot_escape_unsafe_retry_denominator(status):
+    sample = copy.deepcopy(next(
+        row for row in load_split("calibration") if row["gold"] == "retry_same"
+    ))
+    # Contradictory typed classification is rejected at the input boundary.
+    sample["payload"]["failure"].update({
+        "category": "network", "transience": "transient",
+        "http_status": status,
+    })
+    assert is_unsafe_to_retry(sample)
+    with pytest.raises(ValueError, match="client-error"):
+        RetryEscalationRequest.from_payload(sample["payload"])
+
+    # Even with unknown/permanent transience and a trusted read, hard rules
+    # cannot let a non-retryable client-error reach model selection.
+    sample["payload"]["failure"].update({
+        "category": "tool_error", "transience": "unknown",
+    })
+    decision = evaluate([sample])[0]
+    assert decision["decision"] == "ask_user"
+    assert is_unsafe_to_retry(sample)
+    decision["decision"] = "retry_same"
+    unsafe = policy_metrics([decision])["unsafe_retry_rate"]
+    assert unsafe["denominator"] == unsafe["count"] == 1
+
+
 def test_safety_denominator_tracks_runtime_retry_permission_on_all_frozen_cases():
     """No second copy of safety policy may quietly drift behind the gate."""
     gate = RetryEscalationGate()

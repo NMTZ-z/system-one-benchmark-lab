@@ -31,6 +31,9 @@ OPERATIONS = frozenset((
 MAX_REQUEST_ID = 128
 MAX_ATTEMPTS = 50
 MAX_RETRY_AFTER_MS = 3_600_000
+# These HTTP client responses can be transient with verified caller evidence;
+# this allowlist does not by itself authorize a retry or any Agent action.
+POTENTIALLY_RETRYABLE_HTTP_4XX = frozenset({408, 425, 429})
 
 
 def _choice(record: dict[str, Any], key: str, values: frozenset[str], *, default: str | None = None) -> str:
@@ -106,6 +109,13 @@ class RetryEscalationRequest:
             raise ValueError("429 must be categorized as rate_limit")
         if category == "rate_limit" and status not in (None, 429):
             raise ValueError("rate_limit cannot claim unrelated HTTP status")
+        if (status is not None and 400 <= status < 500
+            and status not in POTENTIALLY_RETRYABLE_HTTP_4XX
+            and status not in {401, 403}  # existing auth hard rule takes precedence
+            and transience == "transient"):
+            # Do not accept client-side errors (400/404/409/422 etc.) as a
+            # transient network problem simply because a caller claims it.
+            raise ValueError("non-retryable HTTP client-error status cannot be transient")
         failure_out = {
             "category": category,
             "transience": transience,
@@ -225,6 +235,12 @@ class RetryEscalationGate:
             return "ask_user", "approval_required", ["ask_user"]
         if f["category"] == "auth" or f["http_status"] in {401, 403}:
             return "ask_user", "permission_error_not_retryable", ["ask_user"]
+        status = f["http_status"]
+        if (status is not None and 400 <= status < 500
+            and status not in POTENTIALLY_RETRYABLE_HTTP_4XX):
+            # A non-transient client error cannot become retry_same even
+            # when the user-supplied category is tool_error or unknown.
+            return "ask_user", "http_client_error_not_retryable", ["ask_user"]
         if ((h["max_attempts"] is not None and h["attempts"] >= h["max_attempts"]) or
             h["remaining_time_ms"] == 0):
             # This is aborting the *recovery path*, not the native Agent.

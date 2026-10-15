@@ -75,6 +75,14 @@ no failure context, tool arguments or raw result enters metrics.
   to the one for other transient failures, regardless of whether an
   alternative operation exists. The gate never sleeps, retries, switches
   models or approves tools.
+- HTTP client errors other than audited transient exceptions (408, 425,
+  429) cannot authorize direct retry: an incompatible `transience: transient`
+  classification is rejected by the typed parser for 400/404/409/422 and
+  other non-retryable 4xx statuses. Even if their transience is `unknown`
+  or `permanent`, a deterministic rule recommends `ask_user` instead of
+  allowing an LLM to choose `retry_same`. Existing 401/403 permission
+  handling remains authoritative; 408/425 still require trusted operation
+  semantics and verified caller retry budgets.
 - Null retry budget or missing attempt ceiling means **unknown**, not unlimited.
 - Unknown tool identity or failed-event evidence is `unsupported` at the adapter;
   ambiguous provider errors are not fabricated into tool failures.

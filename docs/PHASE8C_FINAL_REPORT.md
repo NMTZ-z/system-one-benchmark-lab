@@ -230,8 +230,10 @@ modifying gold labels.
   observations, turn isolation, malformed response fail-open, metadata-only.
 - Both client adapters: real loopback Runtime inference and Shadow observation,
   never native provider E2E.
-- Python whole-tree tests: **452/452 PASS**, including existing Gate
-  regressions, Retry failure injection, HTTP, frozen synthetic corpus integrity,
+- Python whole-tree tests: **484/484 PASS**, including HTTP 4xx status
+  contradiction rejection, hard-rule non-retryable client-error blocking,
+  actual HTTP 400/422 integration, injected unsafe Benchmark denominator
+  regressions, existing Gate failures, and frozen synthetic corpus integrity,
   mutation metadata consistency, policy-forbidden retry denominator parity,
   untrusted metadata and additional blocked conditions, guarded model
   inference-call and malformed-response accounting, `GET /metrics` integration,
@@ -249,10 +251,10 @@ modifying gold labels.
   capability registration, native ABI and safety scan. Validator also
   reported existing private-core-import compatibility warnings; this
   gate did not introduce a new private integration hook.
-- Public allowlist release sanitizer: the previous revision
-  `50699e0` produced **137 files, `publish_ready: true`**.
-  This metric-correction revision needs a separate clean-tree sanitizer
-  check after commit.
+- Public allowlist release sanitizer: the preceding revision
+  `0c860fd` produced **137 files, `publish_ready: true`**.
+  The HTTP 4xx safety-hardening revision requires an independent
+  clean-tree 137-file sanitizer check after commit.
 - No genuine provider-backed Agent E2E; no production recovery enabled.
 
 ## 10. Files, publication and review
@@ -305,7 +307,7 @@ Codex's **third review**, completed 2026-10-14 at 14:06 UTC on
    Hermes/DSH receiver checks.
 
 The comprehensive [Phase 8C Cross-platform Safety Audit](PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md)
-maps all eleven P2 findings to tests and documents additional safeguards
+maps all twelve P2 findings to tests and documents additional safeguards
 for required top-level request IDs and optional-field nullability.
 Codex's **fourth review**, completed 2026-10-14 at 14:58 UTC on
 `48dd68b`, identified one additional P2 finding:
@@ -342,7 +344,18 @@ Codex's **sixth review**, completed 2026-10-14 at 15:52 UTC on
     regressions cover both alternative-available states and verify that
     policy-prohibited 429 retries enter the unsafe denominator.
 
-The patch remains **Shadow-only**; sixth-review fixes are subject to
+Codex's **seventh review**, completed 2026-10-15 at 01:52 UTC on
+`0c860fd`, identified one additional P2 finding:
+12. Other HTTP 4xx client errors (e.g. 400) could be mislabeled as
+    transient network errors, making `retry_same` a candidate.
+    The typed request parser now rejects contradictory transient labels for
+    non-retryable 4xx statuses, while the deterministic rule hard-blocks
+    direct retry even for unknown/permanent classifications. Existing
+    auth 401/403 and audited transient exceptions 408/425/429 retain
+    their separate safeguards. New parameterized regression tests cover
+    4xx classes, real HTTP validation, and injected unsafe Benchmark rows.
+
+The patch remains **Shadow-only**; seventh-review fixes require a
 **new independent Codex review**, not an assumed approval.
 
 The synthetic frozen corpus is **unchanged** (identical SHA256 for all 3
@@ -355,7 +368,7 @@ Latency samples vary from run to run; no new real-Agent performance claim
 is made. No frozen corpus, gold label, model artifact, production config
 or earlier Gate threshold was edited.
 
-**Seventh Codex re-review and final merge authorization remain separate
+**Eighth Codex re-review and final merge authorization remain separate
 from passing code tests.** The follow-up revision SHA is recorded by
 Git and the PR itself, not embedded recursively into its own commit.
 

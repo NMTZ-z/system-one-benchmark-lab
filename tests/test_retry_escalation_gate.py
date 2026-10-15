@@ -161,6 +161,83 @@ def test_429_requires_confirmed_transience_before_retry_advice(transience):
     assert r["raw_model_decision"] is None
 
 
+@pytest.mark.parametrize("status", [400, 402, 404, 405, 409, 410, 422, 423, 428, 451, 499])
+def test_non_retryable_http_4xx_rejects_contradictory_transient_category(status):
+    # A trusted read is not an excuse to retry a broken client request.
+    forged = payload(
+        failure={
+            "category": "network", "transience": "transient",
+            "outcome_known": True, "http_status": status,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        constraints={"alternative_available": True},
+    )
+    with pytest.raises(ValueError, match="client-error"):
+        RetryEscalationRequest.from_payload(forged)
+
+
+@pytest.mark.parametrize("status", [400, 404, 409, 422, 451, 499])
+@pytest.mark.parametrize("transience", ["unknown", "permanent"])
+def test_non_retryable_http_4xx_forces_rule_even_with_alternatives(status, transience):
+    req = RetryEscalationRequest.from_payload(payload(
+        failure={
+            "category": "tool_error", "transience": transience,
+            "outcome_known": True, "http_status": status,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        constraints={"alternative_available": True},
+    ))
+    engine = RuleMetricsEngine()
+    result = RetryEscalationGate(engine).decide(req)
+    assert result["decision"] == "ask_user"
+    assert result["reason"] == "http_client_error_not_retryable"
+    assert result["decision_source"] == "rule"
+    assert engine.calls == 0
+    assert engine.metrics.snapshot()["requests"] == 1
+
+
+@pytest.mark.parametrize(("status", "category"), [
+    (408, "timeout"),
+    (425, "network"),
+])
+def test_retryable_4xx_exceptions_remain_subject_to_typed_budget_guards(status, category):
+    req = RetryEscalationRequest.from_payload(payload(
+        failure={
+            "category": category, "transience": "transient",
+            "outcome_known": True, "http_status": status,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+    ))
+    forced, _reason, choices = RetryEscalationGate()._resolve_rules(req)
+    assert forced is None
+    assert "retry_same" in choices
+    exhausted = RetryEscalationRequest.from_payload(payload(
+        failure={
+            "category": category, "transience": "transient",
+            "outcome_known": True, "http_status": status,
+        },
+        operation={
+            "type": "read", "side_effect": "none",
+            "side_effect_status": "none", "idempotency": "verified",
+            "metadata_source": "adapter_policy",
+        },
+        history={"retry_budget_available": False},
+    ))
+    assert RetryEscalationGate().decide(exhausted)["decision"] != "retry_same"
+
+
 def test_known_transient_read_with_no_alternative_falls_back_without_execution():
     r=decide(
         failure={"outcome_known": True},
