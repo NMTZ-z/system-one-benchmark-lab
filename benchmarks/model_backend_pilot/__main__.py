@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -511,17 +512,97 @@ def compare(args: argparse.Namespace) -> int:
                     raise ValueError(
                         f"comparison case {index} inconsistent frozen {field} across providers"
                     )
-    for r in reports:
-        resolved = {row["model_resolved"] for row in r["cases"] if row["model_resolved"]}
-        if len(resolved) > 1:
-            raise ValueError("model version drift in comparative report")
-        if r["provider"] == "jev" and (
-            r["remote_attempts"] == 0 or not any(
-                case["status"] == "ok" and case["decision_source"] == "model"
-                and case["model_resolved"] for case in r["cases"]
+    for report in reports:
+        # No rule-only result may masquerade as model evidence. Every successful
+        # model-backed result must carry a single pinned identity, not merely
+        # one representative identity somewhere in the report.
+        provider = report["provider"]
+        succeeded = [
+            case for case in report["cases"]
+            if case["status"] == "ok" and case["decision_source"] == "model"
+        ]
+        if provider == "jev" and (
+            report["remote_attempts"] == 0 or not any(
+                case["model_resolved"] for case in succeeded
             )
         ):
             raise ValueError("JEV lacks real remote evidence; comparison cannot claim live")
+        if provider == "rule" and succeeded:
+            raise ValueError("rule-only report cannot claim model-backed decisions")
+        requested_model = report.get("requested_model")
+        if provider != "rule" and (
+            not isinstance(requested_model, str) or not requested_model.strip()
+        ):
+            raise ValueError(f"{provider} report missing requested_model identity")
+        if provider == "rule" and requested_model is not None:
+            raise ValueError("rule-only report must not claim a model identity")
+        if provider == "jev" and re.fullmatch(r"jev-[0-9]+[.][0-9]+[.][0-9]+", requested_model) is None:
+            raise ValueError("JEV report must name a pinned concrete model version")
+        for index, case in enumerate(report["cases"]):
+            # Do not reintroduce version drift on failed/partially observed
+            # cases: any *present* version must still match the pinned run.
+            for identity_key in ("model_requested", "model_resolved"):
+                observed_id = case.get(identity_key)
+                if observed_id is not None and (
+                    not isinstance(observed_id, str) or not observed_id.strip()
+                    or observed_id != requested_model
+                ):
+                    raise ValueError(
+                        f"{provider} case {index} inconsistent {identity_key} model identity"
+                    )
+            if case["status"] != "ok" or case["decision_source"] != "model":
+                continue
+            model_requested = case.get("model_requested")
+            model_resolved = case["model_resolved"]
+            if (
+                not isinstance(model_requested, str) or not model_requested.strip()
+                or not isinstance(model_resolved, str) or not model_resolved.strip()
+                or model_requested != requested_model
+                or model_resolved != requested_model
+            ):
+                raise ValueError(
+                    f"{provider} case {index} missing/inconsistent pinned model identity"
+                )
+            backend = case.get("execution_backend")
+            if not isinstance(backend, str) or not backend.strip():
+                raise ValueError(f"{provider} case {index} missing execution backend")
+            if provider == "jev" and backend != "remote_http":
+                raise ValueError(f"jev case {index} must use remote_http backend")
+        if provider == "jev":
+            attempts = report["remote_attempts"]
+            if not len(succeeded) <= attempts <= len(report["cases"]):
+                raise ValueError(
+                    "JEV remote_attempts inconsistent with successful model-backed cases"
+                )
+            # Zero automatic retries, at most one remote evaluation per row.
+            # A surplus call must have a corresponding provider-error row;
+            # hard-rule rows cannot consume a remote attempt.
+            failed = sum(case["status"] == "provider_error" for case in report["cases"])
+            if attempts > len(succeeded) + failed:
+                raise ValueError(
+                    "JEV remote_attempts exceed successful and failed provider cases"
+                )
+            for index, case in enumerate(succeeded):
+                usage = case.get("usage")
+                if usage is not None and (
+                    not isinstance(usage, dict)
+                    or set(usage) != {"input_tokens", "output_tokens"}
+                    or any(
+                        type(tokens) is not int or not 0 <= tokens <= 2**53 - 1
+                        for tokens in usage.values()
+                    )
+                ):
+                    raise ValueError(f"JEV model result {index} has invalid token usage")
+            unknown = report.get("remote_usage_unknown_attempts")
+            if type(unknown) is not int or not 0 <= unknown <= attempts:
+                raise ValueError("JEV invalid remote_usage_unknown_attempts")
+            if sum(case.get("usage") is None for case in succeeded) > unknown:
+                raise ValueError("JEV missing usage not reflected in unknown attempts")
+            cost = report.get("remote_usage_based_cost_estimate_usd")
+            if cost is None or finite_number(cost, "JEV usage cost estimate") < 0:
+                raise ValueError("JEV invalid usage-based cost estimate")
+        elif report["remote_attempts"] != 0:
+            raise ValueError("local or rule-only report cannot claim remote attempts")
     result = {
         "schema_version": PROTOCOL_VERSION,
         "dataset_sha256": reports[0]["dataset_sha256"],

@@ -141,8 +141,18 @@ rather than an uncaught traceback. In addition, the comparison recalculates
 rejects any discrepancy (including nested by-family counts, extra keys,
 wrong types, inflated accuracy or safety counts). Non-Score `correct`
 flags are checked against the original gold/decision/status evidence before
-recomputing statistics. Only freshly recomputed metrics are placed into the
-combined comparison output.
+recomputing statistics. Every successful model-sourced case must have a
+nonempty requested/resolved model identity equal to the run's single pinned
+model ID, plus its actual execution backend; version claims on other cases
+must not drift either. For Jev, the pinned model must be a concrete
+`jev-X.Y.Z` version and its recorded remote attempts cannot be less than
+the number of successful model-backed decisions, exceed one attempt per
+sample, or exceed the total of successful model decisions plus recorded
+provider-error cases (zero automatic retries). The unknown-usage count must
+be consistent with remote attempts, while known token usage requires valid
+nonnegative integer input/output token fields. Rule-only and Laya results
+cannot claim remote attempts. Only freshly recomputed metrics are placed into
+the combined comparison output.
 
 ## TypeSafe API and network safety
 

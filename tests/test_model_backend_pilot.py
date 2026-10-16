@@ -325,7 +325,12 @@ def test_comparison_rejects_incomplete_or_fake_jev(tmp_path):
     p.write_text(json.dumps(report))
     a, b = tmp_path / "a.json", tmp_path / "b.json"
     for path, provider in ((a, "laya"), (b, "jev")):
-        fake = {**report, "provider": provider, "code_checkout_clean_at_run": True}
+        fake = {
+            **report, "provider": provider, "code_checkout_clean_at_run": True,
+            "requested_model": (
+                "synthetic-local-checkpoint" if provider == "laya" else "jev-1.13.0"
+            ),
+        }
         path.write_text(json.dumps(fake))
     with pytest.raises(ValueError, match="real remote evidence"):
         from benchmarks.model_backend_pilot.__main__ import compare
