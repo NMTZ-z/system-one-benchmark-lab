@@ -8,13 +8,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import statistics
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-from local_system_one.model_backends.contract import PROTOCOL_VERSION, TypedRequest, validate_json
+from local_system_one.model_backends.contract import (
+    PROTOCOL_VERSION, TypedRequest, finite_number, validate_json,
+)
 from local_system_one.model_backends.laya import ResearchEngine, RuleOnlyEngine
 from local_system_one.workflows.completion_gate import CompletionGate, CompletionGateRequest
 from local_system_one.workflows.retry_escalation_gate import RetryEscalationGate, RetryEscalationRequest
@@ -76,6 +79,20 @@ def _records(path: Path) -> tuple[str, list[dict[str, Any]]]:
             raise ValueError(f"dataset line {lineno}: unsafe must be a string list")
         if type(item.get("requires_verification", False)) is not bool:
             raise ValueError(f"dataset line {lineno}: requires_verification must be boolean")
+        if item["family"] == "primitive" and item.get("primitive") == "score":
+            # Validate BEFORE loading or invoking any provider, especially paid
+            # Jev. A malformed gold label must never destroy billing evidence.
+            try:
+                score_req = TypedRequest(
+                    primitive="score", state=item["payload"]["state"],
+                    instructions=item["payload"]["instructions"],
+                    criteria=item["payload"].get("criteria"), request_id=item["id"],
+                )
+                gold = finite_number(item["gold"], "score gold")
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError(f"dataset line {lineno}: invalid score case: {error}") from error
+            if not 0 <= gold <= len(score_req.criteria) - 1:
+                raise ValueError(f"dataset line {lineno}: score gold outside level range")
         seen.add(item["id"])
         rows.append(item)
     if not rows:
@@ -306,6 +323,66 @@ def run(args: argparse.Namespace) -> int:
     return 0 if summary["failures_or_unsupported"] == 0 else 2
 
 
+def _verify_case_for_summary(case: dict[str, Any], *, index: int, path: Path) -> None:
+    """Validate the fields consumed by _summary before recomputing statistics."""
+    where = f"comparison report {path.name}: case {index}"
+    if not isinstance(case.get("family"), str) or case["family"] not in ALLOWED_FAMILIES:
+        raise ValueError(f"{where} invalid family")
+    if "gold" not in case:
+        raise ValueError(f"{where} missing gold")
+    if case["family"] == "primitive":
+        if case.get("primitive") not in ("choice", "score", "noul"):
+            raise ValueError(f"{where} invalid primitive")
+    elif case.get("primitive") is not None:
+        raise ValueError(f"{where} unexpected primitive")
+    for key in ("decision", "correct", "raw_model_decision", "unsafe",
+                "requires_verification", "latency_ms"):
+        if key not in case:
+            raise ValueError(f"{where} missing {key}")
+    if not isinstance(case["unsafe"], list) or any(
+        not isinstance(value, str) for value in case["unsafe"]
+    ):
+        raise ValueError(f"{where} invalid unsafe labels")
+    if type(case["requires_verification"]) is not bool:
+        raise ValueError(f"{where} invalid requires_verification")
+    score_case = case["family"] == "primitive" and case.get("primitive") == "score"
+    if score_case:
+        finite_number(case["gold"], f"{where} score gold")
+        if case["correct"] is not None:
+            raise ValueError(f"{where} score correct must be null")
+        if case["status"] == "ok":
+            finite_number(case["decision"], f"{where} score decision")
+    elif type(case["correct"]) is not bool:
+        raise ValueError(f"{where} correct must be boolean")
+    if not score_case and type(case["gold"]) not in (str, bool):
+        raise ValueError(f"{where} invalid classification gold")
+    if case["status"] == "ok" and case["decision"] is None:
+        raise ValueError(f"{where} valid case missing decision")
+    latency = case["latency_ms"]
+    if latency is not None and finite_number(latency, f"{where} latency_ms") < 0:
+        raise ValueError(f"{where} negative latency_ms")
+
+
+def _require_same_summary(expected: Any, observed: Any, *, path: str = "summary") -> None:
+    """Compare a published summary with freshly recomputed case metrics.
+
+    Keep exact field/type equality for counts, strict floats with only a tiny
+    serialization tolerance, and no extra fields that could disguise metrics.
+    """
+    if isinstance(expected, dict):
+        if not isinstance(observed, dict) or set(observed) != set(expected):
+            raise ValueError(f"{path} keys inconsistent with case evidence")
+        for key, value in expected.items():
+            _require_same_summary(value, observed[key], path=f"{path}.{key}")
+    elif type(expected) is float:
+        if type(observed) is not float or not math.isclose(
+            observed, expected, rel_tol=1e-12, abs_tol=1e-12,
+        ):
+            raise ValueError(f"{path} inconsistent with case evidence")
+    elif type(observed) is not type(expected) or observed != expected:
+        raise ValueError(f"{path} inconsistent with case evidence")
+
+
 def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
     """Reject malformed or incomplete evidence before computing comparisons.
 
@@ -346,10 +423,16 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
         raise ValueError(f"comparison report {path.name}: invalid summary")
     if summary["total"] != len(cases):
         raise ValueError(f"comparison report {path.name}: summary total mismatch")
+    for index, case in enumerate(cases):
+        _verify_case_for_summary(case, index=index, path=path)
+    # Never trust a caller-supplied aggregate, even when its total matches.
+    expected_summary = _summary(cases)
+    _require_same_summary(expected_summary, summary)
     attempts = value.get("remote_attempts")
     if type(attempts) is not int or attempts < 0:
         raise ValueError(f"comparison report {path.name}: invalid remote_attempts")
-    return value
+    # Downstream comparison publishes only recomputed, validated statistics.
+    return {**value, "summary": expected_summary}
 
 
 def compare(args: argparse.Namespace) -> int:

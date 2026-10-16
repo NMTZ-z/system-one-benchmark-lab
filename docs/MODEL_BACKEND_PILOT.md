@@ -106,7 +106,11 @@ writing. This protects the original experimental evidence files. All three
 input reports must be JSON objects with a compatible v1 schema, required
 run identity, clean-checkout evidence, valid case records and matching
 summary totals; malformed inputs cause a controlled CLI validation error
-rather than an uncaught traceback.
+rather than an uncaught traceback. In addition, the comparison recalculates
+**all aggregate metrics** from each report's validated case records and
+rejects any discrepancy (including nested by-family counts, extra keys,
+wrong types, inflated accuracy or safety counts). Only freshly recomputed
+metrics are placed into the combined comparison output.
 
 ## TypeSafe API and network safety
 
@@ -143,6 +147,11 @@ https://docs.typesafe.ai/api and https://docs.typesafe.ai/models
 
 public_synthetic_v1.jsonl contains 12 small, public, non-blind demonstration
 items: three primitive cases, four Completion cases and five Retry cases.
+Before provider instantiation or billable requests, Score cases verify the
+complete ordered level descriptions and require a finite **numeric** gold
+value in the score level range (numeric strings, booleans and out-of-range
+values are invalid). Malformed gold labels are rejected with a controlled CLI
+error rather than failing after the API has been billed.
 The results record:
 
 - dataset SHA256, run code SHA, experiment policy identifier;
