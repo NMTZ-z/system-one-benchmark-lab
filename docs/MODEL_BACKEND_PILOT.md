@@ -59,8 +59,13 @@ python -m benchmarks.model_backend_pilot run \
   --output /tmp/model-backend-laya.json
 ~~~
 
-The source alias is pinned by runtime/sources.py. Use
---laya-source and --laya-model-identity together for another local checkpoint.
+The source alias is pinned by runtime/sources.py. **Source normalization
+precedes identity selection:** an existing local directory takes precedence
+(even when named `laya-typed-decisions` or the official model ID), and
+therefore requires an explicit `--laya-model-identity`. A caller-supplied
+identity labels a local checkpoint but is not itself a cryptographic proof
+of checkpoint immutability. No local directory may be silently labeled as
+the official pinned revision.
 --ane-package optionally uses the **existing** ANE startup probe and fallback.
 An ANE-to-MLX fallback must be counted as MLX execution, never as ANE success.
 
@@ -93,8 +98,9 @@ python -m benchmarks.model_backend_pilot compare \
 
 Compare rejects mixed dataset/strategy/code hashes, missing/duplicate/reordered
 case IDs, version drift, and a Jev result lacking real remote attempts.
-Comparison output paths resolving to an input report (even via symlinks)
-are rejected before writing.
+Comparison output paths resolving to an input report (including symlinks)
+**or sharing an inode through a POSIX hard link** are rejected before
+writing. This protects the original experimental evidence files.
 
 ## TypeSafe API and network safety
 

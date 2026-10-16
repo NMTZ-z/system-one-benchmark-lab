@@ -101,12 +101,13 @@ def _load_provider(args: argparse.Namespace) -> Any:
     from local_system_one.health import ANEHealthGate
     from local_system_one.router import DecisionRouter
     from local_system_one.runtime.mlx import MLXRuntime
-    from local_system_one.runtime.sources import (
-        TYPED_DECISIONS_ALIAS, TYPED_DECISIONS_MODEL_ID, TYPED_DECISIONS_REVISION,
-    )
+    from local_system_one.runtime.sources import normalize_source
     from local_system_one.model_backends.laya import LayaProvider
 
-    if args.laya_source != TYPED_DECISIONS_ALIAS and not args.laya_model_identity:
+    normalized_source, revision = normalize_source(args.laya_source)
+    # normalize_source() gives existing directories priority over the alias.
+    # Never record a mutable local directory as the official pinned checkpoint.
+    if isinstance(normalized_source, Path) and not args.laya_model_identity:
         raise ValueError("local checkpoint requires explicit --laya-model-identity")
     mlx = MLXRuntime(args.laya_source)
     ane = None
@@ -118,7 +119,7 @@ def _load_provider(args: argparse.Namespace) -> Any:
     engine = DecisionEngine(mlx=mlx, ane=ane, router=DecisionRouter(), health=health)
     if ane is not None:
         engine.startup_probe()  # Actual ANE use requires passing the health gate.
-    identity = args.laya_model_identity or f"{TYPED_DECISIONS_MODEL_ID}@{TYPED_DECISIONS_REVISION}"
+    identity = args.laya_model_identity or f"{normalized_source}@{revision}"
     return LayaProvider(engine, model_identity=identity)
 
 
@@ -302,7 +303,11 @@ def run(args: argparse.Namespace) -> int:
 
 
 def compare(args: argparse.Namespace) -> int:
-    if args.output.resolve() in {path.resolve() for path in args.reports}:
+    if args.output.resolve() in {path.resolve() for path in args.reports} or (
+        args.output.exists() and any(args.output.samefile(path) for path in args.reports)
+    ):
+        # resolve() covers exact paths and symlinks; samefile() additionally
+        # catches POSIX hard links, which share one inode under distinct names.
         raise ValueError("comparison output must not overwrite an input report")
     reports = [json.loads(
         path.read_text(encoding="utf-8"),
