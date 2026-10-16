@@ -65,7 +65,9 @@ precedes identity selection:** an existing local directory takes precedence
 therefore requires an explicit `--laya-model-identity`. A caller-supplied
 identity labels a local checkpoint but is not itself a cryptographic proof
 of checkpoint immutability. No local directory may be silently labeled as
-the official pinned revision.
+the official pinned revision. The `run` CLI also refuses to use the input
+dataset as its output, even when the two paths are aliases through a
+symbolic link or a POSIX hard link, preserving the frozen data bytes.
 --ane-package optionally uses the **existing** ANE startup probe and fallback.
 An ANE-to-MLX fallback must be counted as MLX execution, never as ANE success.
 
@@ -100,7 +102,11 @@ Compare rejects mixed dataset/strategy/code hashes, missing/duplicate/reordered
 case IDs, version drift, and a Jev result lacking real remote attempts.
 Comparison output paths resolving to an input report (including symlinks)
 **or sharing an inode through a POSIX hard link** are rejected before
-writing. This protects the original experimental evidence files.
+writing. This protects the original experimental evidence files. All three
+input reports must be JSON objects with a compatible v1 schema, required
+run identity, clean-checkout evidence, valid case records and matching
+summary totals; malformed inputs cause a controlled CLI validation error
+rather than an uncaught traceback.
 
 ## TypeSafe API and network safety
 

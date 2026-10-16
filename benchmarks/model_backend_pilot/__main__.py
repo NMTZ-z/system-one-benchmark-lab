@@ -202,7 +202,11 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run(args: argparse.Namespace) -> int:
     data_hash, cases = _records(args.dataset)
-    if args.output.resolve() == args.dataset.resolve():
+    if args.output.resolve() == args.dataset.resolve() or (
+        args.output.exists() and args.output.samefile(args.dataset)
+    ):
+        # Paths can differ while referring to the same inode (POSIX hard links).
+        # Never truncate the frozen dataset via an output alias.
         raise ValueError("output may not overwrite input dataset")
     if args.provider == "jev" and not (
         args.allow_remote and args.public_data_confirmed and
@@ -302,6 +306,52 @@ def run(args: argparse.Namespace) -> int:
     return 0 if summary["failures_or_unsupported"] == 0 else 2
 
 
+def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
+    """Reject malformed or incomplete evidence before computing comparisons.
+
+    A JSON array, absent field or malformed case must yield a controlled
+    ValueError rather than an AttributeError/KeyError and a traceback.
+    """
+    if not isinstance(value, dict):
+        raise ValueError(f"comparison report {path.name} must be a JSON object")
+    validate_json(value)  # Also rejects non-finite numbers represented as 1e999.
+    for key in ("schema_version", "dataset_sha256", "strategy", "git_sha", "provider"):
+        if not isinstance(value.get(key), str) or not value[key]:
+            raise ValueError(f"comparison report {path.name}: missing/invalid {key}")
+    if value["schema_version"] != PROTOCOL_VERSION:
+        raise ValueError(f"comparison report {path.name}: unsupported schema_version")
+    if value.get("code_checkout_clean_at_run") is not True:
+        raise ValueError("comparison requires clean committed code at every run")
+
+    cases = value.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError(f"comparison report {path.name}: cases must be nonempty array")
+    for index, case in enumerate(cases):
+        if not isinstance(case, dict):
+            raise ValueError(f"comparison report {path.name}: case {index} not an object")
+        if not isinstance(case.get("id"), str) or not case["id"]:
+            raise ValueError(f"comparison report {path.name}: case {index} missing id")
+        if case.get("status") not in ("ok", "unsupported", "provider_error", "invalid"):
+            raise ValueError(f"comparison report {path.name}: case {index} invalid status")
+        if case.get("decision_source") not in ("rule", "model", "none"):
+            raise ValueError(f"comparison report {path.name}: case {index} invalid decision_source")
+        if "model_resolved" not in case or (
+            case["model_resolved"] is not None and
+            (not isinstance(case["model_resolved"], str) or not case["model_resolved"])
+        ):
+            raise ValueError(f"comparison report {path.name}: case {index} invalid model_resolved")
+
+    summary = value.get("summary")
+    if not isinstance(summary, dict) or type(summary.get("total")) is not int:
+        raise ValueError(f"comparison report {path.name}: invalid summary")
+    if summary["total"] != len(cases):
+        raise ValueError(f"comparison report {path.name}: summary total mismatch")
+    attempts = value.get("remote_attempts")
+    if type(attempts) is not int or attempts < 0:
+        raise ValueError(f"comparison report {path.name}: invalid remote_attempts")
+    return value
+
+
 def compare(args: argparse.Namespace) -> int:
     if args.output.resolve() in {path.resolve() for path in args.reports} or (
         args.output.exists() and any(args.output.samefile(path) for path in args.reports)
@@ -309,16 +359,27 @@ def compare(args: argparse.Namespace) -> int:
         # resolve() covers exact paths and symlinks; samefile() additionally
         # catches POSIX hard links, which share one inode under distinct names.
         raise ValueError("comparison output must not overwrite an input report")
-    reports = [json.loads(
-        path.read_text(encoding="utf-8"),
-        parse_constant=lambda constant: (_ for _ in ()).throw(
-            ValueError(f"comparison report contains non-finite {constant}")
-        ),
-    ) for path in args.reports]
-    # A HEAD SHA alone cannot identify code with uncommitted changes.
-    # Reject both legacy reports lacking cleanliness evidence and dirty runs.
-    if any(r.get("code_checkout_clean_at_run") is not True for r in reports):
+    # Decode ALL files first: malformed JSON must never be masked by a
+    # separate report's missing fields, and existing dirty-run diagnostics
+    # must remain stable for the published evaluation interface.
+    decoded = [
+        json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=lambda constant: (_ for _ in ()).throw(
+                ValueError(f"comparison report contains non-finite {constant}")
+            ),
+        )
+        for path in args.reports
+    ]
+    for value, path in zip(decoded, args.reports):
+        if not isinstance(value, dict):
+            raise ValueError(f"comparison report {path.name} must be a JSON object")
+    if any(report.get("code_checkout_clean_at_run") is not True for report in decoded):
         raise ValueError("comparison requires clean committed code at every run")
+    reports = [
+        _validate_comparison_report(value, path=path)
+        for value, path in zip(decoded, args.reports)
+    ]
     if len(reports) != 3 or {r["provider"] for r in reports} != {"rule", "laya", "jev"}:
         raise ValueError("compare requires exactly rule, laya and jev reports")
     for field in ("dataset_sha256", "strategy", "git_sha", "schema_version"):
