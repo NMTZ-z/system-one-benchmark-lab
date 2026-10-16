@@ -31,6 +31,36 @@ The research CLI is import-safe for Jev: laya_mlx and laya_coreml are imported
 only inside the selected Laya construction branch. Jev never instantiates a
 Laya runtime or downloads a checkpoint.
 
+### Final Integrity Hardening: trusted execution and evidence
+
+**A run must start from its own Git checkout root.** The CLI verifies that
+Git is present, the checkout root matches this project, and a committed HEAD
+exists, then captures the revision and clean/dirty state **before provider
+initialization**. An independent sanitized `PUBLIC-RELEASE.json` source bundle
+has no authenticated Git checkout; it currently fails closed with a controlled
+preflight error, including for Rule-only. Run research from an actual Git
+checkout instead. Supporting exported archives requires a separately audited
+bundle-content verification mechanism; a manifest containing only a commit
+string is not sufficient. Dirty-source runs can be recorded for diagnosis but
+are rejected by `compare`.
+
+Before any billable API calls, the research CLI validates the entire dataset,
+including *all* Choice/Score/Noul and Completion/Retry payloads and legal gold
+labels, the remote authorization/budget knobs, and the output path's ability
+to create a temporary file. Invalid late rows cannot generate earlier paid
+requests. Writes are staged to a temporary file in the target directory and
+atomically replace only the intended output. Input datasets and reports cannot
+be overwritten via same path, symbolic link or hard link.
+
+For every non-Score observation, `correct` is **derived** from
+`status == "ok"` and the typed `gold` vs `decision` comparison; report
+validation rejects contradictions before recomputing summaries. Three-way
+comparison checks that all providers share the same case IDs, family, primitive,
+gold label, unsafe labels and verification requirement, rather than assuming
+that three claimed dataset SHA-256 strings authenticate the underlying cases.
+This is integrity checking of supplied experiment evidence, **not a digital
+signature or proof against coordinated fabrication of all source reports**.
+
 ## Quick use from repository root
 
 The following offline commands were validated with Python 3.12 on the project
@@ -109,8 +139,10 @@ summary totals; malformed inputs cause a controlled CLI validation error
 rather than an uncaught traceback. In addition, the comparison recalculates
 **all aggregate metrics** from each report's validated case records and
 rejects any discrepancy (including nested by-family counts, extra keys,
-wrong types, inflated accuracy or safety counts). Only freshly recomputed
-metrics are placed into the combined comparison output.
+wrong types, inflated accuracy or safety counts). Non-Score `correct`
+flags are checked against the original gold/decision/status evidence before
+recomputing statistics. Only freshly recomputed metrics are placed into the
+combined comparison output.
 
 ## TypeSafe API and network safety
 
@@ -147,11 +179,12 @@ https://docs.typesafe.ai/api and https://docs.typesafe.ai/models
 
 public_synthetic_v1.jsonl contains 12 small, public, non-blind demonstration
 items: three primitive cases, four Completion cases and five Retry cases.
-Before provider instantiation or billable requests, Score cases verify the
-complete ordered level descriptions and require a finite **numeric** gold
-value in the score level range (numeric strings, booleans and out-of-range
-values are invalid). Malformed gold labels are rejected with a controlled CLI
-error rather than failing after the API has been billed.
+Before provider instantiation or billable requests, all cases are validated
+with the same typed request/Gate parsers used during the run. Score cases in
+particular require complete ordered level descriptions and a finite **numeric**
+gold value inside the score level range (numeric strings, booleans and
+out-of-range values are invalid). All malformed labels and request payloads
+fail before the provider can read credentials or send any billable request.
 The results record:
 
 - dataset SHA256, run code SHA, experiment policy identifier;

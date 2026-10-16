@@ -10,7 +10,6 @@ import hashlib
 import json
 import math
 import statistics
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,28 +18,16 @@ from local_system_one.model_backends.contract import (
     PROTOCOL_VERSION, TypedRequest, finite_number, validate_json,
 )
 from local_system_one.model_backends.laya import ResearchEngine, RuleOnlyEngine
+from .integrity import (
+    preflight_provenance, preflight_report_output, unique_json_object, write_report,
+)
 from local_system_one.workflows.completion_gate import CompletionGate, CompletionGateRequest
-from local_system_one.workflows.retry_escalation_gate import RetryEscalationGate, RetryEscalationRequest
+from local_system_one.workflows.retry_escalation_gate import (
+    DECISIONS, RetryEscalationGate, RetryEscalationRequest,
+)
 
 STRATEGY = "frozen-original-gate-policy-v1"
 ALLOWED_FAMILIES = {"primitive", "completion", "retry"}
-
-
-def _git_sha() -> str:
-    root = Path(__file__).resolve().parents[2]
-    output = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root,
-        capture_output=True, text=True, check=True,
-    )
-    return output.stdout.strip()
-
-
-def _git_clean() -> bool:
-    root = Path(__file__).resolve().parents[2]
-    return not subprocess.run(
-        ["git", "status", "--porcelain=v1"], cwd=root,
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
 
 
 def _records(path: Path) -> tuple[str, list[dict[str, Any]]]:
@@ -54,6 +41,7 @@ def _records(path: Path) -> tuple[str, list[dict[str, Any]]]:
         try:
             item = json.loads(
                 line,
+                object_pairs_hook=unique_json_object,
                 parse_constant=lambda constant: (_ for _ in ()).throw(
                     ValueError(f"dataset contains non-finite constant {constant}")
                 ),
@@ -79,25 +67,64 @@ def _records(path: Path) -> tuple[str, list[dict[str, Any]]]:
             raise ValueError(f"dataset line {lineno}: unsafe must be a string list")
         if type(item.get("requires_verification", False)) is not bool:
             raise ValueError(f"dataset line {lineno}: requires_verification must be boolean")
-        if item["family"] == "primitive" and item.get("primitive") == "score":
-            # Validate BEFORE loading or invoking any provider, especially paid
-            # Jev. A malformed gold label must never destroy billing evidence.
-            try:
-                score_req = TypedRequest(
-                    primitive="score", state=item["payload"]["state"],
-                    instructions=item["payload"]["instructions"],
-                    criteria=item["payload"].get("criteria"), request_id=item["id"],
-                )
-                gold = finite_number(item["gold"], "score gold")
-            except (KeyError, TypeError, ValueError) as error:
-                raise ValueError(f"dataset line {lineno}: invalid score case: {error}") from error
-            if not 0 <= gold <= len(score_req.criteria) - 1:
-                raise ValueError(f"dataset line {lineno}: score gold outside level range")
+        _preflight_dataset_case(item, lineno=lineno)
         seen.add(item["id"])
         rows.append(item)
     if not rows:
         raise ValueError("dataset is empty")
     return digest, rows
+
+
+def _preflight_dataset_case(item: dict[str, Any], *, lineno: int) -> None:
+    """Validate *every* frozen case before any provider could be charged.
+
+    Reuse the production Gate request parsers, without executing decisions.
+    Only the prepublished synthetic dataset is eligible for an authorized
+    research run. A later malformed row cannot abort an earlier paid run.
+    """
+    family, sid, payload, gold = (
+        item["family"], item["id"], item["payload"], item["gold"]
+    )
+    if family == "primitive":
+        primitive = item.get("primitive")
+        if primitive not in ("choice", "score", "noul"):
+            raise ValueError(f"dataset line {lineno}: invalid primitive")
+        try:
+            req = TypedRequest(
+                primitive=primitive, state=payload["state"],
+                instructions=payload["instructions"],
+                criteria=payload.get("criteria"), request_id=sid,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(
+                f"dataset line {lineno}: invalid {primitive} case ({type(exc).__name__})"
+            ) from None
+        if primitive == "score":
+            try:
+                number = finite_number(gold, "score gold")
+            except ValueError:
+                raise ValueError(f"dataset line {lineno}: invalid score gold") from None
+            if not 0 <= number <= len(req.criteria) - 1:
+                raise ValueError(f"dataset line {lineno}: score gold outside level range")
+        elif primitive == "choice":
+            if not isinstance(gold, str) or gold not in req.options:
+                raise ValueError(f"dataset line {lineno}: invalid choice gold label")
+        elif type(gold) is not bool:
+            raise ValueError(f"dataset line {lineno}: invalid noul gold label")
+    elif family == "completion":
+        try:
+            CompletionGateRequest.from_payload({**payload, "request_id": sid})
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(f"dataset line {lineno}: invalid completion request") from None
+        if type(gold) is not str or gold not in ("complete", "continue", "verify"):
+            raise ValueError(f"dataset line {lineno}: invalid completion gold label")
+    elif family == "retry":
+        try:
+            RetryEscalationRequest.from_payload({**payload, "request_id": sid})
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(f"dataset line {lineno}: invalid retry request") from None
+        if type(gold) is not str or gold not in DECISIONS:
+            raise ValueError(f"dataset line {lineno}: invalid retry gold label")
 
 
 def _load_provider(args: argparse.Namespace) -> Any:
@@ -148,6 +175,13 @@ def _matches(gold: Any, predicted: Any) -> bool:
     return type(gold) is str and type(predicted) is str and gold == predicted
 
 
+def _expected_correct(row: dict[str, Any]) -> bool | None:
+    """Correctness is derived evidence, never an independent trusted input."""
+    if row["family"] == "primitive" and row["primitive"] == "score":
+        return None
+    return row["status"] == "ok" and _matches(row["gold"], row["decision"])
+
+
 def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(rows)
     errors = sum(r["status"] != "ok" for r in rows)
@@ -156,7 +190,7 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     is_score = lambda r: r["family"] == "primitive" and r["primitive"] == "score"
     classified = [r for r in rows if not is_score(r)]
     classified_valid = [r for r in classified if r["status"] == "ok"]
-    correct_all = sum(r["status"] == "ok" and r["correct"] for r in classified)
+    correct_all = sum(_expected_correct(r) for r in classified)
     scores = [r for r in rows if is_score(r)]
     valid_scores = [r for r in scores if r["status"] == "ok"]
     score_errors = [abs(float(r["decision"]) - float(r["gold"])) for r in valid_scores]
@@ -198,7 +232,7 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "classification_denominator_all": len(classified),
         "accuracy_all_requests": correct_all / len(classified) if classified else None,
         "accuracy_valid_only": (
-            sum(r["correct"] for r in classified_valid) / len(classified_valid)
+            sum(_expected_correct(r) for r in classified_valid) / len(classified_valid)
             if classified_valid else None
         ),
         "score_total": len(scores),
@@ -219,12 +253,7 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run(args: argparse.Namespace) -> int:
     data_hash, cases = _records(args.dataset)
-    if args.output.resolve() == args.dataset.resolve() or (
-        args.output.exists() and args.output.samefile(args.dataset)
-    ):
-        # Paths can differ while referring to the same inode (POSIX hard links).
-        # Never truncate the frozen dataset via an output alias.
-        raise ValueError("output may not overwrite input dataset")
+    preflight_report_output(args.output, inputs=[args.dataset], kind="run")
     if args.provider == "jev" and not (
         args.allow_remote and args.public_data_confirmed and
         args.max_requests >= 1 and args.max_usd > 0
@@ -233,6 +262,10 @@ def run(args: argparse.Namespace) -> int:
             "JEV remote BLOCKED: use --allow-remote --public-data-confirmed "
             "--max-requests N --max-usd BUDGET after separate authorization"
         )
+    # Verify checkout identity and capture it before ANY provider access. This
+    # intentionally fails closed for Git-less public export bundles rather than
+    # charging Jev and then failing at the end without a report.
+    provenance = preflight_provenance(Path(__file__).resolve().parents[2])
     provider = _load_provider(args)
     engine = ResearchEngine(provider) if provider is not None else RuleOnlyEngine()
     observations: list[dict[str, Any]] = []
@@ -282,8 +315,7 @@ def run(args: argparse.Namespace) -> int:
             "raw_model_decision": response.get("raw_model_decision", record.decision if record else None),
             "unsafe": sample.get("unsafe", []),
             "requires_verification": sample.get("requires_verification", False),
-            "correct": (None if family == "primitive" and sample.get("primitive") == "score"
-                        else status == "ok" and _matches(sample["gold"], decision)),
+            "correct": None,  # Filled only from validated gold/status/decision.
             "latency_ms": record.latency_ms if record else response.get("latency_ms"),
             "model_requested": record.model_requested if record else None,
             "model_resolved": record.model_resolved if record else None,
@@ -291,12 +323,13 @@ def run(args: argparse.Namespace) -> int:
             "usage": record.usage if record else None,
             "decision_source_note": response.get("reason"),
         }
+        observed["correct"] = _expected_correct(observed)
         observations.append(observed)
     summary = _summary(observations)
     report = {
         "schema_version": PROTOCOL_VERSION, "strategy": STRATEGY,
-        "dataset_sha256": data_hash, "git_sha": _git_sha(),
-        "code_checkout_clean_at_run": _git_clean(),
+        "dataset_sha256": data_hash, "git_sha": provenance.git_sha,
+        "code_checkout_clean_at_run": provenance.clean_at_start,
         "provider": args.provider, "requested_model": (
             provider.model if args.provider == "jev" else
             getattr(provider, "model_identity", None)
@@ -313,11 +346,7 @@ def run(args: argparse.Namespace) -> int:
         "production_activation": "NOT_AUTHORIZED",
         "data_classification": "PUBLIC_SYNTHETIC_REQUIRED",
     }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    write_report(args.output, report, ensure_ascii=False)
     print(f"{args.provider}: {len(cases)} cases, {summary['valid']} valid, "
           f"{summary['failures_or_unsupported']} failed/unsupported; {args.output}")
     return 0 if summary["failures_or_unsupported"] == 0 else 2
@@ -354,6 +383,8 @@ def _verify_case_for_summary(case: dict[str, Any], *, index: int, path: Path) ->
             finite_number(case["decision"], f"{where} score decision")
     elif type(case["correct"]) is not bool:
         raise ValueError(f"{where} correct must be boolean")
+    elif case["correct"] != _expected_correct(case):
+        raise ValueError(f"{where} correct contradicts gold, decision or status")
     if not score_case and type(case["gold"]) not in (str, bool):
         raise ValueError(f"{where} invalid classification gold")
     if case["status"] == "ok" and case["decision"] is None:
@@ -436,18 +467,14 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
 
 
 def compare(args: argparse.Namespace) -> int:
-    if args.output.resolve() in {path.resolve() for path in args.reports} or (
-        args.output.exists() and any(args.output.samefile(path) for path in args.reports)
-    ):
-        # resolve() covers exact paths and symlinks; samefile() additionally
-        # catches POSIX hard links, which share one inode under distinct names.
-        raise ValueError("comparison output must not overwrite an input report")
+    preflight_report_output(args.output, inputs=args.reports, kind="compare")
     # Decode ALL files first: malformed JSON must never be masked by a
     # separate report's missing fields, and existing dirty-run diagnostics
     # must remain stable for the published evaluation interface.
     decoded = [
         json.loads(
             path.read_text(encoding="utf-8"),
+            object_pairs_hook=unique_json_object,
             parse_constant=lambda constant: (_ for _ in ()).throw(
                 ValueError(f"comparison report contains non-finite {constant}")
             ),
@@ -471,6 +498,19 @@ def compare(args: argparse.Namespace) -> int:
     ids = [tuple(row["id"] for row in r["cases"]) for r in reports]
     if any(len(set(x)) != len(x) for x in ids) or len(set(ids)) != 1:
         raise ValueError("comparison has missing, duplicate or reordered IDs")
+    # A matching dataset hash in report metadata does not prove that individual
+    # gold labels and case metadata are identical. Verify cross-provider case
+    # identity so a tampered gold/unsafe flag cannot skew a paired comparison.
+    frozen_fields = ("family", "primitive", "gold", "unsafe", "requires_verification")
+    reference = reports[0]["cases"]
+    for report in reports[1:]:
+        for index, (baseline, case) in enumerate(zip(reference, report["cases"])):
+            for field in frozen_fields:
+                if (type(baseline[field]) is not type(case[field])
+                    or baseline[field] != case[field]):
+                    raise ValueError(
+                        f"comparison case {index} inconsistent frozen {field} across providers"
+                    )
     for r in reports:
         resolved = {row["model_resolved"] for row in r["cases"] if row["model_resolved"]}
         if len(resolved) > 1:
@@ -492,7 +532,7 @@ def compare(args: argparse.Namespace) -> int:
         "latency_note": "Client wall-clock latency, not matched hardware inference latency",
         "production_activation": "NOT_AUTHORIZED",
     }
-    args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    write_report(args.output, result, ensure_ascii=True)
     print(f"Compared {len(ids[0])} aligned cases: {args.output}")
     return 0
 
