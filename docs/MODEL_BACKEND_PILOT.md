@@ -96,9 +96,21 @@ precedes identity selection:** an existing local directory takes precedence
 therefore requires an explicit `--laya-model-identity`. A caller-supplied
 identity labels a local checkpoint but is not itself a cryptographic proof
 of checkpoint immutability. No local directory may be silently labeled as
-the official pinned revision. The `run` CLI also refuses to use the input
-dataset as its output, even when the two paths are aliases through a
-symbolic link or a POSIX hard link, preserving the frozen data bytes.
+the official pinned revision.
+
+**ANE artifact identity:** when `--ane-package` is present, the research CLI
+computes a deterministic SHA-256 over the compiled package's complete regular
+file contents and relative names, rejects symbolic links/special entries, and
+includes `|ane-package-sha256:<64-digit digest>` in the recorded Laya model
+identity. The artifact is checked again after inference; a changed package
+invalidates the run before a report is published. This identifies the actual
+configured compiled artifact and is distinct from the HF source checkpoint
+revision. Routing still reports the *actual* backend (`ane` or MLX fallback
+`mlx`), never claiming ANE execution on a fallback.
+
+The `run` CLI also refuses to use the input dataset as its output, even
+when the two paths are aliases through a symbolic link or a POSIX hard link,
+preserving the frozen data bytes.
 --ane-package optionally uses the **existing** ANE startup probe and fallback.
 An ANE-to-MLX fallback must be counted as MLX execution, never as ANE success.
 
@@ -153,10 +165,20 @@ rather than an uncaught traceback. In addition, the comparison recalculates
 rejects any discrepancy (including nested by-family counts, extra keys,
 wrong types, inflated accuracy or safety counts). Non-Score `correct`
 flags are checked against the original gold/decision/status evidence before
-recomputing statistics. Every successful model-sourced case must have a
-nonempty requested/resolved model identity equal to the run's single pinned
-model ID, plus its actual execution backend; version claims on other cases
-must not drift either. For Jev, the pinned model must be a concrete
+recomputing statistics. **Raw model safety advice is also verified** against
+the independently recorded Gate reason and final decision: e.g. the
+`model_complete_below_safety_threshold` event MUST retain raw `complete`
+and guarded `verify`, so the Laya C04 unsafe suggestion cannot disappear
+by editing `raw_model_decision` and recomputing the summary. This detects
+internally contradictory evidence but cannot authenticate a fully rewritten
+report without an external signed source.
+
+Every successful model-sourced case must have a nonempty requested/resolved
+model identity equal to the run's single pinned model ID, plus its actual
+execution backend. A Jev model case MUST use `remote_http` while a Laya
+model case MUST use `mlx` or `ane`. Claims of ANE execution require an
+ANE compiled-artifact digest in the recorded model identity. Version claims
+on other cases must not drift either. For Jev, the pinned model must be a concrete
 `jev-X.Y.Z` version and its recorded remote attempts cannot be less than
 the number of successful model-backed decisions, exceed one attempt per
 sample, or exceed the total of successful model decisions plus recorded

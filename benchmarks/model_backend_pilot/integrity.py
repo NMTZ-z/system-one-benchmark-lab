@@ -6,6 +6,7 @@ directory followed by an atomic replacement.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -14,6 +15,56 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+def ane_artifact_sha256(path: Path) -> str:
+    """Fingerprint an actual ANE model package by its entire file contents.
+
+    Path-independent and directory-order-independent. Reject symbolic links,
+    special files and concurrent mutation; a free-form human version label
+    does not establish that two compiled Core ML packages are identical.
+    """
+    package = Path(path).expanduser()
+    if package.is_symlink() or not (package.is_dir() or package.is_file()):
+        raise ValueError("ANE package must be an existing regular file or directory")
+    digest = hashlib.sha256()
+    if package.is_file():
+        files = [(package, ".")]
+        digest.update(b"ane-artifact-file-v1\x00")
+    else:
+        digest.update(b"ane-artifact-directory-v1\x00")
+        files = []
+        for root, dirs, filenames in os.walk(package, followlinks=False):
+            dirs.sort()
+            filenames.sort()
+            for name in dirs:
+                directory = Path(root) / name
+                if directory.is_symlink() or not directory.is_dir():
+                    raise ValueError("ANE package contains unsafe directory entry")
+                rel = directory.relative_to(package).as_posix()
+                digest.update(b"dir\x00" + rel.encode("utf-8") + b"\x00")
+            for name in filenames:
+                file = Path(root) / name
+                if file.is_symlink() or not file.is_file():
+                    raise ValueError("ANE package contains unsafe file entry")
+                files.append((file, file.relative_to(package).as_posix()))
+        if not files:
+            raise ValueError("ANE package contains no regular files")
+
+    for file, relative in files:
+        before = file.stat(follow_symlinks=False)
+        name = relative.encode("utf-8")
+        digest.update(b"file\x00" + len(name).to_bytes(4, "big") + name)
+        digest.update(before.st_size.to_bytes(8, "big"))
+        with file.open("rb") as stream:
+            while block := stream.read(1024 * 1024):
+                digest.update(block)
+        after = file.stat(follow_symlinks=False)
+        if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns
+        ):
+            raise ValueError("ANE package was modified during fingerprinting")
+    return digest.hexdigest()
 
 
 def unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

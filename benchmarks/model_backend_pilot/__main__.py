@@ -20,7 +20,8 @@ from local_system_one.model_backends.contract import (
 )
 from local_system_one.model_backends.laya import ResearchEngine, RuleOnlyEngine
 from .integrity import (
-    preflight_provenance, preflight_report_output, unique_json_object, write_report,
+    ane_artifact_sha256, preflight_provenance, preflight_report_output,
+    unique_json_object, write_report,
 )
 from local_system_one.workflows.completion_gate import CompletionGate, CompletionGateRequest
 from local_system_one.workflows.retry_escalation_gate import (
@@ -159,6 +160,14 @@ def _load_provider(args: argparse.Namespace) -> Any:
     # Never record a mutable local directory as the official pinned checkpoint.
     if isinstance(normalized_source, Path) and not args.laya_model_identity:
         raise ValueError("local checkpoint requires explicit --laya-model-identity")
+    # Fingerprint actual compiled ANE artifact bytes before model loading. Path
+    # names or the base HF revision alone cannot distinguish Core ML packages.
+    package_digest = (
+        ane_artifact_sha256(args.ane_package) if args.ane_package is not None else None
+    )
+    identity = args.laya_model_identity or f"{normalized_source}@{revision}"
+    if package_digest is not None:
+        identity += f"|ane-package-sha256:{package_digest}"
     mlx = MLXRuntime(args.laya_source)
     ane = None
     health = ANEHealthGate(available=False)
@@ -169,7 +178,6 @@ def _load_provider(args: argparse.Namespace) -> Any:
     engine = DecisionEngine(mlx=mlx, ane=ane, router=DecisionRouter(), health=health)
     if ane is not None:
         engine.startup_probe()  # Actual ANE use requires passing the health gate.
-    identity = args.laya_model_identity or f"{normalized_source}@{revision}"
     return LayaProvider(engine, model_identity=identity)
 
 
@@ -341,6 +349,12 @@ def run(args: argparse.Namespace) -> int:
         }
         observed["correct"] = _expected_correct(observed)
         observations.append(observed)
+    if args.provider == "laya" and args.ane_package is not None:
+        # Fail closed if a compiled package was changed after initial hashing.
+        # MLX/ANE routing and fallback remain unchanged.
+        ending = "|ane-package-sha256:" + ane_artifact_sha256(args.ane_package)
+        if not provider.model_identity.endswith(ending):
+            raise ValueError("ANE package changed during model backend pilot run")
     summary = _summary(observations)
     report = {
         "schema_version": PROTOCOL_VERSION, "strategy": STRATEGY,
@@ -366,6 +380,44 @@ def run(args: argparse.Namespace) -> int:
     print(f"{args.provider}: {len(cases)} cases, {summary['valid']} valid, "
           f"{summary['failures_or_unsupported']} failed/unsupported; {args.output}")
     return 0 if summary["failures_or_unsupported"] == 0 else 2
+
+
+def _verify_raw_decision(case: dict[str, Any], *, where: str) -> None:
+    """Validate model raw advice against its legacy Gate reason and final label.
+
+    The raw label is safety evidence. Recomputing summary(raw) alone does not
+    detect a tampered raw label; the Gate's independent recorded reason must
+    corroborate any policy downgrade such as complete -> verify.
+    """
+    if case["status"] != "ok" or case["decision_source"] != "model":
+        return
+    raw, selected = case["raw_model_decision"], case["decision"]
+    if raw is None:
+        raise ValueError(f"{where} missing raw model decision")
+    family = case["family"]
+    if family == "primitive":
+        if type(raw) is not type(selected) or raw != selected:
+            raise ValueError(f"{where} raw model decision contradicts primitive output")
+        return
+
+    reason = case.get("decision_source_note")
+    if family == "completion":
+        if reason == "model_complete_below_safety_threshold":
+            expected, guarded = "complete", "verify"
+        elif reason in ("model_complete", "model_continue", "model_verify"):
+            expected = guarded = reason.removeprefix("model_")
+        else:
+            raise ValueError(f"{where} invalid completion model reason")
+    elif family == "retry":
+        if type(reason) is not str or not reason.startswith("model_"):
+            raise ValueError(f"{where} invalid retry model reason")
+        expected = guarded = reason.removeprefix("model_")
+        if expected not in DECISIONS:
+            raise ValueError(f"{where} invalid retry raw recommendation")
+    else:
+        raise ValueError(f"{where} unknown model-backed family")
+    if type(raw) is not str or raw != expected or selected != guarded:
+        raise ValueError(f"{where} raw model decision contradicts gate reason")
 
 
 def _verify_case_for_summary(case: dict[str, Any], *, index: int, path: Path) -> None:
@@ -405,6 +457,7 @@ def _verify_case_for_summary(case: dict[str, Any], *, index: int, path: Path) ->
         raise ValueError(f"{where} invalid classification gold")
     if case["status"] == "ok" and case["decision"] is None:
         raise ValueError(f"{where} valid case missing decision")
+    _verify_raw_decision(case, where=where)
     latency = case["latency_ms"]
     if latency is not None and finite_number(latency, f"{where} latency_ms") < 0:
         raise ValueError(f"{where} negative latency_ms")
@@ -600,6 +653,15 @@ def compare(args: argparse.Namespace) -> int:
                 raise ValueError(f"{provider} case {index} missing execution backend")
             if provider == "jev" and backend != "remote_http":
                 raise ValueError(f"jev case {index} must use remote_http backend")
+            if provider == "laya":
+                if backend not in ("mlx", "ane"):
+                    raise ValueError(f"laya case {index} requires local mlx/ane backend")
+                if backend == "ane" and re.search(
+                    r"[|]ane-package-sha256:[0-9a-f]{64}$", requested_model
+                ) is None:
+                    raise ValueError(
+                        f"laya case {index} ANE execution lacks package digest identity"
+                    )
         if provider == "jev":
             attempts = report["remote_attempts"]
             if not len(succeeded) <= attempts <= len(report["cases"]):
