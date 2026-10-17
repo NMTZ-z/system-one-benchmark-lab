@@ -1084,10 +1084,23 @@ def compare(args: argparse.Namespace) -> int:
                 raise ValueError(
                     "JEV remote_attempts exceed successful and failed provider cases"
                 )
+            # A validated raw model vote proves that a failed Gate case used
+            # a remote attempt, even though the Gate safely returned a rule.
+            # Do not let it disappear from remote accounting by relabeling.
+            validated_failed = [
+                case for case in report["cases"]
+                if case["status"] == "provider_error"
+                and case.get("raw_model_evidence") is not None
+            ]
+            if attempts < len(succeeded) + len(validated_failed):
+                raise ValueError(
+                    "JEV remote_attempts undercount failed validated model votes"
+                )
             # All known per-case usage is billing evidence, including a case
             # that later failed the legacy Gate. Invalid usage must not be
             # silently excluded from the minimum observed cost.
             known_input_tokens = 0
+            known_usage_rows = 0
             for index, case in enumerate(report["cases"]):
                 usage = case.get("usage")
                 if usage is None:
@@ -1102,11 +1115,26 @@ def compare(args: argparse.Namespace) -> int:
                 ):
                     raise ValueError(f"JEV model result {index} has invalid token usage")
                 known_input_tokens += usage["input_tokens"]
+                known_usage_rows += 1
             unknown = report.get("remote_usage_unknown_attempts")
             if type(unknown) is not int or not 0 <= unknown <= attempts:
                 raise ValueError("JEV invalid remote_usage_unknown_attempts")
-            if sum(case.get("usage") is None for case in succeeded) > unknown:
-                raise ValueError("JEV missing usage not reflected in unknown attempts")
+            # A validated vote retained after a failed Gate still proves a
+            # remote response; missing usage for that attempt is not free or
+            # known-zero usage. Count it alongside successful model votes.
+            evidenced_votes = succeeded + validated_failed
+            minimum_unknown = sum(
+                case.get("usage") is None for case in evidenced_votes
+            )
+            if minimum_unknown > unknown:
+                raise ValueError(
+                    "JEV missing usage on successful or failed validated model votes "
+                    "not reflected in unknown attempts"
+                )
+            if known_usage_rows + unknown > attempts:
+                raise ValueError(
+                    "JEV known and unknown usage counts exceed remote attempts"
+                )
             cost = report.get("remote_usage_based_cost_estimate_usd")
             if cost is None or finite_number(cost, "JEV usage cost estimate") < 0:
                 raise ValueError("JEV invalid usage-based cost estimate")

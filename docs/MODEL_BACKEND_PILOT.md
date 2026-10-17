@@ -242,9 +242,16 @@ on other cases must not drift either. For Jev, the pinned model must be a concre
 `jev-X.Y.Z` version and its recorded remote attempts cannot be less than
 the number of successful model-backed decisions, exceed one attempt per
 sample, or exceed the total of successful model decisions plus recorded
-provider-error cases (zero automatic retries). The unknown-usage count must
-be consistent with remote attempts, while known token usage requires valid
-nonnegative integer input/output token fields. The Jev report's
+provider-error cases (zero automatic retries). A failed Gate case
+retaining a validated Jev model vote also proves a remote attempt, even
+though the final decision safely falls back to a rule. Such cases are
+included in the minimum attempt count, and a missing `usage` entry must
+contribute to the minimum `remote_usage_unknown_attempts` alongside
+successful model calls with unknown usage. Known per-case usage and unknown
+attempts cannot together exceed total recorded remote attempts; failed
+responses without a validated vote can still be legitimately unknown.
+Known token usage requires valid nonnegative integer input/output token
+fields. The Jev report's
 `remote_usage_based_cost_estimate_usd` must be **at least** the price of
 all recorded per-case input tokens, using the same input-token rate as the
 Jev provider. This includes known usage from failed cases. Zero or
