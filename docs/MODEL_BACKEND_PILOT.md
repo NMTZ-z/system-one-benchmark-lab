@@ -59,8 +59,13 @@ validation rejects contradictions before recomputing summaries. Three-way
 comparison checks that all providers share the same case IDs, family, primitive,
 gold label, unsafe labels and verification requirement, rather than assuming
 that three claimed dataset SHA-256 strings authenticate the underlying cases.
-This is integrity checking of supplied experiment evidence, **not a digital
-signature or proof against coordinated fabrication of all source reports**.
+**Each report is additionally checked against the actual SHA-256-verified,
+prepublished public JSONL**, including all 12 original IDs in order and every
+frozen family/primitive/gold/unsafe/verification field. Optional JSONL labels
+are compared with the same defaults that `run()` records. Even synchronized
+changes to all three reports cannot rewrite the official safety or gold labels.
+These are evidence-consistency checks, **not a digital signature or proof
+against coordinated fabrication of model outputs or runtime telemetry**.
 
 ## Quick use from repository root
 

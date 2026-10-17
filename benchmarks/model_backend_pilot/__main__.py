@@ -846,6 +846,33 @@ def compare(args: argparse.Namespace) -> int:
                     raise ValueError(
                         f"comparison case {index} inconsistent frozen {field} across providers"
                     )
+    # Equality BETWEEN provider reports does not authenticate the cases.
+    # Cross-check every reported label against the actual, SHA-256-verified
+    # frozen corpus as well: an adversary may edit all three reports alike.
+    frozen_rows = _verified_frozen_rows(
+        reports[0]["dataset_sha256"], purpose="case metadata",
+    )
+    metadata_fields = ("family", "primitive", "gold", "unsafe", "requires_verification")
+    optional_defaults = {
+        "primitive": None, "unsafe": [], "requires_verification": False,
+    }
+    if len(frozen_rows) != len(reference):
+        raise ValueError("comparison report case count differs from frozen dataset")
+    for report in reports:
+        for index, (recorded, frozen) in enumerate(zip(report["cases"], frozen_rows)):
+            if recorded["id"] != frozen["id"]:
+                raise ValueError(
+                    f"comparison case {index} ID/order contradicts frozen dataset"
+                )
+            for field in metadata_fields:
+                # The frozen JSONL may omit optional labels; run() emits their
+                # documented defaults instead of dropping them from reports.
+                expected = frozen.get(field, optional_defaults.get(field))
+                actual = recorded.get(field)
+                if type(actual) is not type(expected) or actual != expected:
+                    raise ValueError(
+                        f"comparison case {index} {field} contradicts frozen dataset"
+                    )
     for report in reports:
         # No rule-only result may masquerade as model evidence. Every successful
         # model-backed result must carry a single pinned identity, not merely
