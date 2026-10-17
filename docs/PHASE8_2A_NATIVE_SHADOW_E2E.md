@@ -158,10 +158,15 @@ on the final candidate. These numbers are not historical Phase 8.1 passing total
 
 Two owned short-lived local Runtime sessions and the loopback collector
 were terminated or timed out, rather than continuing as permanent services.
-Only the isolated profile was modified and its test plugin was disabled at cleanup;
-installed production Hermes processes,
-regular profiles, the stable DSH installation and the NAS main branch were not
-restarted, reset or deployed. No public credentials, native raw session
+Only the isolated profile was modified and its test plugin was disabled at cleanup.
+**Isolation qualification:** the native Hermes plugin install CLI printed
+"Gateway reloaded plugins — active in the running gateway now: hooks".
+This was a **hot hook reload automatically triggered by profile-specific
+installation**, not a requested Gateway process restart. No production profile
+was edited, but zero transient impact on the shared multiprofile gateway was
+**not independently established** and is therefore not claimed. Regular
+profiles, the stable DSH installation and the NAS main branch were not
+reset or deployed. No public credentials, native raw session
 contents or private filesystem paths are included in the export.
 
 ## 7. Independent acceptance matrix
