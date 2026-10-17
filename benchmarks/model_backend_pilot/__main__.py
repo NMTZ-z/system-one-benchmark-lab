@@ -787,6 +787,44 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
             raise ValueError(f"comparison report {path.name}: case {index} invalid status")
         if case.get("decision_source") not in ("rule", "model", "none"):
             raise ValueError(f"comparison report {path.name}: case {index} invalid decision_source")
+        provider, status, family = value["provider"], case["status"], case.get("family")
+        # The research runner declares all three primitives for Laya/Jev and
+        # maps provider exceptions to provider_error, never unsupported/invalid.
+        # Conversely, the Rule-only baseline alone marks primitives unsupported;
+        # deterministic Completion/Retry gates cannot be unsupported.
+        if provider in ("laya", "jev") and status in ("unsupported", "invalid"):
+            raise ValueError(
+                f"comparison report {path.name}: case {index} "
+                f"{provider} provider cannot report {status} status"
+            )
+        if provider == "rule":
+            if status == "provider_error":
+                raise ValueError(
+                    f"comparison report {path.name}: case {index} "
+                    "rule-only report cannot claim failed model evidence or provider_error"
+                )
+            if family == "primitive" and status != "unsupported":
+                raise ValueError(
+                    f"comparison report {path.name}: case {index} "
+                    "rule-only primitive must be unsupported"
+                )
+            if family != "primitive" and status == "unsupported":
+                raise ValueError(
+                    f"comparison report {path.name}: case {index} "
+                    "rule-only Gate cannot report unsupported"
+                )
+        if status == "unsupported":
+            if case["decision_source"] != "none" or any(
+                case.get(field) is not None for field in (
+                    "decision", "raw_model_decision", "raw_model_evidence",
+                    "model_requested", "model_resolved", "execution_backend",
+                    "latency_ms", "usage", "error_type", "decision_source_note",
+                )
+            ):
+                raise ValueError(
+                    f"comparison report {path.name}: case {index} "
+                    "unsupported result cannot claim execution evidence"
+                )
         if "model_resolved" not in case or (
             case["model_resolved"] is not None and
             (not isinstance(case["model_resolved"], str) or not case["model_resolved"])

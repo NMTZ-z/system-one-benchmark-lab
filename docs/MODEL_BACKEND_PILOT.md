@@ -219,6 +219,20 @@ and a forged gold label cannot introduce a new option. Unknown Choice IDs
 and non-frozen datasets fail closed. Impossible decision labels are never
 allowed to change published accuracy metrics.
 
+**Provider/status coherence:** Only the Rule-only baseline may emit
+`unsupported`, and only for its three direct Choice/Score/Noul primitive
+cases. Such rows must be marked `decision_source=none` and contain no
+decision, model, backend, usage, latency or error evidence. The Rule-only
+baseline cannot claim `provider_error` or report a successful primitive
+inference; its deterministic Gate results cannot claim `unsupported`.
+Both Laya and Jev declare all three primitives, so their actual runtime
+failures must be `provider_error`, never `unsupported` or `invalid`.
+The comparison enforces these rules before accepting any recomputed
+validity, accuracy or model-participation totals. These checks prevent
+structurally impossible statuses from being used to disguise successful
+model participation; they do not cryptographically authenticate a fabricated
+provider error.
+
 Every successful model-sourced case must have a nonempty requested/resolved
 model identity equal to the run's single pinned model ID, plus its actual
 execution backend. A Jev model case MUST use `remote_http` while a Laya

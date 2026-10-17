@@ -319,8 +319,9 @@ def test_comparison_rejects_incomplete_or_fake_jev(tmp_path):
     assert main(["run", "--provider", "rule", "--dataset", str(dataset),
                  "--output", str(p)]) == 2
     report = json.loads(p.read_text())
-    # The isolated test worktree is dirty during development; mark our
-    # synthetic fixtures clean only to reach the separate Jev-live guard.
+    # This synthetic forgery copies the Rule-only unsupported primitive rows
+    # into supposedly model-backed Laya/Jev reports. Reject that impossible
+    # provider/status combination before looking for Jev live-call evidence.
     report["code_checkout_clean_at_run"] = True
     p.write_text(json.dumps(report))
     a, b = tmp_path / "a.json", tmp_path / "b.json"
@@ -332,7 +333,7 @@ def test_comparison_rejects_incomplete_or_fake_jev(tmp_path):
             ),
         }
         path.write_text(json.dumps(fake))
-    with pytest.raises(ValueError, match="real remote evidence"):
+    with pytest.raises(ValueError, match="laya provider cannot report unsupported status"):
         from benchmarks.model_backend_pilot.__main__ import compare
         from argparse import Namespace
         compare(Namespace(reports=[p, a, b], output=tmp_path / "compare.json"))
