@@ -287,8 +287,22 @@ def _retry_failure(kwargs: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _retry_tool_name(kwargs: dict[str, Any]) -> str | None:
+    """Use Hermes' native post_tool_call ``tool_name`` field.
+
+    ``function_name`` is retained only for older host adapters and fixture
+    compatibility. Never choose between two conflicting operation identities.
+    """
+    native = kwargs.get("tool_name")
+    legacy = kwargs.get("function_name")
+    if native is not None and legacy is not None and native != legacy:
+        return None
+    name = native if native is not None else legacy
+    return name if isinstance(name, str) and name else None
+
+
 def _retry_context(kwargs: dict[str, Any]) -> dict[str, Any] | None:
-    op = _retry_operation(kwargs.get("function_name"))
+    op = _retry_operation(_retry_tool_name(kwargs))
     failure = _retry_failure(kwargs)
     if op is None or failure is None:
         return None

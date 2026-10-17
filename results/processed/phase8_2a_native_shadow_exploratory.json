@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "status": "exploratory_incomplete_not_formal_native_e2e",
+  "baseline_public_commit": "da2947a2091570a28a061d651200eec3d94276df",
+  "candidate_changes_during_run": true,
+  "pinned_versions": {
+    "hermes": "v0.22.1+11.gd923a5e",
+    "hermes_sha": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
+    "dsh": "0.1.7-rc.2",
+    "dsh_sha": "477b4f420553e8a52c2fbccc464d7561b239c443",
+    "hermes_plugin_at_native_run": "0.9.0-before-tool-name-fix",
+    "dsh_adapter": "0.6.0",
+    "main_provider": "nova",
+    "main_model": "deepseek-v4-flash",
+    "decision_model": "laya-typed-decisions",
+    "decision_backend": "mlx"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "H-S1",
+      "platform": "hermes",
+      "main_model_api_calls": 3,
+      "native_tool_call_seen": true,
+      "native_tool_failure_seen": false,
+      "independent_artifact_verdict": "mismatch_trailing_newline",
+      "completion_loop_observation": "observed_mlx_model",
+      "completion_turn_observation": "observed_mlx_model",
+      "native_e2e_acceptance": "not_passed"
+    },
+    {
+      "scenario_id": "H-S2",
+      "platform": "hermes",
+      "main_model_api_calls": 3,
+      "native_tool_call_seen": true,
+      "native_tool_failure_seen": false,
+      "independent_artifact_verdict": "sha256_equal",
+      "completion_loop_observation": "observed_mlx_model",
+      "completion_turn_observation": "observed_mlx_model",
+      "native_e2e_acceptance": "exploratory_success_not_frozen"
+    },
+    {
+      "scenario_id": "H-F1",
+      "platform": "hermes",
+      "main_model_api_calls": 2,
+      "native_tool_call_seen": true,
+      "native_tool_failure_seen": true,
+      "independent_artifact_verdict": "missing_file_confirmed",
+      "completion_loop_observation": "observed_one_tool_failure_mlx_model",
+      "retry_observation": "unsupported_operation_unverified",
+      "native_e2e_acceptance": "retry_not_passed"
+    },
+    {
+      "scenario_id": "D-S1",
+      "platform": "deepseek_harness",
+      "main_model_successful_steps": 2,
+      "native_tool_call_count": 1,
+      "native_tool_result_count": 1,
+      "native_turn_end_kind": "completed",
+      "independent_artifact_verdict": "expected_content_verified",
+      "completion_to_runtime": "not_proven",
+      "native_e2e_acceptance": "partial_observer_evidence"
+    },
+    {
+      "scenario_id": "D-S2",
+      "platform": "deepseek_harness",
+      "main_model_successful_steps": 1,
+      "main_model_failed_quota_requests": 1,
+      "native_tool_call_count": 1,
+      "native_tool_result_count": 1,
+      "native_turn_end_kind": "error_quota_429",
+      "independent_artifact_verdict": "expected_content_verified",
+      "completion_http_requests": 2,
+      "completion_http_status": 503,
+      "native_e2e_acceptance": "incomplete_agent_turn_runtime_unavailable"
+    },
+    {
+      "scenario_id": "D-F1",
+      "platform": "deepseek_harness",
+      "native_tool_call_count": 0,
+      "independent_artifact_verdict": "not_run",
+      "native_e2e_acceptance": "blocked_quota"
+    }
+  ],
+  "provider_main_requests_at_least": 12,
+  "provider_price_verified": false,
+  "provider_usage_uncertainty": "actual billed cost and auxiliary request counts unavailable",
+  "rules_http_only_smoke": {
+    "count": 1,
+    "status": 200,
+    "decision": "verify_state",
+    "decision_source": "rule",
+    "backend": "rule",
+    "native_agent_e2e": false
+  },
+  "native_shadow_noninterference_off_on_down_paired": false,
+  "evidence_provenance": {
+    "hermes_completion": "native_test_profile_plugin_state",
+    "hermes_retry": "native_test_profile_plugin_state",
+    "dsh_tool": "native_dsh_headless_jsonl",
+    "dsh_http": "local_loopback_forwarder_allowlisted_log",
+    "artifact_verification": "post_run_filesystem_hash_or_content",
+    "http_only_smoke": "direct_manual_client_not_agent",
+    "raw_private_data_exported": false
+  },
+  "engineering_status": "BLOCKED",
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}

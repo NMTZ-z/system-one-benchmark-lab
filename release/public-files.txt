@@ -26,6 +26,8 @@ scripts/install_local_system_one_launchd.sh
 scripts/local_system_one_status.sh
 scripts/run_local_system_one_mcp.sh
 scripts/run_local_system_one_service.sh
+scripts/phase8_2a_shadow_proxy.py
+scripts/phase8_2a_verify.py
 scripts/uninstall_local_system_one_launchd.sh
 
 docs/LOCAL_SYSTEM_ONE_MVP.md
@@ -40,6 +42,7 @@ docs/PHASE8B_FINAL_REPORT.md
 docs/PHASE8C_FAILURE_AUDIT.md
 docs/PHASE8C_EVALUATION_PROTOCOL.md
 docs/PHASE8C_FINAL_REPORT.md
+docs/PHASE8_2A_NATIVE_SHADOW_E2E.md
 docs/PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md
 docs/RETRY_ESCALATION_GATE.md
 docs/MODEL_BACKEND_CONTRACT.md
@@ -66,6 +69,7 @@ results/reports/Phase8A-Completion-Gate-v0.1.md
 results/processed/completion-gate-v0.1.json
 results/processed/phase8b-completion-pilot-v1.json
 results/processed/phase8c-retry-pilot-mlx.json
+results/processed/phase8_2a_native_shadow_exploratory.json
 results/processed/model-backend-pilot-laya-v1.json
 results/processed/model-backend-pilot-rule-v1.json
 results/processed/model-backend-pilot-20261016-rule.json
@@ -90,6 +94,7 @@ tests/test_hermes_system_one_scripts.py
 tests/test_retry_benchmark.py
 tests/test_retry_escalation_gate.py
 tests/test_retry_hermes.py
+tests/test_phase8_2a_evidence.py
 tests/test_retry_http.py
 tests/test_public_release.py
 tests/test_runtime_sources.py
