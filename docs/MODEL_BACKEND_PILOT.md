@@ -183,6 +183,14 @@ retains the raw decision and a `raw_model_evidence` object containing the
 already-validated primitive and model probability distribution. Comparison
 verifies Choice argmax, Noul binary probability, or Score weighted levels
 against the raw recommendation **before** counting unsafe raw advice.
+For failed Choice advice, it also requires the probability keys to match
+**exactly** the candidate options that the original frozen Gate would have
+passed to the model. The validator derives those candidates by capturing the
+unchanged Completion/Retry Gate's real typed request with an offline,
+always-failing Rule-only engine; it does not use a caller-supplied label set,
+load a model or contact TypeSafe. C03/C04 require `complete`, `verify`,
+`continue`; frozen R04 requires `retry_same`, `try_alternative`, `ask_user`.
+Hard-rule cases that never dispatched Choice cannot claim model advice.
 A failed case lacking corroborating typed-model evidence cannot invent or
 silently erase a model recommendation; neither can a Rule-only run claim a
 model-related failure. A failure before any valid model result is recorded

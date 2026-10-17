@@ -395,6 +395,7 @@ def run(args: argparse.Namespace) -> int:
 
 def _verify_unsuccessful_raw_evidence(
     case: dict[str, Any], *, where: str, provider: str,
+    choice_options: frozenset[str] | None = None,
 ) -> None:
     """Only count failed raw advice when a validated model vote corroborates it.
 
@@ -447,8 +448,13 @@ def _verify_unsuccessful_raw_evidence(
     ):
         raise ValueError(f"{where} invalid failed model probability mass")
     if primitive == "choice":
+        # Argmax alone is not evidence that the model was asked these
+        # candidate labels. The frozen request (not the report) determines
+        # exactly which options a validated TypedResult could have returned.
+        if choice_options is None or set(weights) != choice_options:
+            raise ValueError(f"{where} failed Choice candidates contradict frozen Gate request")
         valid = (
-            isinstance(raw, str) and raw in weights
+            type(raw) is str and raw in choice_options
             and math.isclose(weights[raw], max(weights.values()), abs_tol=1e-8)
         )
     elif primitive == "noul":
@@ -479,10 +485,13 @@ def _verify_unsuccessful_raw_evidence(
 
 def _verify_raw_decision(
     case: dict[str, Any], *, where: str, provider: str,
+    choice_options: frozenset[str] | None = None,
 ) -> None:
     """Validate successful and failed raw advice before any safety count."""
     if case["status"] != "ok":
-        _verify_unsuccessful_raw_evidence(case, where=where, provider=provider)
+        _verify_unsuccessful_raw_evidence(
+            case, where=where, provider=provider, choice_options=choice_options,
+        )
         return
     if case.get("raw_model_evidence") is not None:
         raise ValueError(f"{where} successful case has unexpected failed vote evidence")
@@ -559,6 +568,56 @@ def _frozen_choice_options(dataset_sha256: str) -> dict[str, frozenset[str]]:
         for row in rows
         if row["family"] == "primitive" and row.get("primitive") == "choice"
     }
+
+
+def _frozen_gate_choice_options(dataset_sha256: str) -> dict[str, frozenset[str]]:
+    """Capture each frozen Gate's real model Choice request, without inference.
+
+    The frozen input alone defines the permitted options, but the Gate builds
+    its own request (especially Retry, whose candidates depend on the policy).
+    Capture the typed request using an engine that always raises, so no model
+    is loaded or contacted and the production Gate rules are not duplicated.
+    """
+    rows = _verified_frozen_rows(dataset_sha256, purpose="Gate Choice candidates")
+
+    class _OfflineCapture(RuleOnlyEngine):
+        def __init__(self) -> None:
+            super().__init__()
+            self.captured = None
+
+        def decide(self, request: Any) -> dict[str, Any]:
+            self.captured = request
+            return super().decide(request)
+
+    options: dict[str, frozenset[str]] = {}
+    for row in rows:
+        family, sid, payload = row["family"], row["id"], row["payload"]
+        if family not in ("completion", "retry"):
+            continue
+        engine = _OfflineCapture()
+        if family == "completion":
+            request = CompletionGateRequest.from_payload({
+                **payload, "request_id": sid,
+            })
+            CompletionGate(engine).decide(request)
+        else:
+            request = RetryEscalationRequest.from_payload({
+                **payload, "request_id": sid,
+            })
+            RetryEscalationGate(engine).decide(request)
+        if engine.captured is not None:
+            choice = engine.captured
+            typed = TypedRequest(
+                primitive=choice.primitive,
+                state=choice.state,
+                instructions=choice.instructions,
+                criteria=choice.criteria,
+                request_id=choice.request_id,
+            )
+            if typed.primitive != "choice":
+                raise ValueError("frozen Gate issued unexpected non-Choice request")
+            options[sid] = frozenset(typed.options)
+    return options
 
 
 def _frozen_rule_gate_outcomes(dataset_sha256: str) -> dict[str, dict[str, str]]:
@@ -671,7 +730,9 @@ def _verify_case_for_summary(
                 decision, f"{where} Score decision"
             ) <= score_max:
                 raise ValueError(f"{where} invalid Score decision range for case levels")
-    _verify_raw_decision(case, where=where, provider=provider)
+    _verify_raw_decision(
+        case, where=where, provider=provider, choice_options=choice_options,
+    )
     latency = case["latency_ms"]
     if latency is not None and finite_number(latency, f"{where} latency_ms") < 0:
         raise ValueError(f"{where} negative latency_ms")
@@ -739,6 +800,7 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
         raise ValueError(f"comparison report {path.name}: summary total mismatch")
     score_limits: dict[str, int] | None = None
     choice_labels: dict[str, frozenset[str]] | None = None
+    gate_choices: dict[str, frozenset[str]] | None = None
     rule_outcomes: dict[str, dict[str, str]] | None = None
     for index, case in enumerate(cases):
         score_max = None
@@ -758,6 +820,21 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
             if allowed_choice is None:
                 raise ValueError(
                     f"comparison report {path.name}: Choice case not in frozen dataset"
+                )
+        if (
+            case.get("status") == "provider_error"
+            and case.get("raw_model_decision") is not None
+            and case.get("family") in ("completion", "retry")
+        ):
+            if gate_choices is None:
+                gate_choices = _frozen_gate_choice_options(value["dataset_sha256"])
+            allowed_choice = gate_choices.get(case["id"])
+            # A hard rule never dispatches to the model. Reject any forged
+            # advice for a case that has no Gate Choice request to validate.
+            if allowed_choice is None:
+                raise ValueError(
+                    f"comparison report {path.name}: case {index} "
+                    "failed Choice cannot originate from frozen Gate request"
                 )
         _verify_case_for_summary(
             case, index=index, path=path, provider=value["provider"],
