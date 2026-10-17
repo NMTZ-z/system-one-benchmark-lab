@@ -519,8 +519,29 @@ def _verify_raw_decision(
         raise ValueError(f"{where} raw model decision contradicts gate reason")
 
 
+def _frozen_score_level_limits(dataset_sha256: str) -> dict[str, int]:
+    """Recover Score bounds from verified source data, never from a report claim.
+
+    The frozen v1 reports predate per-case score-range metadata. Rather than
+    accepting a self-reported level count, bind every Score case to the
+    unmodified published JSONL and its pinned SHA-256.
+    """
+    if dataset_sha256 != FROZEN_PUBLIC_DATASET_SHA256:
+        raise ValueError("cannot verify Score level count for a non-frozen dataset")
+    frozen = Path(__file__).with_name("public_synthetic_v1.jsonl")
+    actual_digest, rows = _records(frozen)
+    if actual_digest != FROZEN_PUBLIC_DATASET_SHA256:
+        raise ValueError("frozen public dataset digest mismatch")
+    return {
+        row["id"]: len(row["payload"]["criteria"]) - 1
+        for row in rows
+        if row["family"] == "primitive" and row.get("primitive") == "score"
+    }
+
+
 def _verify_case_for_summary(
     case: dict[str, Any], *, index: int, path: Path, provider: str,
+    score_max: int | None = None,
 ) -> None:
     """Validate the fields consumed by _summary before recomputing statistics."""
     where = f"comparison report {path.name}: case {index}"
@@ -545,11 +566,17 @@ def _verify_case_for_summary(
         raise ValueError(f"{where} invalid requires_verification")
     score_case = case["family"] == "primitive" and case.get("primitive") == "score"
     if score_case:
-        finite_number(case["gold"], f"{where} score gold")
+        if score_max is None:
+            raise ValueError(f"{where} Score case lacks verified level count")
+        gold = finite_number(case["gold"], f"{where} score gold")
+        if not 0 <= gold <= score_max:
+            raise ValueError(f"{where} Score gold outside the case's levels")
         if case["correct"] is not None:
             raise ValueError(f"{where} score correct must be null")
         if case["status"] == "ok":
-            finite_number(case["decision"], f"{where} score decision")
+            score = finite_number(case["decision"], f"{where} score decision")
+            if not 0 <= score <= score_max:
+                raise ValueError(f"{where} invalid Score decision range for case levels")
     elif type(case["correct"]) is not bool:
         raise ValueError(f"{where} correct must be boolean")
     elif case["correct"] != _expected_correct(case):
@@ -573,8 +600,10 @@ def _verify_case_for_summary(
             if type(decision) is not bool:
                 raise ValueError(f"{where} invalid Noul decision type")
         elif case["primitive"] == "score":
-            if not 0 <= finite_number(decision, f"{where} Score decision") <= 9:
-                raise ValueError(f"{where} invalid Score decision range")
+            if score_max is None or not 0 <= finite_number(
+                decision, f"{where} Score decision"
+            ) <= score_max:
+                raise ValueError(f"{where} invalid Score decision range for case levels")
     _verify_raw_decision(case, where=where, provider=provider)
     latency = case["latency_ms"]
     if latency is not None and finite_number(latency, f"{where} latency_ms") < 0:
@@ -641,9 +670,20 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
         raise ValueError(f"comparison report {path.name}: invalid summary")
     if summary["total"] != len(cases):
         raise ValueError(f"comparison report {path.name}: summary total mismatch")
+    score_limits: dict[str, int] | None = None
     for index, case in enumerate(cases):
+        score_max = None
+        if case.get("family") == "primitive" and case.get("primitive") == "score":
+            if score_limits is None:
+                score_limits = _frozen_score_level_limits(value["dataset_sha256"])
+            score_max = score_limits.get(case["id"])
+            if score_max is None:
+                raise ValueError(
+                    f"comparison report {path.name}: Score case not in frozen dataset"
+                )
         _verify_case_for_summary(
             case, index=index, path=path, provider=value["provider"],
+            score_max=score_max,
         )
     # Never trust a caller-supplied aggregate, even when its total matches.
     expected_summary = _summary(cases)

@@ -188,9 +188,17 @@ can coherently forge every report field**.
 For all valid Completion/Retry outcomes, the recorded decision must be one
 of the frozen Gate label sets (Completion: `complete|continue|verify`;
 Retry: the six allowed advisory outcomes). Primitive Choice, Noul, and Score
-outputs must retain their expected types, and Score must remain within the
-supported scoring range. Impossible decision labels are never allowed to
-change published accuracy metrics.
+outputs must retain their expected types. **Score bounds are case-specific:**
+for v1 comparison, the validator reopens the immutable published
+`public_synthetic_v1.jsonl`, verifies its pinned SHA-256 and derives the
+actual count of score levels by case ID (P02 has three levels, so [0, 2]).
+Both Score gold and the model's reported score must stay within that case's
+rubric, even when `raw_model_decision` and summary are altered together.
+Unknown Score case IDs or non-frozen datasets are rejected rather than
+trusting a mutable level count or the old global [0, 9] limit. A separate
+versioned, authenticated dataset policy is required for future custom Score
+comparisons. Impossible decision labels are never allowed to change
+published accuracy metrics.
 
 Every successful model-sourced case must have a nonempty requested/resolved
 model identity equal to the run's single pinned model ID, plus its actual
