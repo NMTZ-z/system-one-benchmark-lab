@@ -561,6 +561,39 @@ def _frozen_choice_options(dataset_sha256: str) -> dict[str, frozenset[str]]:
     }
 
 
+def _frozen_rule_gate_outcomes(dataset_sha256: str) -> dict[str, dict[str, str]]:
+    """Replay the existing deterministic Gates without a model or network.
+
+    The frozen source is validated with its pinned digest. Reuse the actual
+    Completion / Retry Gate implementations rather than transcribing hard
+    rules, thresholds or fallback labels into the comparison validator.
+    """
+    rows = _verified_frozen_rows(dataset_sha256, purpose="rule-gate outcomes")
+    expected: dict[str, dict[str, str]] = {}
+    for row in rows:
+        family, request_id, payload = row["family"], row["id"], row["payload"]
+        if family == "completion":
+            request = CompletionGateRequest.from_payload({
+                **payload, "request_id": request_id,
+            })
+            output = CompletionGate(RuleOnlyEngine()).decide(request)
+        elif family == "retry":
+            request = RetryEscalationRequest.from_payload({
+                **payload, "request_id": request_id,
+            })
+            output = RetryEscalationGate(None).decide(request)
+        else:
+            continue
+        if output.get("decision_source") != "rule":
+            raise ValueError("frozen offline gate replay produced unexpected model advice")
+        expected[request_id] = {
+            "family": family,
+            "decision": output["decision"],
+            "reason": output["reason"],
+        }
+    return expected
+
+
 def _verify_case_for_summary(
     case: dict[str, Any], *, index: int, path: Path, provider: str,
     score_max: int | None = None,
@@ -706,6 +739,7 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
         raise ValueError(f"comparison report {path.name}: summary total mismatch")
     score_limits: dict[str, int] | None = None
     choice_labels: dict[str, frozenset[str]] | None = None
+    rule_outcomes: dict[str, dict[str, str]] | None = None
     for index, case in enumerate(cases):
         score_max = None
         allowed_choice = None
@@ -729,6 +763,34 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
             case, index=index, path=path, provider=value["provider"],
             score_max=score_max, choice_options=allowed_choice,
         )
+        if case["status"] == "ok" and case["decision_source"] == "rule":
+            # A model-backed case falsely relabeled as a rule is already
+            # checked by the provenance guards in compare(), which produce
+            # the more specific error. Only pure rule records reach replay.
+            model_evidence = (
+                case.get("execution_backend") != "rule"
+                or any(case.get(key) is not None for key in (
+                    "model_requested", "model_resolved",
+                    "raw_model_decision", "usage",
+                ))
+            )
+            if not model_evidence:
+                if rule_outcomes is None:
+                    rule_outcomes = _frozen_rule_gate_outcomes(value["dataset_sha256"])
+                expected = rule_outcomes.get(case["id"])
+                if expected is None or expected["family"] != case["family"]:
+                    raise ValueError(
+                        f"comparison report {path.name}: case {index} "
+                        "rule-gate case not in frozen dataset"
+                    )
+                if (
+                    case["decision"] != expected["decision"]
+                    or case.get("decision_source_note") != expected["reason"]
+                ):
+                    raise ValueError(
+                        f"comparison report {path.name}: case {index} "
+                        "rule-gate decision/reason contradicts frozen Gate replay"
+                    )
     # Never trust a caller-supplied aggregate, even when its total matches.
     expected_summary = _summary(cases)
     _require_same_summary(expected_summary, summary)

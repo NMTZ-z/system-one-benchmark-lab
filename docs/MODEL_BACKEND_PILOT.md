@@ -228,7 +228,19 @@ Rule-only and Laya results
 cannot claim remote attempts. Every successful `decision_source=rule` case
 must have the rule backend and **no** provider identity, raw model
 suggestion or token usage; a successful model case cannot be relabeled as a
-rule outcome to hide participation. Failed model attempts may still retain raw
+rule outcome to hide participation.
+
+**Rule Gate evidence replay:** Each successful Rule-sourced Completion/Retry
+case is also independently checked against the actual unchanged Gate
+implementation, using only the SHA-256-verified frozen public input and an
+offline Rule-only backend. Both the reported `decision` **and**
+`decision_source_note` must equal the deterministic replay result. This
+covers hard rules (for every provider) and the Rule-only conservative
+fallback for cases without a hard-rule result. Even plausible alternative
+labels or reasons, or coordinated tampering across all three reports, are
+rejected; no model is loaded and no external API is called during replay.
+A model-sourced case relabeled as a rule is separately rejected by the
+existing model-provenance guard. Failed model attempts may still retain raw
 suggestions for safety auditing. Only freshly recomputed metrics are placed
 into the combined comparison output.
 
