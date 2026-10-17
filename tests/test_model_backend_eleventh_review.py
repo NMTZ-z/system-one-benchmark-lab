@@ -102,7 +102,10 @@ def test_cannot_verify_non_frozen_score_rubric(
         path.write_text(json.dumps(report), encoding="utf-8")
     output = tmp_path / "comparison.json"
     code, err = compare(reports, output, capsys)
-    assert code == 3 and "cannot verify Score level count" in err
+    assert code == 3 and (
+        "cannot verify Score level count" in err
+        or "cannot verify Choice options" in err
+    )
     assert not output.exists()
 
 

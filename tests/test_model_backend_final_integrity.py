@@ -226,7 +226,13 @@ def test_cross_provider_frozen_case_fields_cannot_diverge(
     jev["summary"] = pilot._summary(jev["cases"])
     reports[2].write_text(json.dumps(jev))
     assert _compare(reports, tmp_path / "reject.json") == 3
-    assert "inconsistent frozen " + field in capsys.readouterr().err
+    error = capsys.readouterr().err
+    if field == "gold":
+        # The independent, verified Choice rubric now catches P01's invalid
+        # gold label before the cross-provider metadata comparison.
+        assert "Choice gold outside frozen options" in error
+    else:
+        assert "inconsistent frozen " + field in error
 
 
 def test_atomic_write_failure_preserves_original_and_removes_temp(

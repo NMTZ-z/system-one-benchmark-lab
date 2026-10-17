@@ -105,7 +105,11 @@ def test_primitive_and_retry_raw_evidence_must_agree_with_decision_and_reason(
     )
     out = tmp_path / "recomputed.json"
     code, err = _compare(reports, out, capsys)
-    assert code == 3 and "raw model decision" in err
+    assert code == 3
+    if case_id == "P01":
+        assert "Choice raw decision outside frozen options" in err
+    else:
+        assert "raw model decision" in err
     assert not out.exists()
 
 

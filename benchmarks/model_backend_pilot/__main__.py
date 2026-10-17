@@ -519,19 +519,25 @@ def _verify_raw_decision(
         raise ValueError(f"{where} raw model decision contradicts gate reason")
 
 
-def _frozen_score_level_limits(dataset_sha256: str) -> dict[str, int]:
-    """Recover Score bounds from verified source data, never from a report claim.
+def _verified_frozen_rows(dataset_sha256: str, *, purpose: str) -> list[dict[str, Any]]:
+    """Load case constraints from the actual immutable public corpus.
 
-    The frozen v1 reports predate per-case score-range metadata. Rather than
-    accepting a self-reported level count, bind every Score case to the
-    unmodified published JSONL and its pinned SHA-256.
+    A purported hash inside a comparison report is not itself a trustworthy
+    rubric or candidate set. First bind it to our pinned hash, then verify the
+    contents on disk, and reuse the same strict JSONL parser as a real run.
     """
     if dataset_sha256 != FROZEN_PUBLIC_DATASET_SHA256:
-        raise ValueError("cannot verify Score level count for a non-frozen dataset")
+        raise ValueError(f"cannot verify {purpose} for a non-frozen dataset")
     frozen = Path(__file__).with_name("public_synthetic_v1.jsonl")
     actual_digest, rows = _records(frozen)
     if actual_digest != FROZEN_PUBLIC_DATASET_SHA256:
         raise ValueError("frozen public dataset digest mismatch")
+    return rows
+
+
+def _frozen_score_level_limits(dataset_sha256: str) -> dict[str, int]:
+    """Recover Score bounds from independently verified frozen cases."""
+    rows = _verified_frozen_rows(dataset_sha256, purpose="Score level count")
     return {
         row["id"]: len(row["payload"]["criteria"]) - 1
         for row in rows
@@ -539,9 +545,26 @@ def _frozen_score_level_limits(dataset_sha256: str) -> dict[str, int]:
     }
 
 
+def _frozen_choice_options(dataset_sha256: str) -> dict[str, frozenset[str]]:
+    """Recover each Choice case's legal labels, not a report-controlled list."""
+    rows = _verified_frozen_rows(dataset_sha256, purpose="Choice options")
+    return {
+        row["id"]: frozenset(
+            TypedRequest(
+                primitive="choice", state=row["payload"]["state"],
+                instructions=row["payload"]["instructions"],
+                criteria=row["payload"]["criteria"], request_id=row["id"],
+            ).options
+        )
+        for row in rows
+        if row["family"] == "primitive" and row.get("primitive") == "choice"
+    }
+
+
 def _verify_case_for_summary(
     case: dict[str, Any], *, index: int, path: Path, provider: str,
     score_max: int | None = None,
+    choice_options: frozenset[str] | None = None,
 ) -> None:
     """Validate the fields consumed by _summary before recomputing statistics."""
     where = f"comparison report {path.name}: case {index}"
@@ -583,6 +606,15 @@ def _verify_case_for_summary(
         raise ValueError(f"{where} correct contradicts gold, decision or status")
     if not score_case and type(case["gold"]) not in (str, bool):
         raise ValueError(f"{where} invalid classification gold")
+    choice_case = case["family"] == "primitive" and case.get("primitive") == "choice"
+    if choice_case:
+        if choice_options is None:
+            raise ValueError(f"{where} Choice case lacks verified frozen options")
+        if type(case["gold"]) is not str or case["gold"] not in choice_options:
+            raise ValueError(f"{where} Choice gold outside frozen options")
+        raw = case["raw_model_decision"]
+        if raw is not None and (type(raw) is not str or raw not in choice_options):
+            raise ValueError(f"{where} Choice raw decision outside frozen options")
     decision = case["decision"]
     if case["status"] == "ok" and decision is None:
         raise ValueError(f"{where} valid case missing decision")
@@ -596,6 +628,8 @@ def _verify_case_for_summary(
         elif case["primitive"] == "choice":
             if type(decision) is not str or not decision.strip():
                 raise ValueError(f"{where} invalid Choice decision type")
+            if choice_options is None or decision not in choice_options:
+                raise ValueError(f"{where} Choice decision outside frozen options")
         elif case["primitive"] == "noul":
             if type(decision) is not bool:
                 raise ValueError(f"{where} invalid Noul decision type")
@@ -671,8 +705,10 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
     if summary["total"] != len(cases):
         raise ValueError(f"comparison report {path.name}: summary total mismatch")
     score_limits: dict[str, int] | None = None
+    choice_labels: dict[str, frozenset[str]] | None = None
     for index, case in enumerate(cases):
         score_max = None
+        allowed_choice = None
         if case.get("family") == "primitive" and case.get("primitive") == "score":
             if score_limits is None:
                 score_limits = _frozen_score_level_limits(value["dataset_sha256"])
@@ -681,9 +717,17 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
                 raise ValueError(
                     f"comparison report {path.name}: Score case not in frozen dataset"
                 )
+        elif case.get("family") == "primitive" and case.get("primitive") == "choice":
+            if choice_labels is None:
+                choice_labels = _frozen_choice_options(value["dataset_sha256"])
+            allowed_choice = choice_labels.get(case["id"])
+            if allowed_choice is None:
+                raise ValueError(
+                    f"comparison report {path.name}: Choice case not in frozen dataset"
+                )
         _verify_case_for_summary(
             case, index=index, path=path, provider=value["provider"],
-            score_max=score_max,
+            score_max=score_max, choice_options=allowed_choice,
         )
     # Never trust a caller-supplied aggregate, even when its total matches.
     expected_summary = _summary(cases)

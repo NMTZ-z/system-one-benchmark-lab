@@ -197,8 +197,14 @@ rubric, even when `raw_model_decision` and summary are altered together.
 Unknown Score case IDs or non-frozen datasets are rejected rather than
 trusting a mutable level count or the old global [0, 9] limit. A separate
 versioned, authenticated dataset policy is required for future custom Score
-comparisons. Impossible decision labels are never allowed to change
-published accuracy metrics.
+comparisons. **Choice candidates are case-specific as well:** the validator
+recovers each Choice primitive's exact option labels from the same verified
+frozen corpus, never from a report-supplied options list. For P01, only
+`continue` or `complete` is valid; both the reported decision and any raw
+model suggestion must belong to those options (including on failed cases),
+and a forged gold label cannot introduce a new option. Unknown Choice IDs
+and non-frozen datasets fail closed. Impossible decision labels are never
+allowed to change published accuracy metrics.
 
 Every successful model-sourced case must have a nonempty requested/resolved
 model identity equal to the run's single pinned model ID, plus its actual
