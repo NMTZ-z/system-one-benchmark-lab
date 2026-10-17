@@ -169,9 +169,28 @@ recomputing statistics. **Raw model safety advice is also verified** against
 the independently recorded Gate reason and final decision: e.g. the
 `model_complete_below_safety_threshold` event MUST retain raw `complete`
 and guarded `verify`, so the Laya C04 unsafe suggestion cannot disappear
-by editing `raw_model_decision` and recomputing the summary. This detects
-internally contradictory evidence but cannot authenticate a fully rewritten
-report without an external signed source.
+by editing `raw_model_decision` and recomputing the summary.
+
+**Failed model safety evidence:** A provider may successfully return a
+validated Typed Decision but later fail the legacy Gate's confidence or
+policy-consumption checks. When this produces `provider_error`, the runner
+retains the raw decision and a `raw_model_evidence` object containing the
+already-validated primitive and model probability distribution. Comparison
+verifies Choice argmax, Noul binary probability, or Score weighted levels
+against the raw recommendation **before** counting unsafe raw advice.
+A failed case lacking corroborating typed-model evidence cannot invent or
+silently erase a model recommendation; neither can a Rule-only run claim a
+model-related failure. A failure before any valid model result is recorded
+with no raw vote and no invented unsafe-model count. These are internal
+consistency checks, **not cryptographic protection against an attacker who
+can coherently forge every report field**.
+
+For all valid Completion/Retry outcomes, the recorded decision must be one
+of the frozen Gate label sets (Completion: `complete|continue|verify`;
+Retry: the six allowed advisory outcomes). Primitive Choice, Noul, and Score
+outputs must retain their expected types, and Score must remain within the
+supported scoring range. Impossible decision labels are never allowed to
+change published accuracy metrics.
 
 Every successful model-sourced case must have a nonempty requested/resolved
 model identity equal to the run's single pinned model ID, plus its actual

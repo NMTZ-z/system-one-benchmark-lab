@@ -347,6 +347,17 @@ def run(args: argparse.Namespace) -> int:
             "usage": record.usage if record else None,
             "decision_source_note": response.get("reason"),
         }
+        if status == "provider_error" and record is not None:
+            # Persist independently validated model probabilities for failed
+            # legacy-Gate cases. An observed unsafe raw recommendation must
+            # remain auditable even after a conservative fallback.
+            observed["raw_model_evidence"] = {
+                "primitive": record.primitive,
+                "probabilities": dict(record.probabilities),
+            }
+            # The typed Provider result, not a possibly inconsistent Gate
+            # fallback field, is authoritative for failed raw-model evidence.
+            observed["raw_model_decision"] = record.decision
         observed["correct"] = _expected_correct(observed)
         observations.append(observed)
     if args.provider == "laya" and args.ane_package is not None:
@@ -382,14 +393,102 @@ def run(args: argparse.Namespace) -> int:
     return 0 if summary["failures_or_unsupported"] == 0 else 2
 
 
-def _verify_raw_decision(case: dict[str, Any], *, where: str) -> None:
-    """Validate model raw advice against its legacy Gate reason and final label.
+def _verify_unsuccessful_raw_evidence(
+    case: dict[str, Any], *, where: str, provider: str,
+) -> None:
+    """Only count failed raw advice when a validated model vote corroborates it.
 
-    The raw label is safety evidence. Recomputing summary(raw) alone does not
-    detect a tampered raw label; the Gate's independent recorded reason must
-    corroborate any policy downgrade such as complete -> verify.
+    The legacy Gate may fail AFTER the typed model returned a valid vote.
+    Record its probability distribution at inference time and verify the raw
+    label against that independent evidence, instead of trusting a free-form
+    raw_model_decision. No failure may invent model output without a vote.
     """
-    if case["status"] != "ok" or case["decision_source"] != "model":
+    raw = case["raw_model_decision"]
+    evidence = case.get("raw_model_evidence")
+    status = case["status"]
+    if provider == "rule":
+        if status == "provider_error" or raw is not None or evidence is not None:
+            raise ValueError(f"{where} rule-only report cannot claim failed model evidence")
+        return
+    if status != "provider_error":
+        if raw is not None or evidence is not None:
+            raise ValueError(f"{where} unsupported/invalid case cannot claim model advice")
+        return
+    if raw is None:
+        if evidence is not None:
+            raise ValueError(f"{where} raw evidence without a model recommendation")
+        if any(
+            case.get(key) is not None
+            for key in ("model_requested", "model_resolved", "usage")
+        ) or case.get("execution_backend") in ("mlx", "ane", "remote_http"):
+            raise ValueError(f"{where} failed raw model vote missing despite provider evidence")
+        return
+    if not isinstance(evidence, dict) or set(evidence) != {"primitive", "probabilities"}:
+        raise ValueError(f"{where} failed raw model decision lacks validated vote evidence")
+    primitive = evidence["primitive"]
+    probs = evidence["probabilities"]
+    if primitive not in ("choice", "score", "noul") or not isinstance(probs, dict):
+        raise ValueError(f"{where} invalid failed model primitive/probabilities")
+    if (
+        (case["family"] == "primitive" and primitive != case["primitive"])
+        or (case["family"] in ("completion", "retry") and primitive != "choice")
+    ):
+        raise ValueError(f"{where} failed raw evidence contradicts case primitive")
+    if not 2 <= len(probs) <= 255 or any(
+        not isinstance(label, str) or not label for label in probs
+    ):
+        raise ValueError(f"{where} invalid failed model probability labels")
+    weights = {
+        label: finite_number(prob, "failed model probability")
+        for label, prob in probs.items()
+    }
+    if any(not 0 <= prob <= 1 for prob in weights.values()) or not math.isclose(
+        sum(weights.values()), 1.0, abs_tol=1e-3, rel_tol=0,
+    ):
+        raise ValueError(f"{where} invalid failed model probability mass")
+    if primitive == "choice":
+        valid = (
+            isinstance(raw, str) and raw in weights
+            and math.isclose(weights[raw], max(weights.values()), abs_tol=1e-8)
+        )
+    elif primitive == "noul":
+        valid = (
+            set(weights) == {"true", "false"}
+            and type(raw) is bool and raw == (weights["true"] >= 0.5)
+        )
+    else:
+        valid_labels = {str(i) for i in range(len(weights))}
+        valid = (
+            set(weights) == valid_labels and 2 <= len(weights) <= 10
+            and type(raw) in (int, float)
+            and abs(finite_number(raw, "failed model score") -
+                    sum(i * weights[str(i)] for i in range(len(weights)))) <= 0.011
+        )
+    if not valid:
+        raise ValueError(f"{where} failed raw model decision contradicts validated vote")
+    if not all(
+        isinstance(case.get(key), str) and case[key].strip()
+        for key in ("model_requested", "model_resolved", "execution_backend")
+    ):
+        raise ValueError(f"{where} failed raw model evidence missing provenance")
+    if provider == "jev" and case["execution_backend"] != "remote_http":
+        raise ValueError(f"{where} failed Jev advice requires remote_http provenance")
+    if provider == "laya" and case["execution_backend"] not in ("mlx", "ane"):
+        raise ValueError(f"{where} failed Laya advice requires local provenance")
+
+
+def _verify_raw_decision(
+    case: dict[str, Any], *, where: str, provider: str,
+) -> None:
+    """Validate successful and failed raw advice before any safety count."""
+    if case["status"] != "ok":
+        _verify_unsuccessful_raw_evidence(case, where=where, provider=provider)
+        return
+    if case.get("raw_model_evidence") is not None:
+        raise ValueError(f"{where} successful case has unexpected failed vote evidence")
+    if case["decision_source"] != "model":
+        # Keep the existing, more specific rule/model contradiction diagnostic
+        # in compare(), which also checks backend, identity and token usage.
         return
     raw, selected = case["raw_model_decision"], case["decision"]
     if raw is None:
@@ -420,7 +519,9 @@ def _verify_raw_decision(case: dict[str, Any], *, where: str) -> None:
         raise ValueError(f"{where} raw model decision contradicts gate reason")
 
 
-def _verify_case_for_summary(case: dict[str, Any], *, index: int, path: Path) -> None:
+def _verify_case_for_summary(
+    case: dict[str, Any], *, index: int, path: Path, provider: str,
+) -> None:
     """Validate the fields consumed by _summary before recomputing statistics."""
     where = f"comparison report {path.name}: case {index}"
     if not isinstance(case.get("family"), str) or case["family"] not in ALLOWED_FAMILIES:
@@ -455,9 +556,26 @@ def _verify_case_for_summary(case: dict[str, Any], *, index: int, path: Path) ->
         raise ValueError(f"{where} correct contradicts gold, decision or status")
     if not score_case and type(case["gold"]) not in (str, bool):
         raise ValueError(f"{where} invalid classification gold")
-    if case["status"] == "ok" and case["decision"] is None:
+    decision = case["decision"]
+    if case["status"] == "ok" and decision is None:
         raise ValueError(f"{where} valid case missing decision")
-    _verify_raw_decision(case, where=where)
+    if decision is not None:
+        if case["family"] == "completion":
+            if type(decision) is not str or decision not in ("complete", "continue", "verify"):
+                raise ValueError(f"{where} invalid Completion decision label")
+        elif case["family"] == "retry":
+            if type(decision) is not str or decision not in DECISIONS:
+                raise ValueError(f"{where} invalid Retry decision label")
+        elif case["primitive"] == "choice":
+            if type(decision) is not str or not decision.strip():
+                raise ValueError(f"{where} invalid Choice decision type")
+        elif case["primitive"] == "noul":
+            if type(decision) is not bool:
+                raise ValueError(f"{where} invalid Noul decision type")
+        elif case["primitive"] == "score":
+            if not 0 <= finite_number(decision, f"{where} Score decision") <= 9:
+                raise ValueError(f"{where} invalid Score decision range")
+    _verify_raw_decision(case, where=where, provider=provider)
     latency = case["latency_ms"]
     if latency is not None and finite_number(latency, f"{where} latency_ms") < 0:
         raise ValueError(f"{where} negative latency_ms")
@@ -524,7 +642,9 @@ def _validate_comparison_report(value: Any, *, path: Path) -> dict[str, Any]:
     if summary["total"] != len(cases):
         raise ValueError(f"comparison report {path.name}: summary total mismatch")
     for index, case in enumerate(cases):
-        _verify_case_for_summary(case, index=index, path=path)
+        _verify_case_for_summary(
+            case, index=index, path=path, provider=value["provider"],
+        )
     # Never trust a caller-supplied aggregate, even when its total matches.
     expected_summary = _summary(cases)
     _require_same_summary(expected_summary, summary)

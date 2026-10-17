@@ -152,6 +152,11 @@ def test_unsafe_raw_counted_when_legacy_gate_marks_case_failed(monkeypatch, tmp_
     assert case["status"] == "provider_error"
     assert case["decision"] == "continue"  # Fails safe; raw is still counted.
     assert case["raw_model_decision"] == "complete"
+    assert case["raw_model_evidence"]["primitive"] == "choice"
+    assert case["raw_model_evidence"]["probabilities"]["complete"] == pytest.approx(0.9)
+    # The published failed-provider event must pass the same strict validator
+    # used by a real three-way comparison, without hiding the safety event.
+    assert pilot._validate_comparison_report(report, path=output)["summary"] == report["summary"]
     assert report["summary"]["unsafe_raw_model_suggestions"] == 1
     assert report["summary"]["unsafe_final_suggestions"] == 0
     assert report["remote_usage_unknown_attempts"] == 0
