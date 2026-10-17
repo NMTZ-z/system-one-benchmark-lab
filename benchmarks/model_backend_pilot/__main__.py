@@ -880,9 +880,15 @@ def compare(args: argparse.Namespace) -> int:
                 raise ValueError(
                     "JEV remote_attempts exceed successful and failed provider cases"
                 )
-            for index, case in enumerate(succeeded):
+            # All known per-case usage is billing evidence, including a case
+            # that later failed the legacy Gate. Invalid usage must not be
+            # silently excluded from the minimum observed cost.
+            known_input_tokens = 0
+            for index, case in enumerate(report["cases"]):
                 usage = case.get("usage")
-                if usage is not None and (
+                if usage is None:
+                    continue
+                if (
                     not isinstance(usage, dict)
                     or set(usage) != {"input_tokens", "output_tokens"}
                     or any(
@@ -891,6 +897,7 @@ def compare(args: argparse.Namespace) -> int:
                     )
                 ):
                     raise ValueError(f"JEV model result {index} has invalid token usage")
+                known_input_tokens += usage["input_tokens"]
             unknown = report.get("remote_usage_unknown_attempts")
             if type(unknown) is not int or not 0 <= unknown <= attempts:
                 raise ValueError("JEV invalid remote_usage_unknown_attempts")
@@ -899,6 +906,19 @@ def compare(args: argparse.Namespace) -> int:
             cost = report.get("remote_usage_based_cost_estimate_usd")
             if cost is None or finite_number(cost, "JEV usage cost estimate") < 0:
                 raise ValueError("JEV invalid usage-based cost estimate")
+            # Share the provider's exact pricing constant. Successful/failed
+            # cases with known input usage supply a lower bound, NOT a bill.
+            # Semantically invalid server responses can incur measurable cost
+            # while their per-case usage is unavailable, so an excess estimate
+            # must remain permissible.
+            from local_system_one.model_backends.jev import PRICE_USD_PER_INPUT_TOKEN
+            minimum_known_usd = known_input_tokens * PRICE_USD_PER_INPUT_TOKEN
+            if cost < minimum_known_usd and not math.isclose(
+                cost, minimum_known_usd, rel_tol=1e-10, abs_tol=1e-12,
+            ):
+                raise ValueError(
+                    "JEV usage-based cost estimate below known input-token charges"
+                )
         elif report["remote_attempts"] != 0:
             raise ValueError("local or rule-only report cannot claim remote attempts")
     result = {

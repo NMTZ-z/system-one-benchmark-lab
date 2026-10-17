@@ -217,7 +217,14 @@ the number of successful model-backed decisions, exceed one attempt per
 sample, or exceed the total of successful model decisions plus recorded
 provider-error cases (zero automatic retries). The unknown-usage count must
 be consistent with remote attempts, while known token usage requires valid
-nonnegative integer input/output token fields. Rule-only and Laya results
+nonnegative integer input/output token fields. The Jev report's
+`remote_usage_based_cost_estimate_usd` must be **at least** the price of
+all recorded per-case input tokens, using the same input-token rate as the
+Jev provider. This includes known usage from failed cases. Zero or
+understated estimates are rejected; extra estimated charges remain allowed
+when a failed server response incurred usage not present in its per-case
+record. The aggregate is an **estimate**, not a verified account invoice.
+Rule-only and Laya results
 cannot claim remote attempts. Every successful `decision_source=rule` case
 must have the rule backend and **no** provider identity, raw model
 suggestion or token usage; a successful model case cannot be relabeled as a
