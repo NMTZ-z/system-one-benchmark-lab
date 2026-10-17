@@ -29,6 +29,11 @@ from local_system_one.workflows.retry_escalation_gate import (
 
 STRATEGY = "frozen-original-gate-policy-v1"
 ALLOWED_FAMILIES = {"primitive", "completion", "retry"}
+# Immutable v1 public/synthetic research corpus, frozen before any real
+# TypeSafe runs. Do not accept an operator assertion as proof of data class.
+FROZEN_PUBLIC_DATASET_SHA256 = (
+    "215c35e52e0c1abbe1c3219f7d24828db1fe9298d43cb2e2b5baf27c9c176c90"
+)
 
 
 def _records(path: Path) -> tuple[str, list[dict[str, Any]]]:
@@ -254,6 +259,11 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run(args: argparse.Namespace) -> int:
     data_hash, cases = _records(args.dataset)
+    if args.provider == "jev" and data_hash != FROZEN_PUBLIC_DATASET_SHA256:
+        raise ValueError(
+            "JEV remote BLOCKED: dataset is not the frozen public synthetic "
+            "v1 corpus (SHA-256 mismatch)"
+        )
     preflight_report_output(args.output, inputs=[args.dataset], kind="run")
     if args.provider == "jev" and not (
         args.allow_remote and args.public_data_confirmed and
@@ -267,6 +277,11 @@ def run(args: argparse.Namespace) -> int:
     # intentionally fails closed for Git-less public export bundles rather than
     # charging Jev and then failing at the end without a report.
     provenance = preflight_provenance(Path(__file__).resolve().parents[2])
+    if args.provider == "jev" and not provenance.clean_at_start:
+        raise ValueError(
+            "JEV remote BLOCKED: clean committed Git checkout required "
+            "before transmitting the frozen public dataset"
+        )
     provider = _load_provider(args)
     engine = ResearchEngine(provider) if provider is not None else RuleOnlyEngine()
     observations: list[dict[str, Any]] = []
@@ -550,6 +565,23 @@ def compare(args: argparse.Namespace) -> int:
                     raise ValueError(
                         f"{provider} case {index} inconsistent {identity_key} model identity"
                     )
+            if case["status"] == "ok" and case["decision_source"] == "rule":
+                # A true hard-rule outcome has no provider response, identity,
+                # usage or raw model advice. Do not allow a model result to
+                # disappear from participation counts by relabeling its source.
+                if (
+                    case["family"] == "primitive"
+                    or case.get("execution_backend") != "rule"
+                    or any(case.get(key) is not None for key in (
+                        "model_requested", "model_resolved", "raw_model_decision",
+                        "usage",
+                    ))
+                ):
+                    raise ValueError(
+                        f"{provider} case {index} rule source contradicts model evidence"
+                    )
+            if case["status"] == "ok" and case["decision_source"] == "none":
+                raise ValueError(f"{provider} case {index} successful result needs a decision source")
             if case["status"] != "ok" or case["decision_source"] != "model":
                 continue
             model_requested = case.get("model_requested")

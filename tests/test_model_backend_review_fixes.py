@@ -118,6 +118,15 @@ def test_unsafe_raw_counted_when_legacy_gate_marks_case_failed(monkeypatch, tmp_
     # remains observable and MUST count in safety metrics after failure.
     client = _mock_provider(monkeypatch, raw=_wire(has_confidence=False))
     monkeypatch.setattr(pilot, "_load_provider", lambda args: client)
+    # This unit test intentionally injects a one-case virtual fixture. Mock
+    # the independent remote-data/provenance preflight gates only here; other
+    # tests exercise both gates against the actual immutable public corpus.
+    from benchmarks.model_backend_pilot.integrity import Provenance
+    monkeypatch.setattr(pilot, "FROZEN_PUBLIC_DATASET_SHA256", "synthetic-dataset-sha")
+    monkeypatch.setattr(
+        pilot, "preflight_provenance",
+        lambda _root: Provenance(git_sha="a" * 40, clean_at_start=True),
+    )
     monkeypatch.setattr(pilot, "_records", lambda path: (
         "synthetic-dataset-sha",
         [{

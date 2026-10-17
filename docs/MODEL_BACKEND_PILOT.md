@@ -41,8 +41,9 @@ has no authenticated Git checkout; it currently fails closed with a controlled
 preflight error, including for Rule-only. Run research from an actual Git
 checkout instead. Supporting exported archives requires a separately audited
 bundle-content verification mechanism; a manifest containing only a commit
-string is not sufficient. Dirty-source runs can be recorded for diagnosis but
-are rejected by `compare`.
+string is not sufficient. Dirty-source **local** Rule-only/Laya runs may be
+recorded for diagnosis but are rejected by `compare`; **Jev refuses an unclean
+Git checkout before any remote request**, even if consent and a budget exist.
 
 Before any billable API calls, the research CLI validates the entire dataset,
 including *all* Choice/Score/Noul and Completion/Retry payloads and legal gold
@@ -120,6 +121,17 @@ explicitly enable ALL of the following: --allow-remote,
 concrete version, not jev-latest/jev-preview aliases. **This is documentation
 of the required controls, not authorization to perform a live call.**
 
+**Remote dataset boundary (Jev only):** the exact JSONL bytes must match the
+frozen, prepublished `public_synthetic_v1.jsonl` with SHA-256
+`215c35e52e0c1abbe1c3219f7d24828db1fe9298d43cb2e2b5baf27c9c176c90`.
+A structurally valid but modified, reordered or reformatted dataset is
+**rejected before provider initialization and before Keychain access**.
+`--public-data-confirmed` is a necessary acknowledgement, not an override
+for this check. Remote runs also require a clean committed Git worktree;
+arbitrary local synthetic datasets remain usable with Rule-only or Laya
+without egress. Expanding Jev's experiment corpus requires a separately
+reviewed and versioned dataset/policy, never a hidden bypass flag.
+
 After three genuine result files exist, compare with:
 
 ~~~bash
@@ -151,8 +163,12 @@ sample, or exceed the total of successful model decisions plus recorded
 provider-error cases (zero automatic retries). The unknown-usage count must
 be consistent with remote attempts, while known token usage requires valid
 nonnegative integer input/output token fields. Rule-only and Laya results
-cannot claim remote attempts. Only freshly recomputed metrics are placed into
-the combined comparison output.
+cannot claim remote attempts. Every successful `decision_source=rule` case
+must have the rule backend and **no** provider identity, raw model
+suggestion or token usage; a successful model case cannot be relabeled as a
+rule outcome to hide participation. Failed model attempts may still retain raw
+suggestions for safety auditing. Only freshly recomputed metrics are placed
+into the combined comparison output.
 
 ## TypeSafe API and network safety
 
