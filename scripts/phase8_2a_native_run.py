@@ -21,6 +21,7 @@ from phase8_2a_verify import inspect_native_jsonl
 
 REPO = Path(__file__).resolve().parents[1]
 CONTENT = b"P82A_NATIVE_FILE_OK_V1"
+READ_NONCE = b"P82A_NATIVE_READ_NONCE_X91"
 
 
 def _get(url: str) -> dict:
@@ -69,11 +70,19 @@ def native_run(args: argparse.Namespace) -> dict:
     path = private_root / "runs" / args.run
     path.mkdir(parents=True, exist_ok=False, mode=0o700)
     target = path / "output.txt"
-    # Native tool identity is selected by platform. No simulation/replay.
-    tool_name = "write_file" if args.platform == "hermes" else "write"
-    prompt = (f"受控文件工具测试：必须仅使用平台原生 {tool_name} 工具将字符串 "
-              f"P82A_NATIVE_FILE_OK_V1 精确写到绝对路径 {target}。"
-              "不允许 shell、bash、浏览器、网络、其他工具。无论成功与否如实报告。")
+    input_file = path / "input.txt"
+    if args.scenario == "read_nonce":
+        input_file.write_bytes(READ_NONCE)
+        tool_name = "read_file" if args.platform == "hermes" else "read"
+        # The nonce is deliberately NOT in this task prompt or any Gate input.
+        prompt = (f"隔离的单步只读任务：请仅通过平台原生 {tool_name} 工具读取绝对路径 "
+                  f"{input_file} 的完整文件内容。然后将实际读取到的唯一标识原样写入最终答复。"
+                  "禁止猜测内容、禁止额外文件操作、shell、浏览器或联网。若读取失败请如实报告。")
+    else:
+        tool_name = "write_file" if args.platform == "hermes" else "write"
+        prompt = (f"受控文件工具测试：必须仅使用平台原生 {tool_name} 工具将字符串 "
+                  f"P82A_NATIVE_FILE_OK_V1 精确写到绝对路径 {target}。"
+                  "不允许 shell、bash、浏览器、网络、其他工具。无论成功与否如实报告。")
     env = os.environ.copy()
     env["STEPFUN_BASE_URL"] = base_url
     env["DSH_TELEMETRY_MODE"] = "DISABLED"
@@ -125,6 +134,30 @@ def native_run(args: argparse.Namespace) -> dict:
     provider_after = _get(base_url + "/_budget")
     new_gates = _snapshot_collector(args.shadow_log)[before_gates:]
     tool_metadata = inspect_native_jsonl(path / "stdout.private.txt") if args.platform == "dsh" else {}
+    read_proof = {}
+    if args.scenario == "read_nonce":
+        events = []
+        if args.platform == "dsh":
+            for row in (path / "stdout.private.txt").read_text(errors="replace").splitlines():
+                try:
+                    item = json.loads(row)
+                    if isinstance(item, dict):
+                        events.append(item)
+                except ValueError:
+                    continue
+            call_ids = {e.get("callId") for e in events if e.get("type") == "tool_call" and e.get("tool") == "read"}
+            actual_results = [e for e in events if e.get("type") == "tool_result" and e.get("callId") in call_ids and e.get("status") == "completed"]
+            tool_reads_nonce = any(READ_NONCE.decode() in json.dumps(e.get("result"), ensure_ascii=False) for e in actual_results)
+            final_answer_has_nonce = any(READ_NONCE.decode() in str(e.get("text", "")) for e in events if e.get("type") == "final")
+            read_proof = {
+                "read_tool_call_count": len(call_ids), "read_success_results": len(actual_results),
+                "native_read_proves_content": tool_reads_nonce,
+                "final_answer_matches_nonce": final_answer_has_nonce,
+            }
+        else:
+            # Hermes public CLI summary alone does not provide native tool
+            # result text evidence. Shadow hook state is audited separately.
+            read_proof = {"final_answer_matches_nonce": READ_NONCE.decode() in (path / "stdout.private.txt").read_text(errors="replace")}
     after_state = _plugin_counts(args.hermes_home) if args.platform == "hermes" else {}
     model_usage = {}
     usage_path = path / "usage.private.json"
@@ -135,10 +168,13 @@ def native_run(args: argparse.Namespace) -> dict:
             model_usage["auxiliary_api_calls"] = u["auxiliary"].get("api_calls")
     report = {
         "run_id": args.run, "code_sha": expected, "platform": args.platform,
-        "mode": args.mode, "scenario": "write_single_file", "main_model": "stepfun/step-5-preview",
+        "mode": args.mode, "scenario": args.scenario, "main_model": "stepfun/step-5-preview",
         "process_exit_code": exit_code, "timed_out": timed_out,
         "elapsed_seconds": round(time.monotonic() - started, 3),
-        "artifact_exact": target.exists() and target.read_bytes() == CONTENT,
+        "artifact_exact": target.exists() and target.read_bytes() == CONTENT if args.scenario == "write_single_file" else None,
+        "input_sha256": hashlib.sha256(input_file.read_bytes()).hexdigest() if input_file.is_file() else None,
+        "input_unchanged": input_file.is_file() and input_file.read_bytes() == READ_NONCE if args.scenario == "read_nonce" else None,
+        "read_proof": read_proof,
         "file_sha256": hashlib.sha256(target.read_bytes()).hexdigest() if target.is_file() else None,
         "provider_calls_counted_at_proxy": provider_after.get("used_run", 0),
         "provider_global_used": provider_after.get("used_total", 0),
@@ -158,6 +194,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--platform", choices=["hermes", "dsh"], required=True)
     ap.add_argument("--mode", choices=["off", "shadow"], required=True)
+    ap.add_argument("--scenario", choices=["write_single_file", "read_nonce"], default="write_single_file")
     ap.add_argument("--run", required=True)
     ap.add_argument("--private-root", required=True, type=Path)
     ap.add_argument("--hermes-home", type=Path)
