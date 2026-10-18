@@ -247,6 +247,9 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
   const retryCallNames = new Map<string, string>()
   const retrySeen = new Set<string>()
   const retryCounts = new Map<string, number>()
+  // Only a native turn/start can admit Retry events. Ended turns cannot be
+  // resurrected by delayed tool/call or tool/result callbacks.
+  const retryLiveTurns = new Set<string>()
   let retryInFlight = 0
   const RETRY_MAX_OBSERVATIONS = 2
   const RETRY_MAX_ACTIVE_TURNS = 96
@@ -304,11 +307,20 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
           if (k.startsWith(key + ':')) retrySeen.delete(k)
         }
       }
+      if (config.retryEscalationGateEnabled && !retryLiveTurns.has(key)) {
+        if (retryLiveTurns.size < RETRY_MAX_ACTIVE_TURNS) {
+          retryLiveTurns.add(key)
+        } else {
+          retryStatus('failed_open', 'retry_turn_capacity_exhausted')
+        }
+      }
       state.beginTurn(sessionId, turn)
       return
     }
 
     if (config.retryEscalationGateEnabled && event.type === 'tool/call' && turn !== null) {
+      // Late calls without a started turn cannot revive cleaned identity maps.
+      if (!retryLiveTurns.has(turnKey(sessionId, turn))) return
       // Join exact upstream call id to a pinned tool policy; do not retain arguments.
       const callId = event.data?.callId
       const toolName = event.data?.name
@@ -337,7 +349,8 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       return
     }
 
-    if (config.retryEscalationGateEnabled && event.type === 'tool/result' && turn !== null) {
+    if (config.retryEscalationGateEnabled && event.type === 'tool/result' && turn !== null
+        && retryLiveTurns.has(turnKey(sessionId, turn))) {
       const message = event.data?.message
       if (typeof message === 'object' && message !== null &&
           (message as Record<string, unknown>).isError === true) {
@@ -410,6 +423,7 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
     if (event.type === 'turn/end' && turn !== null) {
       const candidateKey = turnKey(sessionId, turn)
+      retryLiveTurns.delete(candidateKey)
       retryCounts.delete(candidateKey)
       for (const k of retryCallNames.keys()) {
         if (k.startsWith(candidateKey + ':')) retryCallNames.delete(k)
@@ -492,6 +506,9 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
     }
 
     if (event.type === 'session/end' || event.type === 'session/close') {
+      for (const k of retryLiveTurns) {
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retryLiveTurns.delete(k)
+      }
       for (const k of retryCounts.keys()) {
         if (k.startsWith(sessionKeyPrefix(sessionId))) retryCounts.delete(k)
       }

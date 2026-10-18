@@ -67,9 +67,9 @@ def _provider():
         yield url + "/step_plan/v1/chat/completions", seen
 
 
-def _call(url, *, model="step-5-preview", secret="NEVER_SAVE_SECRET", body=None):
+def _call(url, *, model="step-5-preview", marker="NEVER_SAVE_SECRET", body=None):
     payload = body if body is not None else json.dumps({
-        "model": model, "messages": [{"role": "user", "content": secret}],
+        "model": model, "messages": [{"role": "user", "content": marker}],
     }).encode()
     req = Request(url + "/chat/completions", data=payload, method="POST",
                   headers={"Authorization": "Bearer PRIVATE_PROVIDER_KEY_VALUE_123",
@@ -142,7 +142,7 @@ def test_provider_http_503_still_consumes_a_slot(tmp_path):
     with _provider() as (upstream, seen):
         ledger = BudgetLedger(tmp_path / "ledger.jsonl", total_limit=1, per_run_limit=1)
         with _running(make_server(port=0, ledger=ledger, run="server_failure", upstream=upstream)) as url:
-            assert _call(url, secret="trigger_503")[0] == 503
+            assert _call(url, marker="trigger_503")[0] == 503
             assert _call(url)[0] == 429
         assert len(seen) == 1
         statuses = [json.loads(l).get("http_status") for l in ledger.path.read_text().splitlines()]

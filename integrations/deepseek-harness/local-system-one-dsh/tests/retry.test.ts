@@ -36,6 +36,8 @@ function stubRemote() {
   return fetchMock
 }
 function call(ctx: Context, tool: string, id: string, session = 's', turn = 1) {
+  // Native Harness guarantees turn/start before the first tool call.
+  ctx.fire('session/event', session, 'turn/start', { turn })
   ctx.fire('session/event', session, 'tool/call', {
     turn, step: 1, name: tool, callId: id,
     arguments: '{"secret":"never log me"}',
@@ -218,6 +220,35 @@ describe('Phase 8C DSH Retry Shadow', () => {
     await settle()
     expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(JSON.stringify(ctx.events)).not.toContain('very private ERROR')
+  })
+
+  it('drops late tool events after turn/end and session/end without reviving Retry budgets', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+    call(ctx, 'read', 'first', 's', 1)
+    result(ctx, 'first', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    ctx.fire('session/event', 's', 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+    const logged = ctx.events.length
+    ctx.fire('session/event', 's', 'tool/call', { turn: 1, name: 'read', callId: 'late' })
+    result(ctx, 'late', true, 's', 1)
+    result(ctx, 'first', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(ctx.events).toHaveLength(logged)
+    call(ctx, 'read', 'fresh', 's', 2)
+    result(ctx, 'fresh', true, 's', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    ctx.fire('session/event', 's', 'session/end', {})
+    const afterClose = ctx.events.length
+    ctx.fire('session/event', 's', 'tool/call', { turn: 2, name: 'read', callId: 'very-late' })
+    result(ctx, 'very-late', true, 's', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(ctx.events).toHaveLength(afterClose)
   })
 
   it('malformed runtime responses fail-open and preserve Agent events', async () => {
