@@ -780,3 +780,94 @@ Sanitized failed-run record:
 [`results/processed/phase8_2a_hermes_route_401_diagnostic.json`](../results/processed/phase8_2a_hermes_route_401_diagnostic.json).
 This invalid pre-cap route attempt must remain separate from any formal
 Hermes OFF/Shadow/Runtime-down acceptance table. Its billed cost is unknown.
+
+## 15. Hermes frozen native OFF / healthy Shadow / Runtime-down paired acceptance
+
+**Date:** 2026-10-19. **Frozen exact working tree:**
+`9120c98a7373d7de6e32f7024eb11b4e4d25cec0` (clean before all three
+native runs). The earlier StepFun HTTP 401 and the budget-proxy bypass in
+Section 14 are **separate, rejected experiments** and are not counted as a
+formal test. Those earlier failures prompted the mandatory
+`validate_provider_proxy_route()` check and per-credential endpoint audit.
+
+The isolated Hermes test Home was configured with
+`model.base_url=http://127.0.0.1:18794`, a loopback-only hard-budget
+Provider. The official Hermes isolated pool entry exhaustion status was
+reset with `hermes auth reset stepfun phase8-2a-isolated`, solely in that
+private Home, without copying or printing any API key. This is only a test
+routing correction. Source code, main model and key's intended existing
+StepFun Plan subscription did not change. The real upstream forwarding
+endpoint remained the separately allowlisted
+`https://api.stepfun.com/step_plan/v1/chat/completions`.
+
+Three consecutive native Hermes `-z` Agent runs used the identical hidden
+file-read task family under independently checked OFF, healthy Shadow and
+Runtime-stopped Shadow. The Hermes executable remained
+`v0.22.1+11.gd923a5e`, its plugin source and Laya Runtime source were
+byte-identical to the earlier pinned real native Hermes test. All were
+bounded to 90 seconds and **3 real Provider requests per case / 9 in total**.
+The cap was reserved *before* each upstream I/O attempt and was not refunded
+on failures, timeouts, auxiliary requests or transport retries.
+
+| Hermes case | Actual native tool evidence | Native outcome | System One HTTP | StepFun Plan forwarded |
+|---|---|---|---|---:|
+| OFF | One native `read_file` and paired success result | Success; final exact hidden content verified | **0** | **3** |
+| Shadow, healthy Laya/MLX | One native `read_file` and paired success result | Success; final exact hidden content verified | Completion **200, 200**, both genuine `mlx/model` | **3** |
+| Shadow, Runtime explicitly stopped | One native `read_file` and paired success result | Success; final exact hidden content verified | Completion **503, 503**, fail-open | **3** |
+
+**Independent native evidence is stronger than Agent final answer alone.**
+The sanitized verifier reads Hermes' private isolated SQLite Session and
+Message tables, confirms each Session uses exactly one native structured
+`read_file` tool call, matches its call ID to the persisted native tool
+result, checks the original file bytes are present in the actual tool
+result **and** final assistant message, and verifies that these bytes were
+not included in the user task prompt. The saved Session's billing route is
+exactly the private loopback proxy and each Agent terminated normally. It
+also checks the independent per-run JSON metrics, the plugin's Completion
+per-turn and tool-probe counters, the isolated Runtime HTTP observer log,
+and all 9 pre-network reserved and finalized Provider ledger slots. There
+were **nine real HTTPS HTTP 200 responses and no request beyond the cap**.
+Hermes self-reported 2 main-model calls per scenario; the separate proxy
+records 3 total requests per scenario. Its accounting is authoritative, so
+unexplained main/auxiliary count differences are not presented as a reliable
+breakdown or free billing.
+
+The formal verifier is
+[`scripts/phase8_2a_hermes_paired_verify.py`](../scripts/phase8_2a_hermes_paired_verify.py),
+with corresponding synthetic *verifier-only* negative unit tests in
+[`tests/test_phase8_2a_hermes_paired_verify.py`](../tests/test_phase8_2a_hermes_paired_verify.py).
+These unit fixtures never call a real model and do not substitute for the
+native transcript. The exact sanitized outcome is
+[`results/processed/phase8_2a_hermes_native_off_shadow_down.json`](../results/processed/phase8_2a_hermes_native_off_shadow_down.json).
+
+This is **n=1** per condition. Recorded durations are descriptive only,
+not statistical latency evidence or proof of zero Shadow overhead.
+The privacy-safe HTTP collector is associated to each test by its
+sequential isolated run window but does not carry a native Session ID,
+so exact per-request cross-platform ID correlation remains unproven.
+Actual provider-plan monetary charge/credit usage is unknown. No Active
+control, automatic retry/stop, Gateway restart, shared profile edit,
+production deployment or JEV model switching occurred.
+
+### Final Phase 8.2A acceptance supersedes the earlier checkpoint matrices
+
+The earlier BLOCKED rows in Sections 7–14 are **historical checkpoints**,
+not a current claim that the missing Hermes tests remain incomplete.
+
+| Field | Current judgment | Evidence limit |
+|---|---|---|
+| Hermes Native E2E | **PASS (scoped)** | Real success/failure native hooks previously observed on byte-identical Hermes adapter; latest frozen successful native read under all three matching control conditions |
+| DSH Native E2E | **PASS (scoped)** | Latest frozen DSH SDK real tool failure/success, same resident process with two Turns and overlapping Session starts |
+| Completion Observation | **PASS (scoped)** | Real `mlx/model` Completion from both Hermes and DSH native runs; no Active changes |
+| Retry Observation | **PASS (scoped)** | Conservative real rule-backed Retry on Hermes and DSH failed tool paths; no automatic retries authorized |
+| Shadow Noninterference | **PASS (scoped)** | Both platforms' one-Turn native read OFF/healthy/down run families; native task still completed under Runtime 503 |
+| Privacy / Cleanup | **PASS (scoped)** | Only allowlisted metadata exported, test-only loopback services all stopped, no production profile/key export |
+| Regression | **PASS** | Full Python and DSH regression / release builder run on final clean source candidate |
+| **Phase 8.2A Engineering** | **PASS for the declared bounded native Shadow E2E scope** | Not production-grade universal behavior, stress/performance or Active readiness |
+| Model Superiority | **NOT_EVALUATED** | Decision-model comparative accuracy beyond this stage |
+| Active Authority | **NOT_AUTHORIZED** | No permission to change normal tool execution, stop Agent or retry automatically |
+
+Phase 8.2A is therefore **technically ready for an explicit maintainer merge
+decision**. The GitHub PR stays Draft, and no merge to main or production
+rollout is authorized merely by this report. Any continuation into 8.2B
+should preserve these read-only Shadow and reversible integration boundaries.
