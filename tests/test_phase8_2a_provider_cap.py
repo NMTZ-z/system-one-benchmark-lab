@@ -59,7 +59,10 @@ def _provider():
             self.end_headers()
             self.wfile.write(response)
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+    class BurstServer(ThreadingHTTPServer):
+        request_queue_size = 64
+
+    server = BurstServer(("127.0.0.1", 0), Upstream)
     with _running(server) as url:
         yield url + "/step_plan/v1/chat/completions", seen
 

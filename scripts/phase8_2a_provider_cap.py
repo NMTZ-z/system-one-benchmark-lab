@@ -184,9 +184,13 @@ class ProviderCapHandler(BaseHTTPRequestHandler):
             )
 
 
+class CappedHTTPServer(ThreadingHTTPServer):
+    request_queue_size = 64  # Small concurrent bursts must reach the budget gate.
+
+
 def make_server(*, port: int, ledger: BudgetLedger, run: str,
                 upstream: str = UPSTREAM) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer(("127.0.0.1", port), ProviderCapHandler)
+    server = CappedHTTPServer(("127.0.0.1", port), ProviderCapHandler)
     server.ledger = ledger
     server.run_id = run
     server.upstream = upstream
