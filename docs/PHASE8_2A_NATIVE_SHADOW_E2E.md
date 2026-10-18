@@ -423,3 +423,33 @@ separate):
 
 No production Canary rights, automatic retry, active stop, model ranking,
 JEV calls, stable install updates, or automatic PR merge were authorized.
+
+### Pre-freeze adversarial lifecycle review
+
+An independent order-of-delivery regression was added **after** the previous
+56-test DSH run. It first failed reproducibly: if a duplicate `turn/start`
+arrived **after `turn/end`**, the Retry observer could accept a new call for an
+already completed turn. This was a concrete missing safety test, not a claim
+of an observed live production failure.
+
+The minimal repair records, per session ID, the **highest retired native Turn
+number** (bounded to 256 recent session identities); an old `turn/start`
+therefore cannot restart the Retry budget. `session/end` without `turn/end`
+retires all its active turn IDs. Crucially, a truly **higher** Turn number can
+still resume on the same persisted session ID, so the original native-resume
+contract is preserved. Colon-delimited child session IDs remain isolated by
+the existing length-prefixed session identity. Very old events after more than
+256 other retired session identities have an explicit bounded-history limit;
+we do not claim indefinite de-duplication or production session persistence.
+
+The regression was run failing against the previous implementation, then
+passing with the fix, alongside an additional session-close-without-turn-end
+case. This is **offline lifecycle verification** only until the final frozen
+candidate receives its own real StepFun Provider-backed acceptance. No Gate
+was promoted to Active, and the decision policy remains unchanged.
+
+Pre-freeze runner hardening also added `--expected-sha`, pinned DeepSeek
+Harness CLI SHA verification, a strict Git-ignored private location for real
+Provider budget ledgers, and process-group shutdown for test Agents timing out.
+These guard test provenance and prevent orphaned child processes; they are not
+changes to normal Agent execution or the runtime's model decisions.

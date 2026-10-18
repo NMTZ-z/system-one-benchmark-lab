@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import signal
 from pathlib import Path
 import re
 import subprocess
@@ -56,6 +57,8 @@ def native_run(args: argparse.Namespace) -> dict:
     if not private_root.is_relative_to(REPO / "private"):
         raise ValueError("test root must be a Git-ignored repository private directory")
     expected = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
+    if not re.fullmatch(r"[a-f0-9]{40}", args.expected_sha) or expected != args.expected_sha:
+        raise ValueError("native candidate SHA differs from the declared frozen commit")
     dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True)
     if dirty:
         raise ValueError("formal run requires frozen clean Git worktree")
@@ -111,6 +114,14 @@ def native_run(args: argparse.Namespace) -> dict:
             raise ValueError("native DSH provider/Shadow patch mismatch")
         if provider.get("retryPolicy", {}).get("maxRetries") != 0:
             raise ValueError("DSH provider-owned retry policy must be zero")
+        # DeepSeek Harness is a pinned upstream checkout, not whichever CLI
+        # happens to be on PATH. Refuse a modified/unexpected main runner.
+        pinned_dsh = args.dsh_cli.resolve().parents[3]
+        if not (args.dsh_cli.resolve() == pinned_dsh / "apps/cli/lib/bin.js"
+                and subprocess.check_output(["git", "-C", str(pinned_dsh),
+                                             "rev-parse", "HEAD"], text=True).strip()
+                == "477b4f420553e8a52c2fbccc464d7561b239c443"):
+            raise ValueError("DSH CLI is not the pinned native upstream checkout")
         cmd = ["node", str(args.dsh_cli.resolve()), "--profile", "headless",
                "--patch", str(args.dsh_patch.resolve()), "--json", prompt]
         before_state = {}
@@ -118,13 +129,20 @@ def native_run(args: argparse.Namespace) -> dict:
     started = time.monotonic()
     timed_out = False
     with (path / "stdout.private.txt").open("w") as out, (path / "stderr.private.txt").open("w") as err:
+        # A native Agent can spawn tool children. Kill the entire isolated
+        # process group on timeout, not only the CLI wrapper process.
+        process = subprocess.Popen(cmd, cwd=path, env=env, stdout=out,
+                                   stderr=err, start_new_session=True)
         try:
-            process = subprocess.run(cmd, cwd=path, env=env, stdout=out,
-                                     stderr=err, timeout=args.timeout)
-            exit_code = process.returncode
+            exit_code = process.wait(timeout=args.timeout)
         except subprocess.TimeoutExpired:
             exit_code = None
             timed_out = True
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
     # Bounded drain is test-host bookkeeping, never a native callback wait.
     end = time.monotonic() + 3
     while time.monotonic() < end:
@@ -196,6 +214,7 @@ def main():
     ap.add_argument("--mode", choices=["off", "shadow"], required=True)
     ap.add_argument("--scenario", choices=["write_single_file", "read_nonce"], default="write_single_file")
     ap.add_argument("--run", required=True)
+    ap.add_argument("--expected-sha", required=True, help="Exact 40-character frozen candidate Git SHA")
     ap.add_argument("--private-root", required=True, type=Path)
     ap.add_argument("--hermes-home", type=Path)
     ap.add_argument("--dsh-cli", type=Path)

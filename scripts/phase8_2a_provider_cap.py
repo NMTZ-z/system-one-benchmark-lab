@@ -211,6 +211,10 @@ def main() -> None:
     if not (1024 < args.port < 65536 and re.fullmatch(r"[a-z0-9_-]{1,80}", args.run)
             and 1 <= args.per_run_cap <= args.total_cap <= 100):
         parser.error("invalid bounded isolated runner settings")
+    # A test helper must not write a ledger or lock into production homes.
+    private_root = (Path(__file__).resolve().parents[1] / "private").resolve()
+    if not args.private_ledger.resolve().is_relative_to(private_root):
+        parser.error("budget ledger must be inside this repo's ignored private/ directory")
     os.umask(0o077)
     args.private_ledger.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     ledger = BudgetLedger(args.private_ledger, total_limit=args.total_cap,
