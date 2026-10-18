@@ -724,3 +724,59 @@ record is
 Do not interpret a passing source-equivalence check as the missing native
 OFF/healthy/down test. Only a valid, locally supplied isolated credential
 and a new finite, logged Provider-backed experiment can lift that blocker.
+
+## 14. StepFun isolated Hermes route precedence and invalid 401 OFF attempt
+
+The owner used Hermes' official interactive command to provision the existing
+StepFun Plan key into the isolated test-only Hermes home. The official
+`hermes auth status stepfun` then reported **logged in**, but this is a local
+configuration status, **not** upstream credential or URL verification.
+
+A first OFF-mode native read test under source commit
+`e68794745bbbbabc11b25b1e47868918e0dc0be6` **FAILED** before native
+file-read completion: Hermes reported an upstream **HTTP 401 incorrect API
+key**, process exit **2**, and a missing final read value. The model usage
+file recorded **one attempted model call**, but the isolated HTTP Provider
+budget proxy recorded **zero forwarded requests**. This experiment **did not
+pass the request-cap routing requirement**; the HTTP 401 cannot be attributed
+to the intended StepFun Plan China endpoint from the cap proxy's records.
+There is **no usable OFF-case success evidence** from this run.
+
+Read-only inspection of Hermes v0.22.1's provider resolver showed the cause:
+pooled credentials have their own `base_url`; a registry-default pooled URL
+uses `model.base_url` if set, but an explicit credential URL can override the
+ambient `STEPFUN_BASE_URL` environment variable. The isolated manual pool
+row retained the registry-default international Step Plan URL and the test
+Home had no `model.base_url` configured. The intended audited loopback
+Provider endpoint could therefore be bypassed. This diagnostic does **not**
+establish whether the key is intrinsically invalid: provider-region routing
+can also produce a 401. The earlier successful DSH StepFun Plan China
+endpoint is a separate, valid test baseline, not automatic proof of this
+isolated Hermes key's validity.
+
+The fail-closed fix adds
+`validate_provider_proxy_route()` to the Hermes preflight and native runner.
+It requires `model.base_url` to be exactly the isolated budgeted loopback
+origin, and it checks **all** isolated StepFun pooled entry URL metadata:
+only the Hermes registry-canonical URL, which permits the model setting to
+apply, or the exact budget proxy endpoint are allowed. Any custom direct
+per-credential endpoint is rejected. Tests verify both a manual/canonical
+and env/pinned pool entry, custom direct URL rejection, missing model route,
+and loopback-only constraints. The preflight now requires *both* configured
+local auth and the hard-capped route to report ready, and explicitly states
+that actual upstream key acceptance is unknown until a capped request
+succeeds.
+
+A subsequent corrected experiment may use a **fresh, separately capped
+private budget ledger**, with the isolated Hermes Home configured through its
+supported `model.base_url` field and the test-only credential's local
+exhaustion marker cleared by the official `hermes auth reset stepfun` command.
+If the StepFun Plan endpoint still rejects the credential with HTTP 401
+*through the cap proxy*, **stop and request proper credentials** rather than
+rotating providers or repeatedly retrying. No production Hermes, Gateway,
+main branch, or secret values are to be copied or changed.
+
+Sanitized failed-run record:
+[`results/processed/phase8_2a_hermes_route_401_diagnostic.json`](../results/processed/phase8_2a_hermes_route_401_diagnostic.json).
+This invalid pre-cap route attempt must remain separate from any formal
+Hermes OFF/Shadow/Runtime-down acceptance table. Its billed cost is unknown.

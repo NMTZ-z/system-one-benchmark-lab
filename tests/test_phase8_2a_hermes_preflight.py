@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from phase8_2a_hermes_preflight import (
     HERMES_PLUGIN_PATH, REAL_HERMES_EVIDENCE_SHA,
-    RUNTIME_PATH, auth_state_from_text, validate_home,
+    RUNTIME_PATH, auth_state_from_text, validate_home, validate_provider_proxy_route,
 )
 
 
@@ -105,3 +105,59 @@ def test_secret_like_fields_never_needed_for_preflight(tmp_path):
     data = validate_home(home, strict_repo=False)
     assert data["isolation_verified"] is True
     assert "api_key" not in json.dumps(data).lower()
+
+
+def _prepare_capped_hermes_pool(home: Path):
+    f = home / "config.yaml"
+    cfg = yaml.safe_load(f.read_text())
+    cfg["model"]["base_url"] = "http://127.0.0.1:18794"
+    f.write_text(yaml.safe_dump(cfg))
+    pool = {"credential_pool": {"stepfun": [
+        {"source": "env:STEPFUN_API_KEY", "base_url": "http://127.0.0.1:18794"},
+        {"source": "manual", "base_url": "https://api.stepfun.ai/step_plan/v1"},
+    ]}}
+    (home / "auth.json").write_text(json.dumps(pool))
+
+
+def test_hermes_pool_routes_both_environment_and_manual_entry_through_budget_proxy(tmp_path):
+    home = _make_isolated_fixture(tmp_path)
+    _prepare_capped_hermes_pool(home)
+    validate_provider_proxy_route(home, "http://127.0.0.1:18794", strict_repo=False)
+
+
+def test_hermes_pool_cannot_rely_only_on_ambient_provider_env_url(tmp_path):
+    home = _make_isolated_fixture(tmp_path)
+    _prepare_capped_hermes_pool(home)
+    p = home / "config.yaml"
+    conf = yaml.safe_load(p.read_text())
+    conf["model"].pop("base_url")
+    p.write_text(yaml.safe_dump(conf))
+    with pytest.raises(ValueError, match="model.base_url must pin"):
+        validate_provider_proxy_route(home, "http://127.0.0.1:18794", strict_repo=False)
+
+
+def test_explicit_stepfun_pool_url_may_not_bypass_budget_proxy(tmp_path):
+    home = _make_isolated_fixture(tmp_path)
+    _prepare_capped_hermes_pool(home)
+    p = home / "auth.json"
+    j = json.loads(p.read_text())
+    j["credential_pool"]["stepfun"][1]["base_url"] = "https://api.stepfun.com/step_plan/v1"
+    p.write_text(json.dumps(j))
+    with pytest.raises(ValueError, match="pooled entry could bypass"):
+        validate_provider_proxy_route(home, "http://127.0.0.1:18794", strict_repo=False)
+
+
+def test_hermes_provider_proxy_cannot_have_external_address_or_auth(tmp_path):
+    home = _make_isolated_fixture(tmp_path)
+    _prepare_capped_hermes_pool(home)
+    for url in ("https://api.stepfun.com/step_plan/v1", "http://0.0.0.0:18794", "http://127.0.0.1:18794/unexpected", "http://user:pw@127.0.0.1:18794"):
+        with pytest.raises(ValueError, match="Provider proxy must"):
+            validate_provider_proxy_route(home, url, strict_repo=False)
+
+
+def test_hermes_pool_requires_existing_local_metadata(tmp_path):
+    home = _make_isolated_fixture(tmp_path)
+    _prepare_capped_hermes_pool(home)
+    (home / "auth.json").unlink()
+    with pytest.raises(ValueError, match="credential metadata unavailable"):
+        validate_provider_proxy_route(home, "http://127.0.0.1:18794", strict_repo=False)

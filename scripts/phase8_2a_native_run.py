@@ -19,7 +19,7 @@ import time
 import urllib.request
 
 from phase8_2a_verify import inspect_native_jsonl
-from phase8_2a_hermes_preflight import auth_state_from_text, validate_home
+from phase8_2a_hermes_preflight import auth_state_from_text, validate_home, validate_provider_proxy_route
 
 REPO = Path(__file__).resolve().parents[1]
 CONTENT = b"P82A_NATIVE_FILE_OK_V1"
@@ -91,6 +91,11 @@ def native_run(args: argparse.Namespace) -> dict:
     elif not os.environ.get("STEPFUN_API_KEY"):
         raise ValueError("existing StepFun Plan token must be supplied in process environment")
     base_url = f"http://127.0.0.1:{args.provider_proxy_port}"
+    if args.platform == "hermes":
+        # Hermes pooled entries have their own endpoint precedence. Checking
+        # STEPFUN_BASE_URL alone failed in the earlier 401/uncapped attempt.
+        # Attest to ALL possible StepFun pool URL routes before spending.
+        validate_provider_proxy_route(args.hermes_home, base_url)
     b = _get(base_url + "/_budget")
     if b.get("run") != args.run or b.get("per_run_cap") != 3:
         raise ValueError("provider cap proxy wrong run ID or per-run limit")

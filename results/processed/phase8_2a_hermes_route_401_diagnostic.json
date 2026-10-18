@@ -1,0 +1,20 @@
+{
+  "schema": "phase8_2a_hermes_native_uncapped_route_diagnostic_v1",
+  "date": "2026-10-18",
+  "result": "FAILED_INVALID_OFF_RUN_UNCAPTURED_PROVIDER_ROUTE",
+  "source_sha": "e68794745bbbbabc11b25b1e47868918e0dc0be6",
+  "mode": "off",
+  "main_model": "stepfun/step-5-preview",
+  "hermes_process_exit_code": 2,
+  "upstream_rejection_seen_in_native_cli": "HTTP 401 (incorrect API key for attempted endpoint)",
+  "native_reported_main_model_attempts": 1,
+  "hard_cap_proxy_recorded_forwarding": 0,
+  "business_read_completed": false,
+  "input_file_unchanged": true,
+  "known_route_issue": "Hermes pooled credential base_url takes precedence over ambient STEPFUN_BASE_URL; this configuration did not reach the local budget proxy",
+  "security_handling": "stopped new paid calls; examined metadata only, no secrets copied; new fail-closed route attestation added",
+  "actual_remote_endpoint_verified_on_wire": false,
+  "counts_in_formal_off_shadow_down_acceptance": false,
+  "financial_cost": "UNKNOWN",
+  "phase8_2a_engineering": "BLOCKED"
+}

@@ -80,6 +80,7 @@ results/processed/phase8_2a_stepfun_shadow_paired_read.json
 results/processed/phase8_2a_latest_dsh_multiturn.json
 results/processed/phase8_2a_stepfun_native_sdk_paired.json
 results/processed/phase8_2a_hermes_isolated_preflight.json
+results/processed/phase8_2a_hermes_route_401_diagnostic.json
 results/processed/model-backend-pilot-laya-v1.json
 results/processed/model-backend-pilot-rule-v1.json
 results/processed/model-backend-pilot-20261016-rule.json

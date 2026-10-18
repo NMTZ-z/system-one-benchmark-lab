@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import json
 import os
 from pathlib import Path
 import re
@@ -79,6 +80,46 @@ def validate_home(home: Path, *, strict_repo: bool = True) -> dict:
             "active_authority": False, "native_hermes_plugin_matches_source": True}
 
 
+def validate_provider_proxy_route(home: Path, proxy_url: str, *, strict_repo: bool = True) -> None:
+    """Reject a pooled Hermes credential that might bypass the hard cap.
+
+    Hermes prioritizes the credential's pinned `base_url` over the ambient
+    STEPFUN_BASE_URL. Registry-default pool URLs may use model.base_url; a
+    custom per-credential URL remains authoritative and must equal the proxy.
+    Only test-home URL metadata is inspected, NEVER any credential value.
+    """
+    home = home.resolve()
+    if strict_repo and not home.is_relative_to((REPO / "private").resolve()):
+        raise ValueError("provider proxy attestation requires an isolated test home")
+    import urllib.parse
+    u = urllib.parse.urlsplit(proxy_url)
+    if (u.scheme != "http" or u.hostname != "127.0.0.1"
+            or not isinstance(u.port, int) or u.port <= 1024
+            or u.path not in ("", "/") or u.username or u.password):
+        raise ValueError("Provider proxy must be audited bare localhost HTTP origin")
+    cfg = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
+    model = cfg.get("model", {})
+    if model.get("provider") != "stepfun" or str(model.get("base_url") or "").rstrip("/") != proxy_url.rstrip("/"):
+        raise ValueError("Hermes model.base_url must pin the hard-budget local Provider proxy")
+    # The currently installed Hermes v0.22.1 resolver permits model.base_url
+    # when a pooled row has the canonical registry URL. For an explicit
+    # per-credential URL that rule does NOT apply: fail closed instead.
+    pool_path = home / "auth.json"
+    if not pool_path.is_file():
+        raise ValueError("isolated StepFun credential metadata unavailable")
+    try:
+        auth = json.loads(pool_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise ValueError("invalid isolated credential metadata") from None
+    rows = auth.get("credential_pool", {}).get("stepfun", [])
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("no isolated StepFun credential pool entries")
+    canonical = "https://api.stepfun.ai/step_plan/v1"
+    if any(not isinstance(row, dict) or str(row.get("base_url") or "").rstrip("/") not in
+           (canonical, proxy_url.rstrip("/")) for row in rows):
+        raise ValueError("StepFun pooled entry could bypass the hard-budget local Provider proxy")
+
+
 def check(*, home: Path, expected_head: str | None = None) -> dict:
     head = _git("rev-parse", "HEAD")
     if expected_head is not None and head != expected_head:
@@ -102,12 +143,22 @@ def check(*, home: Path, expected_head: str | None = None) -> dict:
         auth = auth_state_from_text(command.stdout, command.returncode)
     except (OSError, subprocess.TimeoutExpired):
         auth = "UNKNOWN"
+    # Hermes v0.22.1's pooled credentials can override STEPFUN_BASE_URL.
+    # An auth 'logged in' label does not prove the request enters the capped
+    # proxy or that upstream has accepted the key. Both must be distinguished.
+    try:
+        validate_provider_proxy_route(home, "http://127.0.0.1:18794")
+        proxy_route_status = "CONFIGURED"
+    except (OSError, ValueError, TypeError, KeyError):
+        proxy_route_status = "BLOCKED"
     return {"source_commit": head,
             "historical_hermes_native_evidence_commit": REAL_HERMES_EVIDENCE_SHA,
             "hermes_and_laya_source_tree_match_historical_evidence": True,
             **result,
             "isolated_auth": auth,
-            "ready_for_provider_backed_e2e": auth == "READY",
+            "isolated_provider_proxy_route": proxy_route_status,
+            "upstream_api_key_accepted": "NOT_VERIFIED_BY_PREFLIGHT",
+            "ready_for_provider_backed_e2e": auth == "READY" and proxy_route_status == "CONFIGURED",
             "phase8_2a_eng_acceptance": "NOT_EVALUATED_BY_PREFLIGHT"}
 
 
