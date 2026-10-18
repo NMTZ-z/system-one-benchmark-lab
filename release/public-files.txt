@@ -28,6 +28,7 @@ scripts/run_local_system_one_mcp.sh
 scripts/run_local_system_one_service.sh
 scripts/phase8_2a_shadow_proxy.py
 scripts/phase8_2a_provider_cap.py
+scripts/phase8_2a_native_run.py
 scripts/phase8_2a_verify.py
 scripts/uninstall_local_system_one_launchd.sh
 
