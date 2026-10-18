@@ -190,3 +190,84 @@ repaired source pinned to an immutable commit, and rerun H-F1 + D-F1 followed
 by D-S1 with healthy Runtime HTTP evidence; then run the small OFF/Shadow/down
 and lifecycle comparisons. No automatic merge or production deployment is
 authorized by this report.
+
+## 8. Authorized StepFun Plan continuation (2026-10-18)
+
+The user authorized **switching the main model to the already configured StepFun
+Step Plan subscription**, specifically `stepfun/step-5-preview`. This **does not**
+change the Laya/MLX decision model or grant Active control. Step Plan credentials
+were read from an existing authorized source into test subprocess memory, never
+written to source control or a shell command argument. The test used the
+subscription endpoint under `/step_plan/v1`, **not** the pay-as-you-go `/v1`
+endpoint. Plan-credit consumption is not independently priced or verified.
+
+A fully separate, Git-ignored `HERMES_HOME` was created and the actual native
+Hermes plugin was installed **pinned to the first exploratory PR revision**;
+that home's CLI printed that a Gateway restart would be needed, but we did
+**not** perform a Gateway restart or modify any production profile. DSH used
+a separate native `DSH_HOME`, upstream pin `0.1.7-rc.2`, and a private
+`llm-pi-ai` configuration routed to the real Step Plan provider. The pinned
+DSH upstream did not natively register this provider, so this was a standard
+provider extension, not a forged Agent event or main-model replacement.
+
+All three actual native tasks below started on **clean, frozen source commit**
+`fc49e69bd350aefd9626bb5975da2458569ee8aa` (the earlier two PR
+commits plus a one-line local-private-home ignore). Later report-only changes
+are not passed off as that same code SHA. The project-private launch script
+and session traces remain Git-ignored. The remote Step Plan provider was
+real, and an isolated request-cap forwarding service passed its HTTPS
+requests through without creating model replies.
+
+| Native task | Provider requests | Independent result | Completion Shadow | Retry Shadow | Verdict |
+|---|---:|---|---|---|---|
+| Hermes failed `read_file` | 2 main | Missing target remained missing; failed native event observed | Post-tool and turn-end reached real Laya/MLX | HTTP 200, `ask_user`, `rule`, unknown retry budget retained | **Previously blocked native Retry path now observed successfully** |
+| Hermes `read_file`→`write_file` | 6 main + 1 auxiliary | **Exact output bytes match** | Post-tool and turn-end reached real Laya/MLX | Successful tools did not trigger Retry | Native chain works, **but violates the planned ≤3 main calls/task cap** |
+| DSH failed native `read` | 3 upstream total, including at least 2 visible native steps | Typed `tool_call` + `tool_result.status=error` paired; missing target remained absent | Two HTTP 200 model/MLX observations | One HTTP 200, `ask_user`, `rule` | **Supported read-failure native path observed** |
+| DSH normal write | 0 | Not attempted in this StepFun round | NOT VERIFIED | N/A | **BLOCKED by total request cap** |
+
+The independent collector captured **8 successful** loopback Runtime requests:
+**6 Completion Laya/MLX inference** and **2 Retry hard-rule resolutions**.
+The Runtime metrics agree: `requests=8`, `backends={mlx:6, rule:2}`. This is
+model execution evidence only for Completion, not for Retry: Retry correctly
+selected a deterministic conservative path due to missing trustworthy budget.
+No Agent execution was changed by those recommendations.
+
+**Budget warning.** The Hermes failed read incurred 2 model calls. The Hermes
+normal task incurred **6 main plus 1 auxiliary call**, even though the initial
+per-task limit was 3; this overrun is explicitly not a PASS for budget
+compliance. The DSH bounded provider-pass-through then forwarded 3 real
+Step Plan requests. **Observed round total: 12/12** (including the Hermes
+auxiliary). The explicit cap was reached. We stopped further Provider calls
+rather than silently extending the budget or substituting fake responses.
+The original experiment's 2-CNY monetary safeguard was not independently
+priced in subscription credits, so **no zero-cost monetary claim** is made.
+
+Sanitized evidence: [`results/processed/phase8_2a_stepfun_native_exploratory.json`](../results/processed/phase8_2a_stepfun_native_exploratory.json).
+Evidence sources are kept separate: native Hermes plugin state; native DSH
+Headless NDJSON tool/step/turn records; runtime forwarding logs; post-run
+filesystem checks; and HTTPS forwarding request counters. The DSH HTTP
+collector is scoped to an isolated single native run, but there is no
+shared externally verified request-ID trail tying each DSH native call to
+each specific Runtime decision. Do not infer more correlation than observed.
+
+### Revised acceptance after the provider switch
+
+- **Hermes native integration: PARTIAL.** Both tool success and tool failure
+  now genuinely pass through the claimed observable shadow paths, including
+  the fixed Retry field, but the success task exceeded its provider-call limit.
+- **DSH native integration: PARTIAL.** Native read failure and Completion/Retry
+  observations were reproduced with StepFun; the successful StepFun write
+  and independent OFF/Shadow/Runtime-down comparisons remain outstanding.
+- **Completion observation: PASS on observed tool/turn paths only**; no active
+  stopping, incomplete/late-turn guarantees or quality claim.
+- **Retry observation: PASS on the pinned failed-read path only**; other
+  tool/side-effect outcomes remain unsupported or untested.
+- **Shadow noninterference: BLOCKED** pending true paired OFF/healthy/down.
+- **Phase 8.2A Engineering: BLOCKED**, Model Superiority: NOT_EVALUATED,
+  Active Authority: NOT_AUTHORIZED.
+
+Next native-provider phase must use a freshly declared finite call/credit
+budget before the first new request, instrument the total Provider request
+count across native and auxiliary flows, validate a DSH success task and
+complete the controlled paired tests. Do not reuse the current 12/12 cap or
+quietly treat an Agent's own retries as System One recoveries.

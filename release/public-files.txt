@@ -70,6 +70,7 @@ results/processed/completion-gate-v0.1.json
 results/processed/phase8b-completion-pilot-v1.json
 results/processed/phase8c-retry-pilot-mlx.json
 results/processed/phase8_2a_native_shadow_exploratory.json
+results/processed/phase8_2a_stepfun_native_exploratory.json
 results/processed/model-backend-pilot-laya-v1.json
 results/processed/model-backend-pilot-rule-v1.json
 results/processed/model-backend-pilot-20261016-rule.json
