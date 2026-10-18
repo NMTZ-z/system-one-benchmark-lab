@@ -19,6 +19,7 @@ import time
 import urllib.request
 
 from phase8_2a_verify import inspect_native_jsonl
+from phase8_2a_hermes_preflight import auth_state_from_text, validate_home
 
 REPO = Path(__file__).resolve().parents[1]
 CONTENT = b"P82A_NATIVE_FILE_OK_V1"
@@ -62,7 +63,32 @@ def native_run(args: argparse.Namespace) -> dict:
     dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True)
     if dirty:
         raise ValueError("formal run requires frozen clean Git worktree")
-    if "STEPFUN_API_KEY" not in os.environ or not os.environ["STEPFUN_API_KEY"]:
+    if args.platform == "hermes":
+        if args.hermes_home is None:
+            raise ValueError("explicit isolated Hermes home is required")
+        validate_home(args.hermes_home)
+        if not os.environ.get("STEPFUN_API_KEY"):
+            # Hermes' official isolated auth pool can hold a separately
+            # provisioned credential. Never import another home's key or
+            # read .env in the test runner.
+            auth_env = os.environ.copy()
+            auth_env["HERMES_HOME"] = str(args.hermes_home.resolve())
+            auth_env["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
+            try:
+                status = subprocess.run(
+                    ["hermes", "auth", "status", "stepfun"],
+                    cwd=REPO, env=auth_env, text=True,
+                    capture_output=True, timeout=18, check=False,
+                )
+                authorization = auth_state_from_text(status.stdout, status.returncode)
+            except (OSError, subprocess.TimeoutExpired):
+                authorization = "UNKNOWN"
+            if authorization != "READY":
+                raise ValueError(
+                    "isolated Hermes StepFun auth is unavailable; provision that "
+                    "test HOME using the official Hermes auth prompt (no key in argv/chat)"
+                )
+    elif not os.environ.get("STEPFUN_API_KEY"):
         raise ValueError("existing StepFun Plan token must be supplied in process environment")
     base_url = f"http://127.0.0.1:{args.provider_proxy_port}"
     b = _get(base_url + "/_budget")

@@ -31,6 +31,7 @@ scripts/phase8_2a_provider_cap.py
 scripts/phase8_2a_native_run.py
 scripts/phase8_2a_paired_verify.py
 scripts/phase8_2a_sdk_verify.py
+scripts/phase8_2a_hermes_preflight.py
 scripts/phase8_2a_verify.py
 scripts/uninstall_local_system_one_launchd.sh
 
@@ -106,6 +107,7 @@ tests/test_phase8_2a_evidence.py
 tests/test_phase8_2a_provider_cap.py
 tests/test_phase8_2a_paired_verify.py
 tests/test_phase8_2a_sdk_verify.py
+tests/test_phase8_2a_hermes_preflight.py
 tests/test_phase8_2a_native_run_safety.py
 tests/test_retry_http.py
 tests/test_public_release.py

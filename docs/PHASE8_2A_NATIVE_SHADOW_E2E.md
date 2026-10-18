@@ -630,3 +630,77 @@ remains **BLOCKED by the earlier external execution safety restriction**;
 we did not bypass it. As a consequence, Phase 8.2A Engineering overall
 remains **BLOCKED** under the original full acceptance criteria.
 Model Superiority is NOT_EVALUATED and Active Authority remains NOT_AUTHORIZED.
+
+## 13. Hermes isolated-auth blocker and source-equivalent preflight
+
+Further Hermes closure checks verified that **the entire local Hermes adapter
+plugin tree and `local_system_one` runtime tree are Git-object identical**
+across the earlier real Hermes native source commit
+`fc49e69bd350aefd9626bb5975da2458569ee8aa`, the final DSH native
+runtime freeze `3d5b02fdb7d489c80de4ab958fd33a559b33e08c`, and the
+newer report-only PR head. The installed isolated Hermes plugin's Python
+source also matches the checked-in source byte-for-byte. This supports reuse
+of the older Hermes *specific success/failure native evidence* without
+implying that the new OFF/healthy/down matched trio was run.
+
+The latest Hermes OFF/healthy/down **real-provider test remains blocked at
+its test-only credential preflight**, not a Laya Runtime or plugin exception.
+The official read-only command `hermes auth status stepfun`, invoked with
+the completely independent Git-ignored Hermes test `HERMES_HOME`, reports
+`stepfun: logged out`. That isolated home has an environment-referenced
+credential-pool alias but no usable credential in its process environment.
+We did not copy a token from a production home, invoke a shared Gateway,
+request a new paid token, or circumvent the earlier external operation block.
+
+New source-only preflight:
+[`scripts/phase8_2a_hermes_preflight.py`](../scripts/phase8_2a_hermes_preflight.py).
+It verifies a **clean, explicitly pinned Git checkout**, byte-identical
+Hermes and Laya source trees, isolated plugin installation, OFF/Shadow mode,
+no acknowledged Canary/Active authority, only the expected local observer
+port, and official Hermes StepFun provider auth status. It makes **no model
+calls and never reads or prints API keys**. Unknown / logged-out auth is a
+hard BLOCK, not an assumed PASS. Supporting tests reject unsafe canary or
+service URLs, unapproved gates, modified plugin bytes, and false-positive
+auth status.
+
+The existing
+[`scripts/phase8_2a_native_run.py`](../scripts/phase8_2a_native_run.py)
+was updated to support the **official isolated Hermes credential pool** as
+an alternative to passing a key in a test subprocess environment. When no
+explicit `STEPFUN_API_KEY` exists, it requires the official isolated
+`hermes auth status stepfun` to report logged in **before** starting any
+provider-backed test. DSH remains unchanged and still uses an explicitly
+provided process-environment credential. No credential is read from any
+other home by the test runner.
+
+### One-time manual isolated authentication (not performed by ChatGPT)
+
+The owner may authorize the *existing StepFun Plan credential* in a local
+terminal using Hermes' supported secure interactive auth command. The API
+key must be entered at the Hermes prompt **on the owner's device**, never
+pasted into chat, CLI `--api-key` arguments, a Git-tracked file or the test
+output. From the already isolated development worktree:
+
+```sh
+export HERMES_HOME="$PWD/private/phase8_2a_stepfun/hermes_home"
+export HERMES_DISABLE_LAZY_INSTALLS=1
+hermes auth add stepfun --type api-key --label phase8-2a-isolated
+hermes auth status stepfun
+python scripts/phase8_2a_hermes_preflight.py --isolated-home "$HERMES_HOME" \
+  --expected-head "$(git rev-parse HEAD)"
+```
+
+Only after `ready_for_provider_backed_e2e=true` may a new, explicitly finite
+StepFun Plan hard-cap round be started. The exact same native read-only task
+must then run under (1) OFF, (2) Shadow healthy real Laya/MLX, and (3)
+Shadow with Runtime stopped; the independent original-file and native-tool
+results, telemetry and upstream request denominators must all be checked.
+Use a fresh private ledger with a predeclared finite global and per-run cap
+that includes all auxiliary/retry requests, and preserve the frozen
+source SHA in every result. Do not merge PR #7 just because code identity
+matches or the test-only identity becomes available.
+
+**Acceptance at this checkpoint:** Hermes source equivalence PASS;
+isolated Hermes provider-auth preflight BLOCKED; newest Hermes paired native
+OFF/healthy/down **NOT RUN**; DSH latest-source native evidence PASS scoped;
+overall Phase 8.2A Engineering **BLOCKED**. No Active authority.
