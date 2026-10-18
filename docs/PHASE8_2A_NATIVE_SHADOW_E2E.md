@@ -453,3 +453,77 @@ Harness CLI SHA verification, a strict Git-ignored private location for real
 Provider budget ledgers, and process-group shutdown for test Agents timing out.
 These guard test provenance and prevent orphaned child processes; they are not
 changes to normal Agent execution or the runtime's model decisions.
+
+## 11. Frozen-candidate native persisted-session retest (2026-10-18)
+
+The pre-freeze independent audit reproduced a **new, real DSH Retry lifecycle
+bug**: a delayed duplicate native `turn/start` **after** an already completed
+`turn/end` could reactivate the old turn and cause a second Retry Shadow
+request. The new regression failed against the previous code. A bounded,
+per-session highest-retired-turn watermark now ignores this stale event and
+also retires live turns on `session/end` even if their `turn/end` was omitted.
+A higher native Turn may still resume on the same session ID, as supported by
+the upstream Headless contract. The independent test for parent/child-session
+isolation continues to pass. The watermark covers the latest 256 retired
+session identities in a single adapter process; it is not claimed to provide
+indefinite out-of-order message de-duplication.
+
+**Frozen source commit for the latest native runs:**
+`3d5b02fdb7d489c80de4ab958fd33a559b33e08c`. The Git worktree was
+clean and the isolated test Platform was pinned before network calls. The
+published JSON/docs may have a later Git commit but **no later runtime source
+is represented as having been provider-tested**. The source pin check and the
+per-request hard cap were actually enforced.
+
+This latest real StepFun Plan run used DSH `0.1.7-rc.2` and the installed
+DSH `0.6.0` adapter through the native Headless interface. The first task
+read a nonexistent private file and produced a native `tool_result=error`.
+The real Session ID was captured privately, then used through DSH's native
+`--session-id` option to resume the same persisted Session for the second
+Task, which successfully read a separate private file. The hidden nonce was
+not in either prompt and was checked independently from the raw native tool
+result, original bytes and final answer. The actual native Turn numbers were
+**1 then 2**, with matching tool-call/result IDs and completed Turn
+boundaries. Two separate Headless processes were used: this is a **native
+persisted Session with consecutive Turns**, but it does **not** validate a
+single long-lived adapter instance's in-memory state across Turns.
+
+The isolated metadata-only Runtime collector independently recorded **five
+real HTTP 200 requests**: **one Retry rule** decision for the failed read and
+**four Completion Laya/MLX model** inferences. The isolated StepFun Plan
+budget proxy recorded **five reserved/finalized real HTTPS provider calls**,
+all HTTP 200. The predeclared cap for this two-Turn scenario was six, within
+a separate round's overall 15-call limit. No sixth call was needed and **the
+10 unused allowed requests are not a credit balance**; provider plan-credit
+consumption remains unknown. Earlier test rounds and limits are distinct.
+
+An independent data-only verifier compared the original native event traces,
+paired IDs, Session identity, Turn numbers, input files, SHA and both collector
+ledgers before producing sanitized evidence:
+[`results/processed/phase8_2a_latest_dsh_multiturn.json`](../results/processed/phase8_2a_latest_dsh_multiturn.json).
+No raw prompt, nonce, unredacted tool results, Session ID, Provider key or
+Agent trace was added to the public branch.
+
+A further Hermes OFF/healthy Shadow/Runtime-down test on this latest commit
+was **not** completed: the isolated test-launch operation encountered an
+external safety/access block. We did not bypass this restriction or route
+the request through another credential source, and made no additional
+Provider calls. All locally started ports `18782`, `18792`, `18793`, `18794`
+were freed. The earlier Hermes native results remain historical evidence
+with their original pinned source identity, not latest-SHA retest results.
+
+### Final current evidence boundary
+
+- **PASS, scoped:** Latest frozen source with a real native DSH persisted
+  two-Turn Session, an actual failed then successful native tool operation,
+  observable real Retry/Completion Shadow decisions and bounded Provider
+  requests. The red-to-green lifecycle replay unit test also passes.
+- **PASS, scoped on earlier frozen source:** DSH one-Turn OFF/healthy Shadow/
+  Runtime-down read-only matched comparisons; previously observed Hermes
+  native success/failure/degraded paths.
+- **NOT PROVEN:** latest source with all three Hermes modes; true concurrent
+  independent native Sessions; in-memory lifecycle across Turns in the same
+  long-running adapter process; indefinite delayed events beyond bounded
+  tombstones; statistically meaningful overhead; model quality superiority.
+- **Phase 8.2A Engineering remains BLOCKED** pending these specific remaining
+  acceptance boundaries; no production Canary/Active authority is granted.

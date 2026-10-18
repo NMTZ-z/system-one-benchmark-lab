@@ -1,0 +1,69 @@
+{
+  "schema": "local-system-one-phase8.2a-native-multiturn-v1",
+  "date": "2026-10-18",
+  "verdict": "SCOPED_NATIVE_PERSISTED_SESSION_2_TURNS_PASS",
+  "frozen_runtime_and_adapter_source_sha": "3d5b02fdb7d489c80de4ab958fd33a559b33e08c",
+  "main_model": "stepfun/step-5-preview",
+  "model_provider_route": "existing StepFun Plan /step_plan/v1",
+  "decision_runtime": "real Laya/MLX",
+  "native_platform": "DeepSeek Harness 0.1.7-rc.2",
+  "native_platform_sha": "477b4f420553e8a52c2fbccc464d7561b239c443",
+  "execution_scope": "same native DSH session resumed via --session-id across two separate headless process invocations",
+  "session_identity_equal": true,
+  "native_turn_numbers": [
+    1,
+    2
+  ],
+  "turns": [
+    {
+      "turn": 1,
+      "tool_name": "read",
+      "tool_result": "error",
+      "paired": true,
+      "agent_completed": true
+    },
+    {
+      "turn": 2,
+      "tool_name": "read",
+      "tool_result": "completed",
+      "paired": true,
+      "agent_completed": true
+    }
+  ],
+  "turn1_missing_file_still_absent": true,
+  "turn2_hidden_file_tool_result_and_final_verified": true,
+  "shadow_http": {
+    "total": 5,
+    "retry_rule_200": 1,
+    "completion_mlx_model_200": 4,
+    "non_200": 0
+  },
+  "provider_request_budget": {
+    "declared_global_cap": 15,
+    "declared_per_multiturn_case_cap": 6,
+    "observed_real_upstream_reservations": 5,
+    "observed_real_upstream_results": 5,
+    "upstream_http_200": 5,
+    "global_remaining_unspent": 10,
+    "no_sixth_call_needed": true,
+    "billing_credits_unknown": true
+  },
+  "independent_check": {
+    "one_typed_tool_result_per_turn": true,
+    "tool_call_ids_paired": true,
+    "same_persisted_session": true,
+    "turns_completed": true,
+    "real_shadow_runtime_evidence": true,
+    "private_raw_tool_content_excluded": true
+  },
+  "limitations": [
+    "Not same long-lived DSH process; adapter in-memory Retry lifecycle does not persist across headless invocations",
+    "Not multi-agent concurrency",
+    "Hermes OFF/healthy/down on latest frozen SHA not run",
+    "No active authority or model superiority claims",
+    "No monetarily verified StepFun credits"
+  ],
+  "phase8_2a_engineering": "BLOCKED",
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}
