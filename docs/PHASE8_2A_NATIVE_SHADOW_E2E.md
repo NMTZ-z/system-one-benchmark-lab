@@ -704,3 +704,23 @@ matches or the test-only identity becomes available.
 isolated Hermes provider-auth preflight BLOCKED; newest Hermes paired native
 OFF/healthy/down **NOT RUN**; DSH latest-source native evidence PASS scoped;
 overall Phase 8.2A Engineering **BLOCKED**. No Active authority.
+
+### Recorded read-only Hermes preflight verdict (2026-10-18)
+
+The exact script above was run on a clean, pinned feature commit
+`27d50ec758f70bc4e5475e073513fcd3dbec6ecb`, and returned exit code
+**3**, meaning **BLOCKED_ISOLATED_AUTH**. It verified that the historical
+native-tested Hermes plugin Git tree object is exactly identical to the
+current object (`18ceb7eeb27a2e0b65edd209a03596f7616a2162`) and that
+the local System One Runtime tree is also identical
+(`ad96569dbf7b48d45a873a043cd168d96f79f781`). The installed isolated
+plugin bytes also matched. The separate test Home still lacked an active
+StepFun credential. **Zero actual Provider requests were made** during
+this identity check; no test ports or production configuration were changed.
+
+The sanitized, privacy-safe source-equivalence and credential-preflight
+record is
+[`results/processed/phase8_2a_hermes_isolated_preflight.json`](../results/processed/phase8_2a_hermes_isolated_preflight.json).
+Do not interpret a passing source-equivalence check as the missing native
+OFF/healthy/down test. Only a valid, locally supplied isolated credential
+and a new finite, logged Provider-backed experiment can lift that blocker.
