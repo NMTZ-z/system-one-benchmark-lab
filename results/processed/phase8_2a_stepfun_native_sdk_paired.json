@@ -1,0 +1,100 @@
+{
+  "schema": "local-system-one-phase8.2a-native-sdk-live-v1",
+  "phase": "8.2A",
+  "status": "SCOPED_DSH_NATIVE_SDK_RESIDENT_AND_OFF_DOWN_PASS",
+  "frozen_runtime_adapter_sha": "3d5b02fdb7d489c80de4ab958fd33a559b33e08c",
+  "main_model": "stepfun/step-5-preview",
+  "main_provider_route": "already-authorized StepFun Plan /step_plan/v1",
+  "decision_model_runtime": "real Laya/MLX",
+  "native_dsh_platform_sha": "477b4f420553e8a52c2fbccc464d7561b239c443",
+  "sdk_single_live_process": true,
+  "sdk_same_session_sequential_turns": [
+    1,
+    2
+  ],
+  "sdk_two_distinct_sessions_start_overlapped": true,
+  "native_scenarios": {
+    "resident_primary_failed_read": {
+      "native_turn": 1,
+      "native_tool": "read",
+      "tool_result": "error",
+      "native_call_result_id_paired": true,
+      "native_turn_completed": true,
+      "independent_read_content_verified": false
+    },
+    "resident_primary_successful_read": {
+      "native_turn": 2,
+      "native_tool": "read",
+      "tool_result": "completed",
+      "native_call_result_id_paired": true,
+      "native_turn_completed": true,
+      "independent_read_content_verified": true
+    },
+    "resident_overlapping_other_session": {
+      "native_turn": 1,
+      "native_tool": "read",
+      "tool_result": "completed",
+      "native_call_result_id_paired": true,
+      "native_turn_completed": true,
+      "independent_read_content_verified": true
+    },
+    "sdk_off_read": {
+      "native_turn": 1,
+      "native_tool": "read",
+      "tool_result": "completed",
+      "native_call_result_id_paired": true,
+      "native_turn_completed": true,
+      "independent_read_content_verified": true
+    },
+    "sdk_down_read": {
+      "native_turn": 1,
+      "native_tool": "read",
+      "tool_result": "completed",
+      "native_call_result_id_paired": true,
+      "native_turn_completed": true,
+      "independent_read_content_verified": true
+    }
+  },
+  "off_shadow_gate_requests": 0,
+  "healthy_runtime": {
+    "completion_real_mlx_http_200": 6,
+    "retry_conservative_rule_http_200": 1
+  },
+  "runtime_down": {
+    "completion_http_503": 2,
+    "native_read_completed": true
+  },
+  "provider_network_budget": {
+    "declared_global_cap": 12,
+    "actual_reserved_and_completed": 10,
+    "actual_upstream_http_200": 10,
+    "by_run": {
+      "dsh_sdk_resident": 6,
+      "dsh_sdk_off": 2,
+      "dsh_sdk_down": 2
+    },
+    "hard_cap_not_exceeded": true,
+    "unused_limit_slots_not_subscription_credits": 2,
+    "monetary_plan_credit_usage": "unknown"
+  },
+  "independent_checks": {
+    "raw_native_event_frames_read": true,
+    "all_native_tool_ids_matched": true,
+    "input_file_contents_independently_verified": true,
+    "native_task_results_and_final_assistant_messages_verified": true,
+    "provider_slot_cardinality_confirmed": true,
+    "runtime_telemetry_counts_confirmed": true,
+    "no_public_secrets_or_session_identifiers": true
+  },
+  "limitations": [
+    "Latest Hermes OFF/Shadow/Runtime-down native suite not authorized/finished after access block",
+    "Two SDK Session turns overlapped; true simultaneously executing tool calls not independently proven",
+    "Healthy SDK run used multiple sessions in one SDK process; OFF and down use separately isolated SDK processes",
+    "No high-volume long-duration concurrent Agent stress test or statistical noninterference guarantee",
+    "No direct turn-to-Runtime HTTP correlation ID in privacy-safe collector",
+    "No Active authority, Laya model superiority claim or provider-credit accounting"
+  ],
+  "phase8_2a_engineering": "BLOCKED",
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}

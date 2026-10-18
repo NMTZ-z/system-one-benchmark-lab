@@ -527,3 +527,106 @@ with their original pinned source identity, not latest-SHA retest results.
   tombstones; statistically meaningful overhead; model quality superiority.
 - **Phase 8.2A Engineering remains BLOCKED** pending these specific remaining
   acceptance boundaries; no production Canary/Active authority is granted.
+
+## 12. Official SDK resident-process native E2E and latest-SHA OFF/down comparison
+
+The user confirmed Codex Review was disabled. Subsequent acceptance is based
+on independently checked runtime, tool, Provider and test evidence, not the
+presence or absence of automated PR comments.
+
+A direct exploration of the pinned DeepSeek Harness `0.1.7-rc.2` upstream
+located its **official native `sdk` Profile** (stdio JSON-RPC), whose
+`initialize`, `session/prompt`, `session.event` and `shutdown` interface is
+covered by upstream SDK tests. This is a supported native Agent execution
+path, not an adapter-crafted hook replay. An isolated private SDK instance
+loaded the existing DSH adapter `v0.6.0`, StepFun Plan
+`stepfun/step-5-preview` as the real main LLM, and a separate real
+Laya/MLX Runtime for Completion decisions. No production Agent, Gateway,
+Canary, Active authority, models or upstream code were modified.
+
+**Runtime/adapters frozen at
+`3d5b02fdb7d489c80de4ab958fd33a559b33e08c`.** The Git tree's
+subsequent `b21dbf9` contained only documentation and sanitized evidence;
+no runtime or adapter changes occurred between it and this test. The latest
+published evidence uses this exact runtime SHA, irrespective of the report
+commit.
+
+### Same real SDK process: two Sessions, three native Turns
+
+One and the same SDK server process was initialized once, accepted the
+following tasks and exited cleanly after `shutdown`:
+
+- **Session A, Turn 1:** Native `read` of a deliberately absent file -> one
+  paired `tool/result.isError=true`, native Turn completed; missing file
+  remained absent. Retry Shadow conservatively evaluated the failure.
+- **Session A, Turn 2:** Native `read` of a separate private file returned the
+  file's hidden content; the original file bytes and final native assistant
+  message independently matched. Same SDK process and same native Session
+  identity, with Turn counter increasing from 1 to 2.
+- **Session B, Turn 1:** A second native Session was submitted while Session
+  A's second Turn was active. Raw SDK event indices confirmed **B's
+  `turn/start` occurred after A's `turn/start` but before A's `turn/end`**.
+  B's native read succeeded; call ID, result content, original bytes and
+  final assistant answer independently matched.
+
+This proves **overlapping active native Sessions in a single resident SDK
+process**. The two tool calls themselves were not proven simultaneously
+executing at the CPU/network level; do not call this a high-volume
+multi-agent stress test. All three native Turns completed and none of the
+private file contents or Session IDs are published.
+
+The independently recorded Shadow outcomes for this resident process were
+**seven HTTP 200 requests**: six real `backend=mlx`,
+`decision_source=model` Completion decisions and one conservative
+`backend=rule` Retry decision. **Six upstream StepFun Plan requests** were
+forwarded, all HTTP 200.
+
+### Latest-source SDK OFF / Shadow / Runtime-down control
+
+Two further single native-read tests on exactly the same frozen runtime
+code and main-model route exercised the SDK through separately isolated
+Profile instances:
+
+| Condition | Native tool + final answer | System One observation | Real StepFun calls |
+|---|---|---|---:|
+| **OFF**, healthy Runtime present | 1 paired successful `read`; original bytes and final answer match | **0 Runtime HTTP** | 2 |
+| **Shadow**, healthy Runtime | The resident process described above; failed and successful tools and native Turns completed | **6 Completion MLX 200 + 1 Retry rule 200** | 6 |
+| **Shadow**, Runtime deliberately stopped | 1 paired successful `read`; original bytes and final answer match | **2 Completion HTTP 503**; native Turn still completed | 2 |
+
+This scoped latest-SHA comparison demonstrates *noninterference of the
+native read-only task and fail-open when Runtime is down*, not latency
+parity, risk safety on all tool families, or production availability.
+The privacy-safe collector records no raw tool arguments or Agent response
+bodies and cannot independently join every individual Runtime request to
+a Session ID; do not claim full per-Session HTTP trace attribution.
+
+An independent verifier
+[`scripts/phase8_2a_sdk_verify.py`](../scripts/phase8_2a_sdk_verify.py)
+reads the restricted native SDK frames, exact paired tool IDs, original
+private files and assistant message contents, checks the interleaved
+Session/Turn start/end order, reconciles the durable Provider reservation
+ledger with finalized HTTP results, and validates Runtime statuses and
+count denominators. Six additional offline tests use **synthetic verifier
+fixtures**, explicitly not real Agent or Provider evidence; they require
+failure on absent native events, wrong response content, missing provider
+records, loss of actual Session overlap or mismatched Runtime status.
+
+Sanitized, public evidence:
+[`results/processed/phase8_2a_stepfun_native_sdk_paired.json`](../results/processed/phase8_2a_stepfun_native_sdk_paired.json).
+
+**New round budget:** 12 total pre-network actual StepFun Plan calls;
+**10/12** used and completed with upstream HTTP 200 (6 resident, 2 OFF,
+2 Runtime-down). Two *experiment request slots* were unused, which is **not**
+a statement about remaining subscription credits or monetary billing.
+No substitute Provider, mock main model, automatic charge or bypass of a
+blocked Hermes action occurred. All isolated port listeners and SDK child
+processes have been stopped, and private traces remain Git-ignored.
+
+**Current result:** DSH **latest frozen-SHA real resident native multi-Turn
+and overlapping-Session observation: PASS within scope**; DSH **latest-SHA
+OFF/healthy Shadow/Runtime-down read-only noninterference: PASS within
+scope**. Hermes's latest-SHA full same-task OFF/healthy/down paired test
+remains **BLOCKED by the earlier external execution safety restriction**;
+we did not bypass it. As a consequence, Phase 8.2A Engineering overall
+remains **BLOCKED** under the original full acceptance criteria.
+Model Superiority is NOT_EVALUATED and Active Authority remains NOT_AUTHORIZED.

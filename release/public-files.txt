@@ -30,6 +30,7 @@ scripts/phase8_2a_shadow_proxy.py
 scripts/phase8_2a_provider_cap.py
 scripts/phase8_2a_native_run.py
 scripts/phase8_2a_paired_verify.py
+scripts/phase8_2a_sdk_verify.py
 scripts/phase8_2a_verify.py
 scripts/uninstall_local_system_one_launchd.sh
 
@@ -76,6 +77,7 @@ results/processed/phase8_2a_native_shadow_exploratory.json
 results/processed/phase8_2a_stepfun_native_exploratory.json
 results/processed/phase8_2a_stepfun_shadow_paired_read.json
 results/processed/phase8_2a_latest_dsh_multiturn.json
+results/processed/phase8_2a_stepfun_native_sdk_paired.json
 results/processed/model-backend-pilot-laya-v1.json
 results/processed/model-backend-pilot-rule-v1.json
 results/processed/model-backend-pilot-20261016-rule.json
@@ -103,6 +105,7 @@ tests/test_retry_hermes.py
 tests/test_phase8_2a_evidence.py
 tests/test_phase8_2a_provider_cap.py
 tests/test_phase8_2a_paired_verify.py
+tests/test_phase8_2a_sdk_verify.py
 tests/test_phase8_2a_native_run_safety.py
 tests/test_retry_http.py
 tests/test_public_release.py
