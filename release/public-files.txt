@@ -27,6 +27,7 @@ scripts/local_system_one_status.sh
 scripts/run_local_system_one_mcp.sh
 scripts/run_local_system_one_service.sh
 scripts/phase8_2a_shadow_proxy.py
+scripts/phase8_2a_provider_cap.py
 scripts/phase8_2a_verify.py
 scripts/uninstall_local_system_one_launchd.sh
 
@@ -96,6 +97,7 @@ tests/test_retry_benchmark.py
 tests/test_retry_escalation_gate.py
 tests/test_retry_hermes.py
 tests/test_phase8_2a_evidence.py
+tests/test_phase8_2a_provider_cap.py
 tests/test_retry_http.py
 tests/test_public_release.py
 tests/test_runtime_sources.py
