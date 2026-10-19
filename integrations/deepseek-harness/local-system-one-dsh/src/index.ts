@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { correlationRefs, isolatedCorrelationKey, writePrivateCorrelation } from './evidence.js'
 import {
   CompletionGateClient,
   ModelTierGateClient,
@@ -174,6 +175,7 @@ function logCompletionDecision(
   taskChars: number,
   resultChars: number,
   stage: 'turn_end' | 'tool_result' = 'turn_end',
+  evidence: Record<string, unknown> = {},
 ): void {
   ctx.logger?.info?.(
     `[local-system-one-dsh] ${JSON.stringify(telemetryRecord(
@@ -181,9 +183,13 @@ function logCompletionDecision(
       mode,
       toDecisionEnvelope('completion', decision),
       actionOutcome('observed', 'completion_shadow_only'),
-      { task_chars: taskChars, result_chars: resultChars, stage },
+      { task_chars: taskChars, result_chars: resultChars, stage, ...evidence },
     ))}`,
   )
+  writePrivateCorrelation({
+    gate: 'completion', native_stage: stage, ...evidence,
+    action_status: 'observed', response_request_id_matches: true,
+  })
 }
 
 function logFailOpen(
@@ -192,6 +198,7 @@ function logFailOpen(
   gate: 'search' | 'model_tier' | 'notification' | 'completion',
   error: unknown,
   stage?: 'tool_result' | 'turn_end',
+  evidence: Record<string, unknown> = {},
 ): void {
   ctx.logger?.info?.(
     `[local-system-one-dsh] ${JSON.stringify({
@@ -209,8 +216,14 @@ function logFailOpen(
       action_reason: failureActionReason(error),
       ...(stage ? { stage } : {}),
       request_id: null,
+      ...evidence,
     })}`,
   )
+  if (gate === 'completion' && stage) {
+    writePrivateCorrelation({
+      gate, native_stage: stage, ...evidence, action_status: 'failed_open',
+    })
+  }
 }
 
 function logAction(
@@ -238,6 +251,8 @@ function logAction(
 
 export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): void {
   const config = resolveConfig(inputConfig)
+  // Optional private-test observation only. Never enables Active controls.
+  const evidenceKey = config.effectiveMode === 'shadow' ? isolatedCorrelationKey() : null
   const state = new TurnDecisionState()
   const searchClient = new SearchGateClient(config.serviceUrl, config.timeoutMs)
   const modelTierClient = new ModelTierGateClient(config.serviceUrl, config.timeoutMs)
@@ -414,13 +429,28 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
             tool_failures: candidate.toolFailures,
           }
           const task = candidate.task
+          const requestId = randomUUID()
+          const nativeCallId = resultCallId(event)
+          const evidence = correlationRefs(
+            evidenceKey, sessionId, turn, requestId, 'tool_result', nativeCallId,
+          )
           void completionClient
-            .decide(task, resultText, executionState, randomUUID())
-            .then(decision => logCompletionDecision(
-              ctx, config.effectiveMode, decision, task.length, resultText.length, 'tool_result',
-            ))
+            .decide(task, resultText, executionState, requestId)
+            .then(decision => {
+              if (evidence && decision.request_id !== requestId) {
+                logFailOpen(ctx, config.effectiveMode, 'completion',
+                  new Error('response request id mismatch'), 'tool_result',
+                  { ...evidence, evidence_status: 'ambiguous' })
+                return
+              }
+              logCompletionDecision(
+                ctx, config.effectiveMode, decision, task.length, resultText.length,
+                'tool_result', evidence ?? {},
+              )
+            })
             .catch(error => {
-              logFailOpen(ctx, config.effectiveMode, 'completion', error, 'tool_result')
+              logFailOpen(ctx, config.effectiveMode, 'completion', error, 'tool_result',
+                evidence ?? {})
               ctx.logger?.warn?.(
                 `[local-system-one-dsh] completion loop probe unavailable; fail-open (${errorType(error)})`,
               )
@@ -485,17 +515,24 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
             required_step_missing: !completionCandidate.currentResult,
           }
           const requestId = randomUUID()
+          const evidence = correlationRefs(evidenceKey, sessionId, turn, requestId, 'turn_end')
           void completionClient
             .decide(completionCandidate.task, currentResult, executionState, requestId)
-            .then(decision => logCompletionDecision(
-              ctx,
-              config.effectiveMode,
-              decision,
-              completionCandidate.task?.length ?? 0,
-              currentResult.length,
-            ))
+            .then(decision => {
+              if (evidence && decision.request_id !== requestId) {
+                logFailOpen(ctx, config.effectiveMode, 'completion',
+                  new Error('response request id mismatch'), 'turn_end',
+                  { ...evidence, evidence_status: 'ambiguous' })
+                return
+              }
+              logCompletionDecision(
+                ctx, config.effectiveMode, decision, completionCandidate.task?.length ?? 0,
+                currentResult.length, 'turn_end', evidence ?? {},
+              )
+            })
             .catch(error => {
-              logFailOpen(ctx, config.effectiveMode, 'completion', error, 'turn_end')
+              logFailOpen(ctx, config.effectiveMode, 'completion', error, 'turn_end',
+                evidence ?? {})
               ctx.logger?.warn?.(
                 `[local-system-one-dsh] completion gate unavailable; fail-open (${errorType(error)})`,
               )

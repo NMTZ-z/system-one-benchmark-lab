@@ -15,6 +15,8 @@ Notification and Completion are Shadow-only; experimental reasoning downgrade is
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import math
 import os
@@ -538,6 +540,49 @@ def _as_bool(value: Any, default: bool) -> bool:
     return bool(value)
 
 
+def _private_evidence_refs(
+    kwargs: dict[str, Any], request_id: str, stage: str, *,
+    hex_key: str | None = None,
+) -> dict[str, str]:
+    """Opt-in private Shadow correlation only; never persist native/raw IDs.
+
+    Native session/tool IDs must still be independently verified from Hermes'
+    isolated SQLite store. Missing identifiers remain missing, not inferred.
+    """
+    if os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE") != "isolated-shadow-test-v1":
+        return {}
+    key_hex = hex_key if hex_key is not None else os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX", "")
+    if not isinstance(key_hex, str) or len(key_hex) != 64:
+        return {}
+    try:
+        key = bytes.fromhex(key_hex)
+    except ValueError:
+        return {}
+    if len(key) != 32:
+        return {}
+    sid = kwargs.get("session_id")
+    if not isinstance(sid, str) or not 0 < len(sid) <= 256:
+        return {}
+    if not isinstance(request_id, str) or not 0 < len(request_id) <= 256:
+        return {}
+    def _digest(scope: str, raw: str) -> str:
+        return hmac.new(key, (scope + "\x00" + raw).encode(), hashlib.sha256).hexdigest()[:32]
+    out = {
+        "evidence_contract_version": "1.0",
+        "session_ref": _digest("session", sid),
+        "decision_request_ref": _digest("decision_request", request_id),
+        "native_stage": stage,
+    }
+    turn = kwargs.get("turn_id")
+    if isinstance(turn, str) and 0 < len(turn) <= 256:
+        out["turn_ref"] = _digest("turn", sid + "\x00" + turn)
+    if stage == "tool_result":
+        cid = kwargs.get("tool_call_id")
+        if isinstance(cid, str) and 0 < len(cid) <= 256:
+            out["tool_call_ref"] = _digest("tool_call", sid + "\x00" + cid)
+    return out
+
+
 def register(ctx):
     raw_mode = ctx.get_config(
         "mode", os.environ.get("LOCAL_SYSTEM_ONE_HERMES_MODE", "off")
@@ -714,6 +759,13 @@ def register(ctx):
             kwargs.get("turn_id") or kwargs.get("task_id") or kwargs.get("session_id")
             or "completion-loop-probe"
         )
+        # Existing Hermes request IDs can repeat for mid-turn and end-of-turn
+        # observations. In an explicitly isolated correlation test, use a
+        # unique per-request ID and preserve native identity in keyed refs.
+        if effective_mode == "shadow" and _private_evidence_refs(
+            kwargs, request_id, "tool_result"
+        ):
+            request_id = os.urandom(16).hex()
         event: dict[str, Any] = {
             "ts": time.time(),
             "request_id": request_id,
@@ -729,6 +781,8 @@ def register(ctx):
             "tools_used": record["tools_used"],
             "tool_failures": record["tool_failures"],
         }
+        if effective_mode == "shadow":
+            event.update(_private_evidence_refs(kwargs, request_id, "tool_result"))
         # Never wait for a network response on the native Hermes hook path.
         # Saturation drops this optional observation rather than queuing work.
         if not completion_probe_slots.acquire(blocking=False):
@@ -754,6 +808,10 @@ def register(ctx):
                     )
                     completion = observed.get("completion")
                     if isinstance(completion, dict):
+                        if "decision_request_ref" in event:
+                            event["response_request_id_matches"] = (
+                                completion.get("request_id") == request_id
+                            )
                         event.update({
                             "decision": completion.get("decision"),
                             "decision_source": completion.get("decision_source"),
@@ -800,6 +858,10 @@ def register(ctx):
         request_id = str(
             kwargs.get("turn_id") or kwargs.get("task_id") or kwargs.get("session_id") or "completion-shadow"
         )
+        if effective_mode == "shadow" and _private_evidence_refs(
+            kwargs, request_id, "turn_end"
+        ):
+            request_id = os.urandom(16).hex()
         task = str(record.get("task") or "") if record else ""
         current_result = str(record.get("current_result") or "") if record else ""
         execution_state = {
@@ -821,6 +883,8 @@ def register(ctx):
             "task_chars": len(task),
             "result_chars": len(current_result),
         }
+        if effective_mode == "shadow":
+            event.update(_private_evidence_refs(kwargs, request_id, "turn_end"))
         if not task:
             event["action_status"] = "unsupported"
             event["action_reason"] = "task_unavailable_at_session_boundary"
@@ -839,6 +903,10 @@ def register(ctx):
             event["error"] = observed.get("error")
             completion = observed.get("completion")
             if isinstance(completion, dict):
+                if "decision_request_ref" in event:
+                    event["response_request_id_matches"] = (
+                        completion.get("request_id") == request_id
+                    )
                 event.update({
                     "decision": completion.get("decision"),
                     "decision_source": completion.get("decision_source"),
