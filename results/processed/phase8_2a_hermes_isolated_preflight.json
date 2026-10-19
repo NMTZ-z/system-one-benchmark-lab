@@ -1,0 +1,27 @@
+{
+  "schema": "phase8.2a-hermes-isolated-preflight-v1",
+  "date": "2026-10-18",
+  "result": "BLOCKED_ISOLATED_STEPFUN_AUTH",
+  "model": "stepfun/step-5-preview",
+  "historical_native_hermes_source_commit": "fc49e69bd350aefd9626bb5975da2458569ee8aa",
+  "preflight_source_commit": "27d50ec758f70bc4e5475e073513fcd3dbec6ecb",
+  "git_tree_equivalence": {
+    "hermes_plugin": "18ceb7eeb27a2e0b65edd209a03596f7616a2162",
+    "local_system_one_runtime": "ad96569dbf7b48d45a873a043cd168d96f79f781",
+    "same_objects_at_historical_and_current_commits": true
+  },
+  "isolated_home": {
+    "checked_with_official_hermes_auth_status": true,
+    "active_authority": false,
+    "gate_mode": "shadow",
+    "native_plugin_bytes_match_code": true,
+    "production_home_or_gateway_modified": false
+  },
+  "auth_status": "LOGGED_OUT",
+  "performed_actual_stepfun_model_requests": 0,
+  "performed_real_hermes_off_healthy_down_comparison": false,
+  "next_prerequisite": "interactive secure credential provisioning in the independent Hermes test HOME using official Hermes auth add; never transmit the key in chat or command-line arguments",
+  "phase8_2a_engineering": "BLOCKED",
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}

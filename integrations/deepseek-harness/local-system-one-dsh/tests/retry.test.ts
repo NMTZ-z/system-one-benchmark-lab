@@ -36,6 +36,8 @@ function stubRemote() {
   return fetchMock
 }
 function call(ctx: Context, tool: string, id: string, session = 's', turn = 1) {
+  // Native Harness guarantees turn/start before the first tool call.
+  ctx.fire('session/event', session, 'turn/start', { turn })
   ctx.fire('session/event', session, 'tool/call', {
     turn, step: 1, name: tool, callId: id,
     arguments: '{"secret":"never log me"}',
@@ -218,6 +220,91 @@ describe('Phase 8C DSH Retry Shadow', () => {
     await settle()
     expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(JSON.stringify(ctx.events)).not.toContain('very private ERROR')
+  })
+
+  it('drops late tool events after turn/end and session/end without reviving Retry budgets', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+    call(ctx, 'read', 'first', 's', 1)
+    result(ctx, 'first', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    ctx.fire('session/event', 's', 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+    const logged = ctx.events.length
+    ctx.fire('session/event', 's', 'tool/call', { turn: 1, name: 'read', callId: 'late' })
+    result(ctx, 'late', true, 's', 1)
+    result(ctx, 'first', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(ctx.events).toHaveLength(logged)
+    call(ctx, 'read', 'fresh', 's', 2)
+    result(ctx, 'fresh', true, 's', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    ctx.fire('session/event', 's', 'session/end', {})
+    const afterClose = ctx.events.length
+    ctx.fire('session/event', 's', 'tool/call', { turn: 2, name: 'read', callId: 'very-late' })
+    result(ctx, 'very-late', true, 's', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(ctx.events).toHaveLength(afterClose)
+  })
+
+  it('rejects delayed ended-turn starts while admitting genuinely newer resumed turns', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+    call(ctx, 'read', 'original', 's', 1)
+    result(ctx, 'original', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    ctx.fire('session/event', 's', 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+    ctx.fire('session/event', 's', 'turn/start', { turn: 1 })
+    ctx.fire('session/event', 's', 'tool/call', {
+      turn: 1, step: 1, name: 'read', callId: 'late-new-call',
+    })
+    result(ctx, 'late-new-call', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    ctx.fire('session/event', 's', 'session/end', {})
+    ctx.fire('session/event', 's', 'turn/start', { turn: 1 })
+    ctx.fire('session/event', 's', 'tool/call', {
+      turn: 1, step: 1, name: 'read', callId: 'stale-after-close',
+    })
+    result(ctx, 'stale-after-close', true, 's', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // The upstream platform can resume a legitimate turn 2 on this ID.
+    call(ctx, 'read', 'after-close', 's', 2)
+    result(ctx, 'after-close', true, 's', 2)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    call(ctx, 'read', 'other', 'other-session', 1)
+    result(ctx, 'other', true, 'other-session', 1)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('closes an unfinished active turn on session/end, without blocking a newer turn', async () => {
+    const ctx = new Context()
+    const fetchMock = stubRemote()
+    configure(ctx)
+    call(ctx, 'read', 'unfinished', 'resume', 4)
+    result(ctx, 'unfinished', true, 'resume', 4)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // No native turn/end: session/end itself must retire active turn 4.
+    ctx.fire('session/event', 'resume', 'session/end', {})
+    ctx.fire('session/event', 'resume', 'turn/start', { turn: 4 })
+    ctx.fire('session/event', 'resume', 'tool/call', { turn: 4, name: 'read', callId: 'late' })
+    result(ctx, 'late', true, 'resume', 4)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    call(ctx, 'read', 'newer', 'resume', 5)
+    result(ctx, 'newer', true, 'resume', 5)
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('malformed runtime responses fail-open and preserve Agent events', async () => {

@@ -1,0 +1,75 @@
+{
+  "title": "Phase 8.2A scoped provider-backed paired native read",
+  "status": "PAIRED_DSH_READ_PASS_SCOPED",
+  "frozen_native_source_sha": "5e47348a042daaddf227a8849002e15d133bca32",
+  "run_count": 4,
+  "provider_forwarded_requests": 15,
+  "provider_request_cap": 15,
+  "provider_request_statuses": {
+    "200": 15
+  },
+  "cases": {
+    "dsh_read_off": {
+      "run_id": "dsh_read_off",
+      "native_completed": true,
+      "source_commit": "5e47348a042daaddf227a8849002e15d133bca32",
+      "provider_requests": 3,
+      "end_to_end_seconds": 8.997,
+      "native_tool_calls": 1,
+      "native_tool_result_success": 1,
+      "content_independently_verified": true,
+      "shadow_http_statuses": []
+    },
+    "dsh_read_shadow": {
+      "run_id": "dsh_read_shadow",
+      "native_completed": true,
+      "source_commit": "5e47348a042daaddf227a8849002e15d133bca32",
+      "provider_requests": 3,
+      "end_to_end_seconds": 9.634,
+      "native_tool_calls": 1,
+      "native_tool_result_success": 1,
+      "content_independently_verified": true,
+      "shadow_http_statuses": [
+        200,
+        200
+      ]
+    },
+    "dsh_read_down": {
+      "run_id": "dsh_read_down",
+      "native_completed": true,
+      "source_commit": "5e47348a042daaddf227a8849002e15d133bca32",
+      "provider_requests": 3,
+      "end_to_end_seconds": 9.231,
+      "native_tool_calls": 1,
+      "native_tool_result_success": 1,
+      "content_independently_verified": true,
+      "shadow_http_statuses": [
+        503,
+        503
+      ]
+    },
+    "hermes_read_down": {
+      "run_id": "hermes_read_down",
+      "native_completed": true,
+      "source_commit": "5e47348a042daaddf227a8849002e15d133bca32",
+      "provider_requests": 3,
+      "end_to_end_seconds": 23.005,
+      "content_independently_verified": true,
+      "hermes_hook_was_invoked": true,
+      "shadow_http_statuses": [
+        503,
+        503
+      ]
+    }
+  },
+  "scope_limits": [
+    "one read-only native turn per DSH mode; no concurrent native agents",
+    "Hermes OFF vs healthy Shadow not paired with a fresh frozen run",
+    "request shape integrity audited from adapter source; no captured provider wire diff",
+    "post-native lifecycle code changes require separate validation",
+    "subscription credits/cost not independently observable"
+  ],
+  "phase8_2a_global_engineering": "BLOCKED",
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}

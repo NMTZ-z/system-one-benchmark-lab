@@ -26,6 +26,14 @@ scripts/install_local_system_one_launchd.sh
 scripts/local_system_one_status.sh
 scripts/run_local_system_one_mcp.sh
 scripts/run_local_system_one_service.sh
+scripts/phase8_2a_shadow_proxy.py
+scripts/phase8_2a_provider_cap.py
+scripts/phase8_2a_native_run.py
+scripts/phase8_2a_paired_verify.py
+scripts/phase8_2a_sdk_verify.py
+scripts/phase8_2a_hermes_preflight.py
+scripts/phase8_2a_hermes_paired_verify.py
+scripts/phase8_2a_verify.py
 scripts/uninstall_local_system_one_launchd.sh
 
 docs/LOCAL_SYSTEM_ONE_MVP.md
@@ -40,6 +48,7 @@ docs/PHASE8B_FINAL_REPORT.md
 docs/PHASE8C_FAILURE_AUDIT.md
 docs/PHASE8C_EVALUATION_PROTOCOL.md
 docs/PHASE8C_FINAL_REPORT.md
+docs/PHASE8_2A_NATIVE_SHADOW_E2E.md
 docs/PHASE8C_CROSS_PLATFORM_SAFETY_AUDIT.md
 docs/RETRY_ESCALATION_GATE.md
 docs/MODEL_BACKEND_CONTRACT.md
@@ -66,6 +75,14 @@ results/reports/Phase8A-Completion-Gate-v0.1.md
 results/processed/completion-gate-v0.1.json
 results/processed/phase8b-completion-pilot-v1.json
 results/processed/phase8c-retry-pilot-mlx.json
+results/processed/phase8_2a_native_shadow_exploratory.json
+results/processed/phase8_2a_stepfun_native_exploratory.json
+results/processed/phase8_2a_stepfun_shadow_paired_read.json
+results/processed/phase8_2a_latest_dsh_multiturn.json
+results/processed/phase8_2a_stepfun_native_sdk_paired.json
+results/processed/phase8_2a_hermes_isolated_preflight.json
+results/processed/phase8_2a_hermes_route_401_diagnostic.json
+results/processed/phase8_2a_hermes_native_off_shadow_down.json
 results/processed/model-backend-pilot-laya-v1.json
 results/processed/model-backend-pilot-rule-v1.json
 results/processed/model-backend-pilot-20261016-rule.json
@@ -90,6 +107,13 @@ tests/test_hermes_system_one_scripts.py
 tests/test_retry_benchmark.py
 tests/test_retry_escalation_gate.py
 tests/test_retry_hermes.py
+tests/test_phase8_2a_evidence.py
+tests/test_phase8_2a_provider_cap.py
+tests/test_phase8_2a_paired_verify.py
+tests/test_phase8_2a_sdk_verify.py
+tests/test_phase8_2a_hermes_preflight.py
+tests/test_phase8_2a_hermes_paired_verify.py
+tests/test_phase8_2a_native_run_safety.py
 tests/test_retry_http.py
 tests/test_public_release.py
 tests/test_runtime_sources.py

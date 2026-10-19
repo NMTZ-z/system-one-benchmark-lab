@@ -1,0 +1,873 @@
+# Phase 8.2A — Native Agent Shadow E2E: bounded exploratory run
+
+**Status: ENGINEERING BLOCKED — not a dual-platform native E2E PASS.**  This
+report records genuine provider-backed Agent executions alongside their exact
+missing evidence. It does **not** extrapolate Hook Replay or direct Runtime HTTP
+into native Agent E2E. The deterministic rules, Laya model calibration, ANE,
+Active authority and model comparisons are outside this phase.
+
+## 1. Baseline, independence and execution provenance
+
+- Public GitHub `main` checked on 2026-10-18: `da2947a2091570a28a061d651200eec3d94276df`, with no open PR at start.
+- NAS `origin/main` was `afa2512cc66400d111c28cb5fe00e9f83fdba49a`; **it was not updated or reset**. Another worktree contained an unrelated untracked `uv.lock` and was left alone.
+- Isolated branch: `feat/phase8-2a-native-shadow-e2e`, based on the public SHA above. Source/test runs below were exploratory **before this phase's fix was frozen in Git**, and must not be used as a formal post-fix acceptance run.
+- Installed Hermes: `v0.22.1+11.gd923a5e`, local `d923a5eb487a`. Isolated temporary profile: `p82native`. Original provider and production profiles were not changed. Adapter installed in the isolated profile from the full public base commit, version `0.9.0`.
+- DeepSeek Harness native `headless` source: pinned `0.1.7-rc.2` at `477b4f420553e8a52c2fbccc464d7561b239c443`; DSH adapter `0.6.0` built from the public main source. No generic custom event emitter was substituted for the platform.
+- Main model: an **actual authorized remote provider** `nova/deepseek-v4-flash`, both platforms. Decision model: `laya-typed-decisions` / **MLX**, isolated loopback Runtime port 18782. These are different models. JEV/TypeSafe was not invoked; no Active modes were granted.
+- Shadow config only: Completion end-of-turn and opt-in tool-result probe; Retry separately opt-in; Search, Model Tier, Notification and Canary disabled. Logs, test tasks and full native traces were confined to a Git-ignored private directory. No plaintext secrets entered the repo or CLI arguments.
+
+Prior Phase 8B/8C reports cover mocked lifecycle replay and direct Runtime HTTP,
+but no dual-platform provider-backed Completion/Retry E2E. Those results were
+not reused as current successful runs.
+
+## 2. Four core attempts and independent outcomes
+
+| Run | Platform / native event | Independent business outcome | Observer/runtime evidence | Classification |
+|---|---|---|---|---|
+| H-S1 | Hermes main-model-driven `read_file`→`write_file` | Output exists, but one trailing newline missing; **SHA differs** | Native plugin stored tool-result and session Completion; `backend=mlx`, `decision_source=model`, Shadow observed | **Artifact mismatch**, genuine Completion integration evidence, not success PASS |
+| H-S2 | Hermes main-model-driven `read_file`→`write_file` | **Exact content and SHA match**, output generated in isolated directory | Native plugin stored tool-result and session Completion; MLX/model observed; no Active authority | **Exploratory success** (not post-fix frozen acceptance) |
+| H-F1 | Hermes main-model-driven `read_file` on a known-nonexistent path | File remains absent; Agent correctly reports failure, no shadow-driven recovery | Native Completion tool probe observed `tool_failures=1`; Retry recorded **`unsupported/operation_unverified`** rather than calling Runtime | **Native failure event observed; Retry integration not passed** |
+| D-S1 | DSH native `headless` provider-backed tool call and result, completed turn | **Output file exists and matches predetermined content**, independent of final answer | DSH native trace captures `tool_call`, `tool_result`, `step_end`, `turn_end`; no attributable successful Completion→Runtime evidence retained | **Platform tool task success; observer E2E PARTIAL** |
+| D-S2 | DSH second native write and tool result | Output verified; final DSH turn **failed with Provider 429/QUOTA** | Loopback collector recorded **two Completion POSTs with HTTP 503** after its owning Runtime session timed out | **Tool succeeded, turn not completed, failed-open observation only** |
+| D-F1 | DSH planned native failed read | **Not run**: remote provider reached a quota error | No native failure event / Retry Shadow result | **BLOCKED**, not replayed as a substitute |
+
+An allowlisted public summary is available in
+`results/processed/phase8_2a_native_shadow_exploratory.json`. It explicitly
+marks raw private provenance and incomplete acceptance.
+
+The DSH initial `stepfun` launch failed before a provider request because the
+frozen upstream did not have that route registered (`NO_ADAPTER`). A minimal
+*private* DSH `llm-pi-ai` provider declaration for the already-authorized
+Nova route resolved the launcher issue. It did not change upstream code,
+production providers or the published adapter.
+
+**Counts:** three Hermes provider-backed runs (8 successful provider calls);
+DSH D-S1 had 2 successful LLM steps; D-S2 had 1 successful step plus 1 failed
+429 request. Thus **at least 12 attempted main-model calls**, counting the
+failed request; the authoritative billing count and cost are unknown. No paid
+DSH read-failure test was launched after the QUOTA error. Original cap 12 calls
+was explicitly raised to 18 for bounded investigation of the observed native
+incompatibility, **without raising the RMB 2 monetary ceiling**. Usage reported
+by Hermes `estimated_cost_usd=0.0` is not verified actual pricing or spend.
+
+**Independent verification:** H-S1 failed a byte-for-byte hash check, even
+though the Agent said it had succeeded. H-S2 passed the same check. D-S1 and
+D-S2 each produced the exact, separately checked test-file content; DSH's
+native event stream has one paired tool call/result per task, and typed Turn
+boundaries. D-S2 cannot count as a completed Agent task. The originally absent
+files remained absent; no production resources were used as test targets.
+
+## 3. Real compatibility bug found, isolated repair
+
+Hermes `v0.22.1` supplies `tool_name` in its actual native
+`post_tool_call` hook (the frozen source shows `invoke_hook(..., tool_name=...)`).
+The existing Retry observer used only `function_name`, which the older
+constructed tests populated. H-F1 therefore correctly reported
+`operation_unverified` under the old implementation. This was a genuine
+integration gap, not a missing budget or a model classification issue.
+
+The phase's small fix accepts native `tool_name`, retains `function_name` for
+older host/fixture compatibility and rejects conflicting dual identities as
+unsupported. A regression asserts the positive native path, the negative
+conflict path, no forwarding of raw tool output or secrets, and no Active
+retries. **The repaired plugin was not reinstalled and retested with a live
+provider** after the QUOTA error; a unit PASS is not a native retest.
+
+No budget, side-effect, idempotency, trust-source, gate thresholds, model
+backend semantics or retry authority were changed. Unsupported shell and
+unidentified tool operations remain unsupported.
+
+## 4. HTTP collector and evidence boundaries
+
+`python3 scripts/phase8_2a_shadow_proxy.py --port 18783 --evidence <private-JSONL>`
+forwards exact bytes to **a real, isolated** Laya/MLX Runtime on
+`127.0.0.1:18782`. It accepts only the two Completion/Retry endpoints, only
+loopback peers, and small bodies. It logs only the endpoint, salted hashed
+request identity, status, decision, decision source, backend and duration.
+It never logs task/result text, tool arguments, provider credentials, or raw
+HTTP headers. The collector does not mock a model or native event.
+
+- D-S2 issued **2 real Completion HTTP requests** through the installed
+  adapter; both returned **503**, not a valid inference decision.
+- One subsequent **direct manually invoked Retry HTTP smoke** (no Agent!)
+  returned HTTP 200, `verify_state`, `decision_source=rule`, `backend=rule`.
+  This confirms the forwarding path, **not** native Retry or Laya inference.
+- Collector events were not securely bound to a specific native Turn by a
+  shared verified request-ID trail; run-specific attribution is limited to
+  isolation/timing. Do not represent cross-layer association as proven for DSH.
+- The prior Hermes native Completion decisions explicitly recorded `mlx/model`
+  in the real installed plugin state; that is the strongest available evidence
+  of actual Laya inference for this experiment. The HTTP-only rule result
+  must not be counted as Laya use.
+
+`scripts/phase8_2a_verify.py --private-root <private-test-directory>` checks
+bytewise artifacts, parses only DSH native JSON event *metadata*, rejects
+orphan/duplicate IDs and missing Turn/Step boundaries, and summarizes only
+allowlisted facts. It does **not** treat final text as success. Raw sessions,
+provider usage and service ledger belong to the local Git-ignored private
+folder, never a public release. Public summaries are **records, not
+cryptographic execution attestations**. Unattributed collector events are
+explicitly marked as such.
+
+## 5. Noninterference, limits and omitted scenarios
+
+- Hermes and DSH adapter modes were Shadow. Both native Agent file tools ran
+  without a Gate-triggered stop/retry/model upgrade; H-S2 produced its artifact
+  while Completion observations ran. D-S2's tool also executed despite
+  Runtime HTTP failures. This is **narrowly observed fail-open behavior**, not
+  statistically proven noninterference or a controlled OFF/healthy/down trio.
+- **OFF vs healthy Shadow vs down Shadow** matched-provider comparisons:
+  **not completed**. Provider rate limiting prevents more valid paired runs.
+- Runtime unavailability was incidental when the isolated process command
+  session expired, not a fully planned failure-injection matrix. Its HTTP 503
+  evidence is retained, without claiming the full noninterference matrix.
+- Multi-Turn, concurrent capacity, duplicate events, late results, a dropped
+  write response, read-after-timeout, 429/403/validation faults and partial
+  deliveries: **not natively completed**. Existing replay and bounded unit
+  tests provide separate component evidence; no new production tolerance is
+  implied.
+- Hook callback time and inference/network latency have different meanings.
+  In this sample, do not derive P95 or sum asynchronous inference into blocking
+  latency. Native runs are too few to draw throughput or model-quality claims.
+
+Reproducibility requires: matching pinned platform versions; isolated Hermes
+profile with installed plugin; DSH headless patch with a real already-authorized
+main-model provider; `completion_loop_probe_enabled=true` and
+`retry_escalation_gate_enabled=true`; single-owner loopback Runtime and
+collector; temporary test directory; strict provider/request/step/time caps;
+and independent file and event verification. Formal verifier mode `scripts/phase8_2a_verify.py --private-root <path>
+--formal-sha <frozen-40-hex-commit>` additionally rejects missing manifests,
+wrong code versions, dirty trees and missing metric denominators. Existing
+exploratory runs intentionally **cannot** satisfy formal mode.
+
+The published scripts intentionally
+**do not retrieve secrets** or auto-launch a paid provider. To repeat the real
+scenarios, arrange authorization through a secure environment and consciously
+invoke platform-native `hermes -z` / `dsh --profile headless` against private
+configuration. Never put keys into shell arguments, committed patches, public
+logs or a DSH_HOME shared with production.
+
+## 6. Regressions, privacy and cleanup
+
+At the development checkpoint, targeted Python tests:
+**17 PASS** (`tests/test_retry_hermes.py` and
+`tests/test_phase8_2a_evidence.py`). DSH `npm run typecheck`,
+`npm run build`, `npm test`: **55 PASS**. Full Python regression: **857 PASS** on the final code candidate;
+rerun after any changes. Public release/allowlist validation is performed
+on the final candidate. These numbers are not historical Phase 8.1 passing totals.
+
+Two owned short-lived local Runtime sessions and the loopback collector
+were terminated or timed out, rather than continuing as permanent services.
+Only the isolated profile was modified and its test plugin was disabled at cleanup.
+**Isolation qualification:** the native Hermes plugin install CLI printed
+"Gateway reloaded plugins — active in the running gateway now: hooks".
+This was a **hot hook reload automatically triggered by profile-specific
+installation**, not a requested Gateway process restart. No production profile
+was edited, but zero transient impact on the shared multiprofile gateway was
+**not independently established** and is therefore not claimed. Regular
+profiles, the stable DSH installation and the NAS main branch were not
+reset or deployed. No public credentials, native raw session
+contents or private filesystem paths are included in the export.
+
+## 7. Independent acceptance matrix
+
+| Field | Status | Reason |
+|---|---|---|
+| Hermes Native E2E | **PARTIAL** | Success + failed native tool observed; Retry failure path blocked by a now-fixed but untested native identity mismatch; no frozen post-fix provider rerun |
+| DSH Native E2E | **PARTIAL** | Real success task, but no healthy linked Shadow result; failed-read path not run after provider QUOTA |
+| Completion Observation | **PARTIAL** | Hermes native `mlx/model` observed; DSH only failure HTTP evidence, not valid inference response |
+| Retry Observation | **PARTIAL** | Hermes native failure logged unsupported; native field bug repaired + regression tests, live retest absent; DSH failure not run |
+| Shadow Noninterference | **BLOCKED** | No complete OFF / Shadow healthy / Shadow down paired native trials |
+| Privacy & Cleanup | **PASS (scoped)** | Private raw records, allowlisted recorder, loopback-only test processes cleaned; requires final exit/port confirmation |
+| Regression | **PASS (scoped)** | Targeted suites passed; full suite and public bundle audit to be completed |
+| **Phase 8.2A Engineering** | **BLOCKED** | Two-platform four-chain and paired-failure/noninterference requirements unmet |
+| Model Superiority | `NOT_EVALUATED` | Out of scope |
+| Active Authority | `NOT_AUTHORIZED` | Shadow never made an execution decision |
+
+**Next blocked prerequisite:** re-establish the previously authorized provider
+quota/budget without switching or purchasing a second provider, keep the
+repaired source pinned to an immutable commit, and rerun H-F1 + D-F1 followed
+by D-S1 with healthy Runtime HTTP evidence; then run the small OFF/Shadow/down
+and lifecycle comparisons. No automatic merge or production deployment is
+authorized by this report.
+
+## 8. Authorized StepFun Plan continuation (2026-10-18)
+
+The user authorized **switching the main model to the already configured StepFun
+Step Plan subscription**, specifically `stepfun/step-5-preview`. This **does not**
+change the Laya/MLX decision model or grant Active control. Step Plan credentials
+were read from an existing authorized source into test subprocess memory, never
+written to source control or a shell command argument. The test used the
+subscription endpoint under `/step_plan/v1`, **not** the pay-as-you-go `/v1`
+endpoint. Plan-credit consumption is not independently priced or verified.
+
+A fully separate, Git-ignored `HERMES_HOME` was created and the actual native
+Hermes plugin was installed **pinned to the first exploratory PR revision**;
+that home's CLI printed that a Gateway restart would be needed, but we did
+**not** perform a Gateway restart or modify any production profile. DSH used
+a separate native `DSH_HOME`, upstream pin `0.1.7-rc.2`, and a private
+`llm-pi-ai` configuration routed to the real Step Plan provider. The pinned
+DSH upstream did not natively register this provider, so this was a standard
+provider extension, not a forged Agent event or main-model replacement.
+
+All three actual native tasks below started on **clean, frozen source commit**
+`fc49e69bd350aefd9626bb5975da2458569ee8aa` (the earlier two PR
+commits plus a one-line local-private-home ignore). Later report-only changes
+are not passed off as that same code SHA. The project-private launch script
+and session traces remain Git-ignored. The remote Step Plan provider was
+real, and an isolated request-cap forwarding service passed its HTTPS
+requests through without creating model replies.
+
+| Native task | Provider requests | Independent result | Completion Shadow | Retry Shadow | Verdict |
+|---|---:|---|---|---|---|
+| Hermes failed `read_file` | 2 main | Missing target remained missing; failed native event observed | Post-tool and turn-end reached real Laya/MLX | HTTP 200, `ask_user`, `rule`, unknown retry budget retained | **Previously blocked native Retry path now observed successfully** |
+| Hermes `read_file`→`write_file` | 6 main + 1 auxiliary | **Exact output bytes match** | Post-tool and turn-end reached real Laya/MLX | Successful tools did not trigger Retry | Native chain works, **but violates the planned ≤3 main calls/task cap** |
+| DSH failed native `read` | 3 upstream total, including at least 2 visible native steps | Typed `tool_call` + `tool_result.status=error` paired; missing target remained absent | Two HTTP 200 model/MLX observations | One HTTP 200, `ask_user`, `rule` | **Supported read-failure native path observed** |
+| DSH normal write | 0 | Not attempted in this StepFun round | NOT VERIFIED | N/A | **BLOCKED by total request cap** |
+
+The independent collector captured **8 successful** loopback Runtime requests:
+**6 Completion Laya/MLX inference** and **2 Retry hard-rule resolutions**.
+The Runtime metrics agree: `requests=8`, `backends={mlx:6, rule:2}`. This is
+model execution evidence only for Completion, not for Retry: Retry correctly
+selected a deterministic conservative path due to missing trustworthy budget.
+No Agent execution was changed by those recommendations.
+
+**Budget warning.** The Hermes failed read incurred 2 model calls. The Hermes
+normal task incurred **6 main plus 1 auxiliary call**, even though the initial
+per-task limit was 3; this overrun is explicitly not a PASS for budget
+compliance. The DSH bounded provider-pass-through then forwarded 3 real
+Step Plan requests. **Observed round total: 12/12** (including the Hermes
+auxiliary). The explicit cap was reached. We stopped further Provider calls
+rather than silently extending the budget or substituting fake responses.
+The original experiment's 2-CNY monetary safeguard was not independently
+priced in subscription credits, so **no zero-cost monetary claim** is made.
+
+Sanitized evidence: [`results/processed/phase8_2a_stepfun_native_exploratory.json`](../results/processed/phase8_2a_stepfun_native_exploratory.json).
+Evidence sources are kept separate: native Hermes plugin state; native DSH
+Headless NDJSON tool/step/turn records; runtime forwarding logs; post-run
+filesystem checks; and HTTPS forwarding request counters. The DSH HTTP
+collector is scoped to an isolated single native run, but there is no
+shared externally verified request-ID trail tying each DSH native call to
+each specific Runtime decision. Do not infer more correlation than observed.
+
+### Revised acceptance after the provider switch
+
+- **Hermes native integration: PARTIAL.** Both tool success and tool failure
+  now genuinely pass through the claimed observable shadow paths, including
+  the fixed Retry field, but the success task exceeded its provider-call limit.
+- **DSH native integration: PARTIAL.** Native read failure and Completion/Retry
+  observations were reproduced with StepFun; the successful StepFun write
+  and independent OFF/Shadow/Runtime-down comparisons remain outstanding.
+- **Completion observation: PASS on observed tool/turn paths only**; no active
+  stopping, incomplete/late-turn guarantees or quality claim.
+- **Retry observation: PASS on the pinned failed-read path only**; other
+  tool/side-effect outcomes remain unsupported or untested.
+- **Shadow noninterference: BLOCKED** pending true paired OFF/healthy/down.
+- **Phase 8.2A Engineering: BLOCKED**, Model Superiority: NOT_EVALUATED,
+  Active Authority: NOT_AUTHORIZED.
+
+Next native-provider phase must use a freshly declared finite call/credit
+budget before the first new request, instrument the total Provider request
+count across native and auxiliary flows, validate a DSH success task and
+complete the controlled paired tests. Do not reuse the current 12/12 cap or
+quietly treat an Agent's own retries as System One recoveries.
+
+## 9. Bounded provider-proxy pilot and paired native noninterference (2026-10-18)
+
+A follow-up pilot was run using **real StepFun Step Plan** `stepfun/step-5-preview`
+and the existing Laya/MLX Runtime. Its new admission control is
+[`scripts/phase8_2a_provider_cap.py`](../scripts/phase8_2a_provider_cap.py):
+explicit `--execute-real-provider` opt-in, exact model/URL allowlist, atomic
+cross-process request reservation before upstream I/O, **3 upstream requests
+per run / 15 total**, with failed/retried/auxiliary requests included. A
+reserved request is not refunded after timeout. Its private JSONL ledger
+contains only run, slot, HTTP status and measured wall time; not prompts,
+credentials, tool data or replies. The real Step Plan HTTPS responses are
+forwarded, not simulated. Default CI does not invoke this provider.
+
+[`scripts/phase8_2a_native_run.py`](../scripts/phase8_2a_native_run.py)
+is an opt-in repeatable native single-task runner requiring an already
+running cap proxy, a separate Hermes/DSH home, and a real environment-held
+StepFun credential. For the revised read-only task, the file's nonce is
+**not present in the Agent prompt**. An independent parser checks that a
+native `read` tool's completed result, final Agent text and hidden original
+file content agree. Files, full native events and logs are private and
+Git-ignored; the published summary uses an explicit allowlist.
+
+### Exact code/test scope
+
+The initial DSH `write` exploration was on clean commit
+`daf86c449e5ab20bfcbc4de8db5a60e0fafa4b25`: the Agent made one failed
+`read` before a successful `write`, produced the correct output bytes, then
+ended in `RATE_LIMIT` when the capped main-model request budget was exhausted.
+The **business artifact succeeded but the Agent turn did not**. This run is
+**not** counted as a successful native task.
+
+The next three DSH native `read` trials and the Hermes degraded native `read`
+trial all ran from a separate clean frozen commit:
+`5e47348a042daaddf227a8849002e15d133bca32`. Each was invoked under
+an explicit three-provider-request hard cap, a 90-second wall timeout and
+an isolated process/home. They used *identical task semantics* with distinct
+private input paths. Read content verification used the actual native DSH
+tool-result payload; the Agent's final answer was never the sole oracle.
+
+| Platform / mode | Independent original-task result | Native status | Provider requests | Gate HTTP |
+|---|---|---|---:|---|
+| DSH OFF | input unchanged; read result + final nonce match | turn completed, 1 paired read | 3 | **none** |
+| DSH Shadow / healthy Laya | same | turn completed, 1 paired read | 3 | Completion **200, 200**; both `mlx/model` |
+| DSH Shadow / Runtime down | same | turn completed, 1 paired read | 3 | Completion **503, 503**; native turn unaffected |
+| Hermes Shadow / Runtime down | input unchanged; final nonce matches | native task completed; Completion hook probe and turn-end each observed | 3 | Completion **503, 503** |
+
+Native DSH OFF/Shadow/down elapsed seconds: **8.997 / 9.634 / 9.231**,
+respectively, each **n=1**. These are *descriptive run observations*;
+there is no P95 and they cannot prove zero overhead or statistically equal
+model behavior. The inspected Shadow adapter paths do not apply Completion or
+Retry advice to native requests, tools, termination, authorization or model
+selection; no Active authority was granted. The HTTP collector's privacy-safe
+run-time windows support association in this isolated sequential test, but
+shared turn-level correlation through both native and Runtime request IDs was
+not proven.
+
+The durable ledger accounts for **15/15 forwarded HTTPS Step Plan requests**, all
+15 receiving HTTP 200 from the upstream endpoint: three in the initial
+unsuccessful write attempt, then three for each of the four completed native
+read tasks. It is a new finite round, separate from the earlier 12-request
+StepFun exploratory budget. Provider credit/monetary spend remains unknown.
+No sixteenth upstream request was forwarded, no change of paid Provider was
+made, and model suggestions never induced native retries.
+
+Independent adjudication is in
+[`results/processed/phase8_2a_stepfun_shadow_paired_read.json`](../results/processed/phase8_2a_stepfun_shadow_paired_read.json),
+generated by the [paired verifier](../scripts/phase8_2a_paired_verify.py).
+The scoped finding is **DSH Native OFF vs healthy Shadow vs Runtime down:
+PASS for this single read-only task family**, supplemented by a separate
+Hermes degraded-native run. This is **not** a blanket, multi-tool/multi-session
+noninterference or performance claim.
+
+### Lifecycle hardening discovered during offline closeout
+
+After the real runs, inspection found that the DSH Retry observer's cleaned
+per-turn counters could be recreated by late `tool/result` events lacking an
+active native turn-start marker. A narrowly scoped DSH guard was added:
+Retry now requires an active native `turn/start` identity, has bounded live
+turns, and discards late failed tool events after `turn/end`/`session/end`
+without resurrecting the counter. This fixes an **offline-verified lifecycle
+bug** with a new regression and retains Shadow behavior. Its *post-run source
+commit is different*, so the provider-backed DSH evidence above does **not**
+constitute a native E2E retest of this lifecycle change. In particular,
+real multi-Turn same-session, many simultaneous native sessions and late
+worker completions remain **NOT NATIVE-MEASURED**.
+
+### Acceptance after this second round
+
+- Hermes native success/failure observed across the existing bounded pilots.
+  A separate degraded run confirms native fail-open; full matched
+  OFF/healthy/down Hermes *same-task* trio was not repeated.
+- DSH native success/failure observed; DSH single-read OFF/healthy/down
+  **passes within stated scope** on frozen pre-lifecycle-fix code.
+- Completion/Retry supported native tool observations: **measured**; actual
+  Laya inference was observed only on model-path Completion requests; unknown
+  budgets correctly fall back to Retry rules.
+- Privacy, per-run/network capacity control and cleanup: **PASS in tested
+  scope**; long-running production capacity/energy implications are unknown.
+- Multi-turn/concurrent native lifecycle & the late-event fix on final
+  source commit: **not yet provider-backed revalidated**. No threshold,
+  model superiority or Active Readiness tests were performed.
+- **Phase 8.2A Engineering: BLOCKED** until the final lifecycle hardening and
+  broader declared native coverage are verified on a frozen final candidate.
+  Model Superiority: NOT_EVALUATED; Active Authority: NOT_AUTHORIZED.
+
+## 10. Final offline regression and publication boundary
+
+The final source candidate adds a bounded, **explicitly real-provider-only**
+StepFun pass-through request limiter, a minimal repeatable native-run entry,
+independent paired-native evidence checks, and a narrowly scoped DSH
+late-result lifecycle guard. The real provider trials did **not** execute
+this last guard revision; that distinction is maintained in Section 9.
+
+- Python: **866/866 tests passed**, including cap enforcement under concurrent
+  incoming requests, malformed/unexpected model rejection, both per-run/global
+  limits, request failures that still consume slots, strict DSH native event
+  pairing, and post-run independent verifier checks.
+- DSH: TypeScript typecheck and build passed; **56/56 tests passed**, including
+  a late `tool/call` and `tool/result` after `turn/end`/`session/end` that must
+  not create fresh Retry state or extra Runtime requests.
+- Model quality and noninterference timing significance remain
+  **NOT_EVALUATED**. The original StepFun task cap was enforced in real
+  network traffic, not merely tallied after the fact.
+- The committed report and processed JSON are sanitized *derived evidence*.
+  The native full task, original file nonce, token, provider headers and
+  unredacted Agent outputs stay in the restricted Git-ignored test workdir.
+  SHA and field consistency make records auditable, **not** cryptographic
+  proof of an entire execution.
+- Final source has **not** received a new provider-backed run after the DSH
+  late-event fix because this round's **15/15** provider request quota is
+  exhausted. A new explicit provider budget and frozen-code rerun are
+  required before calling the *latest* candidate an engineering acceptance.
+
+Final classification (scoped real tests and latest offline validation kept
+separate):
+
+| Check | Judgment |
+|---|---|
+| Hermes Native E2E | PARTIAL: real success/failure and degraded Shadow, no latest-SHA full trio |
+| DSH Native E2E | PARTIAL: native failed read and successful read; lifecycle fix not re-tested native |
+| Completion Observation | PASS **only for observed tool-result/turn-end model paths** |
+| Retry Observation | PASS **only for supported failed-read rule paths** |
+| Shadow Noninterference | PASS **only for DSH isolated one-Turn read OFF/healthy/down trio** |
+| Privacy & Cleanup | PASS in isolated scope; no production writes / private trace export |
+| Regression | PASS: 866 Python + 56 DSH; typecheck/build clean |
+| **Phase 8.2A Engineering** | **BLOCKED**: missing native revalidation of final DSH lifecycle patch and wider real lifecycle matrix |
+| Model Superiority | NOT_EVALUATED |
+| Active Authority | NOT_AUTHORIZED |
+
+No production Canary rights, automatic retry, active stop, model ranking,
+JEV calls, stable install updates, or automatic PR merge were authorized.
+
+### Pre-freeze adversarial lifecycle review
+
+An independent order-of-delivery regression was added **after** the previous
+56-test DSH run. It first failed reproducibly: if a duplicate `turn/start`
+arrived **after `turn/end`**, the Retry observer could accept a new call for an
+already completed turn. This was a concrete missing safety test, not a claim
+of an observed live production failure.
+
+The minimal repair records, per session ID, the **highest retired native Turn
+number** (bounded to 256 recent session identities); an old `turn/start`
+therefore cannot restart the Retry budget. `session/end` without `turn/end`
+retires all its active turn IDs. Crucially, a truly **higher** Turn number can
+still resume on the same persisted session ID, so the original native-resume
+contract is preserved. Colon-delimited child session IDs remain isolated by
+the existing length-prefixed session identity. Very old events after more than
+256 other retired session identities have an explicit bounded-history limit;
+we do not claim indefinite de-duplication or production session persistence.
+
+The regression was run failing against the previous implementation, then
+passing with the fix, alongside an additional session-close-without-turn-end
+case. This is **offline lifecycle verification** only until the final frozen
+candidate receives its own real StepFun Provider-backed acceptance. No Gate
+was promoted to Active, and the decision policy remains unchanged.
+
+Pre-freeze runner hardening also added `--expected-sha`, pinned DeepSeek
+Harness CLI SHA verification, a strict Git-ignored private location for real
+Provider budget ledgers, and process-group shutdown for test Agents timing out.
+These guard test provenance and prevent orphaned child processes; they are not
+changes to normal Agent execution or the runtime's model decisions.
+
+## 11. Frozen-candidate native persisted-session retest (2026-10-18)
+
+The pre-freeze independent audit reproduced a **new, real DSH Retry lifecycle
+bug**: a delayed duplicate native `turn/start` **after** an already completed
+`turn/end` could reactivate the old turn and cause a second Retry Shadow
+request. The new regression failed against the previous code. A bounded,
+per-session highest-retired-turn watermark now ignores this stale event and
+also retires live turns on `session/end` even if their `turn/end` was omitted.
+A higher native Turn may still resume on the same session ID, as supported by
+the upstream Headless contract. The independent test for parent/child-session
+isolation continues to pass. The watermark covers the latest 256 retired
+session identities in a single adapter process; it is not claimed to provide
+indefinite out-of-order message de-duplication.
+
+**Frozen source commit for the latest native runs:**
+`3d5b02fdb7d489c80de4ab958fd33a559b33e08c`. The Git worktree was
+clean and the isolated test Platform was pinned before network calls. The
+published JSON/docs may have a later Git commit but **no later runtime source
+is represented as having been provider-tested**. The source pin check and the
+per-request hard cap were actually enforced.
+
+This latest real StepFun Plan run used DSH `0.1.7-rc.2` and the installed
+DSH `0.6.0` adapter through the native Headless interface. The first task
+read a nonexistent private file and produced a native `tool_result=error`.
+The real Session ID was captured privately, then used through DSH's native
+`--session-id` option to resume the same persisted Session for the second
+Task, which successfully read a separate private file. The hidden nonce was
+not in either prompt and was checked independently from the raw native tool
+result, original bytes and final answer. The actual native Turn numbers were
+**1 then 2**, with matching tool-call/result IDs and completed Turn
+boundaries. Two separate Headless processes were used: this is a **native
+persisted Session with consecutive Turns**, but it does **not** validate a
+single long-lived adapter instance's in-memory state across Turns.
+
+The isolated metadata-only Runtime collector independently recorded **five
+real HTTP 200 requests**: **one Retry rule** decision for the failed read and
+**four Completion Laya/MLX model** inferences. The isolated StepFun Plan
+budget proxy recorded **five reserved/finalized real HTTPS provider calls**,
+all HTTP 200. The predeclared cap for this two-Turn scenario was six, within
+a separate round's overall 15-call limit. No sixth call was needed and **the
+10 unused allowed requests are not a credit balance**; provider plan-credit
+consumption remains unknown. Earlier test rounds and limits are distinct.
+
+An independent data-only verifier compared the original native event traces,
+paired IDs, Session identity, Turn numbers, input files, SHA and both collector
+ledgers before producing sanitized evidence:
+[`results/processed/phase8_2a_latest_dsh_multiturn.json`](../results/processed/phase8_2a_latest_dsh_multiturn.json).
+No raw prompt, nonce, unredacted tool results, Session ID, Provider key or
+Agent trace was added to the public branch.
+
+A further Hermes OFF/healthy Shadow/Runtime-down test on this latest commit
+was **not** completed: the isolated test-launch operation encountered an
+external safety/access block. We did not bypass this restriction or route
+the request through another credential source, and made no additional
+Provider calls. All locally started ports `18782`, `18792`, `18793`, `18794`
+were freed. The earlier Hermes native results remain historical evidence
+with their original pinned source identity, not latest-SHA retest results.
+
+### Final current evidence boundary
+
+- **PASS, scoped:** Latest frozen source with a real native DSH persisted
+  two-Turn Session, an actual failed then successful native tool operation,
+  observable real Retry/Completion Shadow decisions and bounded Provider
+  requests. The red-to-green lifecycle replay unit test also passes.
+- **PASS, scoped on earlier frozen source:** DSH one-Turn OFF/healthy Shadow/
+  Runtime-down read-only matched comparisons; previously observed Hermes
+  native success/failure/degraded paths.
+- **NOT PROVEN:** latest source with all three Hermes modes; true concurrent
+  independent native Sessions; in-memory lifecycle across Turns in the same
+  long-running adapter process; indefinite delayed events beyond bounded
+  tombstones; statistically meaningful overhead; model quality superiority.
+- **Phase 8.2A Engineering remains BLOCKED** pending these specific remaining
+  acceptance boundaries; no production Canary/Active authority is granted.
+
+## 12. Official SDK resident-process native E2E and latest-SHA OFF/down comparison
+
+The user confirmed Codex Review was disabled. Subsequent acceptance is based
+on independently checked runtime, tool, Provider and test evidence, not the
+presence or absence of automated PR comments.
+
+A direct exploration of the pinned DeepSeek Harness `0.1.7-rc.2` upstream
+located its **official native `sdk` Profile** (stdio JSON-RPC), whose
+`initialize`, `session/prompt`, `session.event` and `shutdown` interface is
+covered by upstream SDK tests. This is a supported native Agent execution
+path, not an adapter-crafted hook replay. An isolated private SDK instance
+loaded the existing DSH adapter `v0.6.0`, StepFun Plan
+`stepfun/step-5-preview` as the real main LLM, and a separate real
+Laya/MLX Runtime for Completion decisions. No production Agent, Gateway,
+Canary, Active authority, models or upstream code were modified.
+
+**Runtime/adapters frozen at
+`3d5b02fdb7d489c80de4ab958fd33a559b33e08c`.** The Git tree's
+subsequent `b21dbf9` contained only documentation and sanitized evidence;
+no runtime or adapter changes occurred between it and this test. The latest
+published evidence uses this exact runtime SHA, irrespective of the report
+commit.
+
+### Same real SDK process: two Sessions, three native Turns
+
+One and the same SDK server process was initialized once, accepted the
+following tasks and exited cleanly after `shutdown`:
+
+- **Session A, Turn 1:** Native `read` of a deliberately absent file -> one
+  paired `tool/result.isError=true`, native Turn completed; missing file
+  remained absent. Retry Shadow conservatively evaluated the failure.
+- **Session A, Turn 2:** Native `read` of a separate private file returned the
+  file's hidden content; the original file bytes and final native assistant
+  message independently matched. Same SDK process and same native Session
+  identity, with Turn counter increasing from 1 to 2.
+- **Session B, Turn 1:** A second native Session was submitted while Session
+  A's second Turn was active. Raw SDK event indices confirmed **B's
+  `turn/start` occurred after A's `turn/start` but before A's `turn/end`**.
+  B's native read succeeded; call ID, result content, original bytes and
+  final assistant answer independently matched.
+
+This proves **overlapping active native Sessions in a single resident SDK
+process**. The two tool calls themselves were not proven simultaneously
+executing at the CPU/network level; do not call this a high-volume
+multi-agent stress test. All three native Turns completed and none of the
+private file contents or Session IDs are published.
+
+The independently recorded Shadow outcomes for this resident process were
+**seven HTTP 200 requests**: six real `backend=mlx`,
+`decision_source=model` Completion decisions and one conservative
+`backend=rule` Retry decision. **Six upstream StepFun Plan requests** were
+forwarded, all HTTP 200.
+
+### Latest-source SDK OFF / Shadow / Runtime-down control
+
+Two further single native-read tests on exactly the same frozen runtime
+code and main-model route exercised the SDK through separately isolated
+Profile instances:
+
+| Condition | Native tool + final answer | System One observation | Real StepFun calls |
+|---|---|---|---:|
+| **OFF**, healthy Runtime present | 1 paired successful `read`; original bytes and final answer match | **0 Runtime HTTP** | 2 |
+| **Shadow**, healthy Runtime | The resident process described above; failed and successful tools and native Turns completed | **6 Completion MLX 200 + 1 Retry rule 200** | 6 |
+| **Shadow**, Runtime deliberately stopped | 1 paired successful `read`; original bytes and final answer match | **2 Completion HTTP 503**; native Turn still completed | 2 |
+
+This scoped latest-SHA comparison demonstrates *noninterference of the
+native read-only task and fail-open when Runtime is down*, not latency
+parity, risk safety on all tool families, or production availability.
+The privacy-safe collector records no raw tool arguments or Agent response
+bodies and cannot independently join every individual Runtime request to
+a Session ID; do not claim full per-Session HTTP trace attribution.
+
+An independent verifier
+[`scripts/phase8_2a_sdk_verify.py`](../scripts/phase8_2a_sdk_verify.py)
+reads the restricted native SDK frames, exact paired tool IDs, original
+private files and assistant message contents, checks the interleaved
+Session/Turn start/end order, reconciles the durable Provider reservation
+ledger with finalized HTTP results, and validates Runtime statuses and
+count denominators. Six additional offline tests use **synthetic verifier
+fixtures**, explicitly not real Agent or Provider evidence; they require
+failure on absent native events, wrong response content, missing provider
+records, loss of actual Session overlap or mismatched Runtime status.
+
+Sanitized, public evidence:
+[`results/processed/phase8_2a_stepfun_native_sdk_paired.json`](../results/processed/phase8_2a_stepfun_native_sdk_paired.json).
+
+**New round budget:** 12 total pre-network actual StepFun Plan calls;
+**10/12** used and completed with upstream HTTP 200 (6 resident, 2 OFF,
+2 Runtime-down). Two *experiment request slots* were unused, which is **not**
+a statement about remaining subscription credits or monetary billing.
+No substitute Provider, mock main model, automatic charge or bypass of a
+blocked Hermes action occurred. All isolated port listeners and SDK child
+processes have been stopped, and private traces remain Git-ignored.
+
+**Current result:** DSH **latest frozen-SHA real resident native multi-Turn
+and overlapping-Session observation: PASS within scope**; DSH **latest-SHA
+OFF/healthy Shadow/Runtime-down read-only noninterference: PASS within
+scope**. Hermes's latest-SHA full same-task OFF/healthy/down paired test
+remains **BLOCKED by the earlier external execution safety restriction**;
+we did not bypass it. As a consequence, Phase 8.2A Engineering overall
+remains **BLOCKED** under the original full acceptance criteria.
+Model Superiority is NOT_EVALUATED and Active Authority remains NOT_AUTHORIZED.
+
+## 13. Hermes isolated-auth blocker and source-equivalent preflight
+
+Further Hermes closure checks verified that **the entire local Hermes adapter
+plugin tree and `local_system_one` runtime tree are Git-object identical**
+across the earlier real Hermes native source commit
+`fc49e69bd350aefd9626bb5975da2458569ee8aa`, the final DSH native
+runtime freeze `3d5b02fdb7d489c80de4ab958fd33a559b33e08c`, and the
+newer report-only PR head. The installed isolated Hermes plugin's Python
+source also matches the checked-in source byte-for-byte. This supports reuse
+of the older Hermes *specific success/failure native evidence* without
+implying that the new OFF/healthy/down matched trio was run.
+
+The latest Hermes OFF/healthy/down **real-provider test remains blocked at
+its test-only credential preflight**, not a Laya Runtime or plugin exception.
+The official read-only command `hermes auth status stepfun`, invoked with
+the completely independent Git-ignored Hermes test `HERMES_HOME`, reports
+`stepfun: logged out`. That isolated home has an environment-referenced
+credential-pool alias but no usable credential in its process environment.
+We did not copy a token from a production home, invoke a shared Gateway,
+request a new paid token, or circumvent the earlier external operation block.
+
+New source-only preflight:
+[`scripts/phase8_2a_hermes_preflight.py`](../scripts/phase8_2a_hermes_preflight.py).
+It verifies a **clean, explicitly pinned Git checkout**, byte-identical
+Hermes and Laya source trees, isolated plugin installation, OFF/Shadow mode,
+no acknowledged Canary/Active authority, only the expected local observer
+port, and official Hermes StepFun provider auth status. It makes **no model
+calls and never reads or prints API keys**. Unknown / logged-out auth is a
+hard BLOCK, not an assumed PASS. Supporting tests reject unsafe canary or
+service URLs, unapproved gates, modified plugin bytes, and false-positive
+auth status.
+
+The existing
+[`scripts/phase8_2a_native_run.py`](../scripts/phase8_2a_native_run.py)
+was updated to support the **official isolated Hermes credential pool** as
+an alternative to passing a key in a test subprocess environment. When no
+explicit `STEPFUN_API_KEY` exists, it requires the official isolated
+`hermes auth status stepfun` to report logged in **before** starting any
+provider-backed test. DSH remains unchanged and still uses an explicitly
+provided process-environment credential. No credential is read from any
+other home by the test runner.
+
+### One-time manual isolated authentication (not performed by ChatGPT)
+
+The owner may authorize the *existing StepFun Plan credential* in a local
+terminal using Hermes' supported secure interactive auth command. The API
+key must be entered at the Hermes prompt **on the owner's device**, never
+pasted into chat, CLI `--api-key` arguments, a Git-tracked file or the test
+output. From the already isolated development worktree:
+
+```sh
+export HERMES_HOME="$PWD/private/phase8_2a_stepfun/hermes_home"
+export HERMES_DISABLE_LAZY_INSTALLS=1
+hermes auth add stepfun --type api-key --label phase8-2a-isolated
+hermes auth status stepfun
+python scripts/phase8_2a_hermes_preflight.py --isolated-home "$HERMES_HOME" \
+  --expected-head "$(git rev-parse HEAD)"
+```
+
+Only after `ready_for_provider_backed_e2e=true` may a new, explicitly finite
+StepFun Plan hard-cap round be started. The exact same native read-only task
+must then run under (1) OFF, (2) Shadow healthy real Laya/MLX, and (3)
+Shadow with Runtime stopped; the independent original-file and native-tool
+results, telemetry and upstream request denominators must all be checked.
+Use a fresh private ledger with a predeclared finite global and per-run cap
+that includes all auxiliary/retry requests, and preserve the frozen
+source SHA in every result. Do not merge PR #7 just because code identity
+matches or the test-only identity becomes available.
+
+**Acceptance at this checkpoint:** Hermes source equivalence PASS;
+isolated Hermes provider-auth preflight BLOCKED; newest Hermes paired native
+OFF/healthy/down **NOT RUN**; DSH latest-source native evidence PASS scoped;
+overall Phase 8.2A Engineering **BLOCKED**. No Active authority.
+
+### Recorded read-only Hermes preflight verdict (2026-10-18)
+
+The exact script above was run on a clean, pinned feature commit
+`27d50ec758f70bc4e5475e073513fcd3dbec6ecb`, and returned exit code
+**3**, meaning **BLOCKED_ISOLATED_AUTH**. It verified that the historical
+native-tested Hermes plugin Git tree object is exactly identical to the
+current object (`18ceb7eeb27a2e0b65edd209a03596f7616a2162`) and that
+the local System One Runtime tree is also identical
+(`ad96569dbf7b48d45a873a043cd168d96f79f781`). The installed isolated
+plugin bytes also matched. The separate test Home still lacked an active
+StepFun credential. **Zero actual Provider requests were made** during
+this identity check; no test ports or production configuration were changed.
+
+The sanitized, privacy-safe source-equivalence and credential-preflight
+record is
+[`results/processed/phase8_2a_hermes_isolated_preflight.json`](../results/processed/phase8_2a_hermes_isolated_preflight.json).
+Do not interpret a passing source-equivalence check as the missing native
+OFF/healthy/down test. Only a valid, locally supplied isolated credential
+and a new finite, logged Provider-backed experiment can lift that blocker.
+
+## 14. StepFun isolated Hermes route precedence and invalid 401 OFF attempt
+
+The owner used Hermes' official interactive command to provision the existing
+StepFun Plan key into the isolated test-only Hermes home. The official
+`hermes auth status stepfun` then reported **logged in**, but this is a local
+configuration status, **not** upstream credential or URL verification.
+
+A first OFF-mode native read test under source commit
+`e68794745bbbbabc11b25b1e47868918e0dc0be6` **FAILED** before native
+file-read completion: Hermes reported an upstream **HTTP 401 incorrect API
+key**, process exit **2**, and a missing final read value. The model usage
+file recorded **one attempted model call**, but the isolated HTTP Provider
+budget proxy recorded **zero forwarded requests**. This experiment **did not
+pass the request-cap routing requirement**; the HTTP 401 cannot be attributed
+to the intended StepFun Plan China endpoint from the cap proxy's records.
+There is **no usable OFF-case success evidence** from this run.
+
+Read-only inspection of Hermes v0.22.1's provider resolver showed the cause:
+pooled credentials have their own `base_url`; a registry-default pooled URL
+uses `model.base_url` if set, but an explicit credential URL can override the
+ambient `STEPFUN_BASE_URL` environment variable. The isolated manual pool
+row retained the registry-default international Step Plan URL and the test
+Home had no `model.base_url` configured. The intended audited loopback
+Provider endpoint could therefore be bypassed. This diagnostic does **not**
+establish whether the key is intrinsically invalid: provider-region routing
+can also produce a 401. The earlier successful DSH StepFun Plan China
+endpoint is a separate, valid test baseline, not automatic proof of this
+isolated Hermes key's validity.
+
+The fail-closed fix adds
+`validate_provider_proxy_route()` to the Hermes preflight and native runner.
+It requires `model.base_url` to be exactly the isolated budgeted loopback
+origin, and it checks **all** isolated StepFun pooled entry URL metadata:
+only the Hermes registry-canonical URL, which permits the model setting to
+apply, or the exact budget proxy endpoint are allowed. Any custom direct
+per-credential endpoint is rejected. Tests verify both a manual/canonical
+and env/pinned pool entry, custom direct URL rejection, missing model route,
+and loopback-only constraints. The preflight now requires *both* configured
+local auth and the hard-capped route to report ready, and explicitly states
+that actual upstream key acceptance is unknown until a capped request
+succeeds.
+
+A subsequent corrected experiment may use a **fresh, separately capped
+private budget ledger**, with the isolated Hermes Home configured through its
+supported `model.base_url` field and the test-only credential's local
+exhaustion marker cleared by the official `hermes auth reset stepfun` command.
+If the StepFun Plan endpoint still rejects the credential with HTTP 401
+*through the cap proxy*, **stop and request proper credentials** rather than
+rotating providers or repeatedly retrying. No production Hermes, Gateway,
+main branch, or secret values are to be copied or changed.
+
+Sanitized failed-run record:
+[`results/processed/phase8_2a_hermes_route_401_diagnostic.json`](../results/processed/phase8_2a_hermes_route_401_diagnostic.json).
+This invalid pre-cap route attempt must remain separate from any formal
+Hermes OFF/Shadow/Runtime-down acceptance table. Its billed cost is unknown.
+
+## 15. Hermes frozen native OFF / healthy Shadow / Runtime-down paired acceptance
+
+**Date:** 2026-10-19. **Frozen exact working tree:**
+`9120c98a7373d7de6e32f7024eb11b4e4d25cec0` (clean before all three
+native runs). The earlier StepFun HTTP 401 and the budget-proxy bypass in
+Section 14 are **separate, rejected experiments** and are not counted as a
+formal test. Those earlier failures prompted the mandatory
+`validate_provider_proxy_route()` check and per-credential endpoint audit.
+
+The isolated Hermes test Home was configured with
+`model.base_url=http://127.0.0.1:18794`, a loopback-only hard-budget
+Provider. The official Hermes isolated pool entry exhaustion status was
+reset with `hermes auth reset stepfun phase8-2a-isolated`, solely in that
+private Home, without copying or printing any API key. This is only a test
+routing correction. Source code, main model and key's intended existing
+StepFun Plan subscription did not change. The real upstream forwarding
+endpoint remained the separately allowlisted
+`https://api.stepfun.com/step_plan/v1/chat/completions`.
+
+Three consecutive native Hermes `-z` Agent runs used the identical hidden
+file-read task family under independently checked OFF, healthy Shadow and
+Runtime-stopped Shadow. The Hermes executable remained
+`v0.22.1+11.gd923a5e`, its plugin source and Laya Runtime source were
+byte-identical to the earlier pinned real native Hermes test. All were
+bounded to 90 seconds and **3 real Provider requests per case / 9 in total**.
+The cap was reserved *before* each upstream I/O attempt and was not refunded
+on failures, timeouts, auxiliary requests or transport retries.
+
+| Hermes case | Actual native tool evidence | Native outcome | System One HTTP | StepFun Plan forwarded |
+|---|---|---|---|---:|
+| OFF | One native `read_file` and paired success result | Success; final exact hidden content verified | **0** | **3** |
+| Shadow, healthy Laya/MLX | One native `read_file` and paired success result | Success; final exact hidden content verified | Completion **200, 200**, both genuine `mlx/model` | **3** |
+| Shadow, Runtime explicitly stopped | One native `read_file` and paired success result | Success; final exact hidden content verified | Completion **503, 503**, fail-open | **3** |
+
+**Independent native evidence is stronger than Agent final answer alone.**
+The sanitized verifier reads Hermes' private isolated SQLite Session and
+Message tables, confirms each Session uses exactly one native structured
+`read_file` tool call, matches its call ID to the persisted native tool
+result, checks the original file bytes are present in the actual tool
+result **and** final assistant message, and verifies that these bytes were
+not included in the user task prompt. The saved Session's billing route is
+exactly the private loopback proxy and each Agent terminated normally. It
+also checks the independent per-run JSON metrics, the plugin's Completion
+per-turn and tool-probe counters, the isolated Runtime HTTP observer log,
+and all 9 pre-network reserved and finalized Provider ledger slots. There
+were **nine real HTTPS HTTP 200 responses and no request beyond the cap**.
+Hermes self-reported 2 main-model calls per scenario; the separate proxy
+records 3 total requests per scenario. Its accounting is authoritative, so
+unexplained main/auxiliary count differences are not presented as a reliable
+breakdown or free billing.
+
+The formal verifier is
+[`scripts/phase8_2a_hermes_paired_verify.py`](../scripts/phase8_2a_hermes_paired_verify.py),
+with corresponding synthetic *verifier-only* negative unit tests in
+[`tests/test_phase8_2a_hermes_paired_verify.py`](../tests/test_phase8_2a_hermes_paired_verify.py).
+These unit fixtures never call a real model and do not substitute for the
+native transcript. The exact sanitized outcome is
+[`results/processed/phase8_2a_hermes_native_off_shadow_down.json`](../results/processed/phase8_2a_hermes_native_off_shadow_down.json).
+
+This is **n=1** per condition. Recorded durations are descriptive only,
+not statistical latency evidence or proof of zero Shadow overhead.
+The privacy-safe HTTP collector is associated to each test by its
+sequential isolated run window but does not carry a native Session ID,
+so exact per-request cross-platform ID correlation remains unproven.
+Actual provider-plan monetary charge/credit usage is unknown. No Active
+control, automatic retry/stop, Gateway restart, shared profile edit,
+production deployment or JEV model switching occurred.
+
+### Final Phase 8.2A acceptance supersedes the earlier checkpoint matrices
+
+The earlier BLOCKED rows in Sections 7–14 are **historical checkpoints**,
+not a current claim that the missing Hermes tests remain incomplete.
+
+| Field | Current judgment | Evidence limit |
+|---|---|---|
+| Hermes Native E2E | **PASS (scoped)** | Real success/failure native hooks previously observed on byte-identical Hermes adapter; latest frozen successful native read under all three matching control conditions |
+| DSH Native E2E | **PASS (scoped)** | Latest frozen DSH SDK real tool failure/success, same resident process with two Turns and overlapping Session starts |
+| Completion Observation | **PASS (scoped)** | Real `mlx/model` Completion from both Hermes and DSH native runs; no Active changes |
+| Retry Observation | **PASS (scoped)** | Conservative real rule-backed Retry on Hermes and DSH failed tool paths; no automatic retries authorized |
+| Shadow Noninterference | **PASS (scoped)** | Both platforms' one-Turn native read OFF/healthy/down run families; native task still completed under Runtime 503 |
+| Privacy / Cleanup | **PASS (scoped)** | Only allowlisted metadata exported, test-only loopback services all stopped, no production profile/key export |
+| Regression | **PASS** | Full Python and DSH regression / release builder run on final clean source candidate |
+| **Phase 8.2A Engineering** | **PASS for the declared bounded native Shadow E2E scope** | Not production-grade universal behavior, stress/performance or Active readiness |
+| Model Superiority | **NOT_EVALUATED** | Decision-model comparative accuracy beyond this stage |
+| Active Authority | **NOT_AUTHORIZED** | No permission to change normal tool execution, stop Agent or retry automatically |
+
+Phase 8.2A is therefore **technically ready for an explicit maintainer merge
+decision**. The GitHub PR stays Draft, and no merge to main or production
+rollout is authorized merely by this report. Any continuation into 8.2B
+should preserve these read-only Shadow and reversible integration boundaries.

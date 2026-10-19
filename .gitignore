@@ -6,3 +6,6 @@ __pycache__/
 node_modules/
 dist/
 .DS_Store
+
+private/phase8_2a_native/
+private/phase8_2a_stepfun/

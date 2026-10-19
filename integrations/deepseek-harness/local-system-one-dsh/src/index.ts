@@ -247,6 +247,14 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
   const retryCallNames = new Map<string, string>()
   const retrySeen = new Set<string>()
   const retryCounts = new Map<string, number>()
+  // Only a native turn/start can admit Retry events. Ended turns cannot be
+  // resurrected by delayed tool/call or tool/result callbacks.
+  const retryLiveTurns = new Set<string>()
+  // Native session IDs can resume with a higher turn after a session/end.
+  // Keep the maximum *finished* turn, rather than blacklisting a session ID.
+  // This rejects old re-ordered starts while still admitting the next turn.
+  const retryLastEndedTurn = new Map<string, number>()
+  const RETRY_MAX_LIFECYCLE_TOMBSTONES = 256
   let retryInFlight = 0
   const RETRY_MAX_OBSERVATIONS = 2
   const RETRY_MAX_ACTIVE_TURNS = 96
@@ -293,6 +301,10 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
     const turn = asPositiveInteger(event.data?.turn)
     if (event.type === 'turn/start' && turn !== null) {
+      // Duplicate/out-of-order starts for an *ended* turn are stale, not
+      // evidence of a new Agent turn. The real platform increments turn IDs.
+      if (config.retryEscalationGateEnabled &&
+          turn <= (retryLastEndedTurn.get(sessionId) ?? 0)) return
       const key = turnKey(sessionId, turn)
       // A duplicated turn/start must not reset a live Retry observation
       // counter. Only turn/end or session/end may release its budget.
@@ -304,11 +316,20 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
           if (k.startsWith(key + ':')) retrySeen.delete(k)
         }
       }
+      if (config.retryEscalationGateEnabled && !retryLiveTurns.has(key)) {
+        if (retryLiveTurns.size < RETRY_MAX_ACTIVE_TURNS) {
+          retryLiveTurns.add(key)
+        } else {
+          retryStatus('failed_open', 'retry_turn_capacity_exhausted')
+        }
+      }
       state.beginTurn(sessionId, turn)
       return
     }
 
     if (config.retryEscalationGateEnabled && event.type === 'tool/call' && turn !== null) {
+      // Late calls without a started turn cannot revive cleaned identity maps.
+      if (!retryLiveTurns.has(turnKey(sessionId, turn))) return
       // Join exact upstream call id to a pinned tool policy; do not retain arguments.
       const callId = event.data?.callId
       const toolName = event.data?.name
@@ -337,7 +358,8 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
       return
     }
 
-    if (config.retryEscalationGateEnabled && event.type === 'tool/result' && turn !== null) {
+    if (config.retryEscalationGateEnabled && event.type === 'tool/result' && turn !== null
+        && retryLiveTurns.has(turnKey(sessionId, turn))) {
       const message = event.data?.message
       if (typeof message === 'object' && message !== null &&
           (message as Record<string, unknown>).isError === true) {
@@ -410,6 +432,17 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
 
     if (event.type === 'turn/end' && turn !== null) {
       const candidateKey = turnKey(sessionId, turn)
+      if (config.retryEscalationGateEnabled) {
+        const highest = retryLastEndedTurn.get(sessionId) ?? 0
+        if (turn > highest) {
+          retryLastEndedTurn.delete(sessionId)
+          retryLastEndedTurn.set(sessionId, turn)
+          while (retryLastEndedTurn.size > RETRY_MAX_LIFECYCLE_TOMBSTONES) {
+            retryLastEndedTurn.delete(retryLastEndedTurn.keys().next().value!)
+          }
+        }
+      }
+      retryLiveTurns.delete(candidateKey)
       retryCounts.delete(candidateKey)
       for (const k of retryCallNames.keys()) {
         if (k.startsWith(candidateKey + ':')) retryCallNames.delete(k)
@@ -492,6 +525,30 @@ export function apply(ctx: DshContextLike, inputConfig: AdapterConfig = {}): voi
     }
 
     if (event.type === 'session/end' || event.type === 'session/close') {
+      if (config.retryEscalationGateEnabled) {
+        // A native close may arrive without any turn/end. Retire every active
+        // turn for this exact session, not any colon-delimited child session.
+        const prefix = sessionKeyPrefix(sessionId)
+        let watermark = retryLastEndedTurn.get(sessionId) ?? 0
+        for (const key of retryLiveTurns) {
+          if (key.startsWith(prefix)) {
+            const parsedTurn = Number(key.slice(prefix.length))
+            if (Number.isSafeInteger(parsedTurn) && parsedTurn > watermark) {
+              watermark = parsedTurn
+            }
+          }
+        }
+        if (watermark > (retryLastEndedTurn.get(sessionId) ?? 0)) {
+          retryLastEndedTurn.delete(sessionId)
+          retryLastEndedTurn.set(sessionId, watermark)
+          while (retryLastEndedTurn.size > RETRY_MAX_LIFECYCLE_TOMBSTONES) {
+            retryLastEndedTurn.delete(retryLastEndedTurn.keys().next().value!)
+          }
+        }
+      }
+      for (const k of retryLiveTurns) {
+        if (k.startsWith(sessionKeyPrefix(sessionId))) retryLiveTurns.delete(k)
+      }
       for (const k of retryCounts.keys()) {
         if (k.startsWith(sessionKeyPrefix(sessionId))) retryCounts.delete(k)
       }

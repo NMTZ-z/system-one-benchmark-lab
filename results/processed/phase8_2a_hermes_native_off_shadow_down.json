@@ -1,0 +1,111 @@
+{
+  "schema": "phase8.2a-hermes-native-paired-read-v1",
+  "status": "SCOPED_HERMES_OFF_SHADOW_DOWN_NATIVE_PASS",
+  "frozen_executable_source_sha": "9120c98a7373d7de6e32f7024eb11b4e4d25cec0",
+  "main_model": "stepfun/step-5-preview",
+  "model_route": "existing StepFun Plan Step 5 Preview",
+  "decision_runtime": "real Laya/MLX for healthy Shadow",
+  "native_Hermes_version": "v0.22.1+11.gd923a5e",
+  "cases": {
+    "hermes_off": {
+      "mode": "off",
+      "native_agent_completed": true,
+      "native_tool_name": "read_file",
+      "native_tool_call_result_id_paired": true,
+      "native_tool_result_matches_original_file": true,
+      "agent_final_matches_original_file": true,
+      "hidden_oracle_absent_from_task_prompt": true,
+      "original_provider_route_verified": true,
+      "native_session_normal_close": true,
+      "runtime_http_statuses": [],
+      "runtime_mlx_decisions": 0,
+      "runtime_degraded_503": 0,
+      "runtime_observer_loop_probe_delta": 0,
+      "runtime_observer_turn_end_delta": 0,
+      "provider_real_forwarded_request_count": 3,
+      "native_main_model_api_calls_reported": 2,
+      "elapsed_seconds": 42.907
+    },
+    "hermes_shadow": {
+      "mode": "shadow",
+      "native_agent_completed": true,
+      "native_tool_name": "read_file",
+      "native_tool_call_result_id_paired": true,
+      "native_tool_result_matches_original_file": true,
+      "agent_final_matches_original_file": true,
+      "hidden_oracle_absent_from_task_prompt": true,
+      "original_provider_route_verified": true,
+      "native_session_normal_close": true,
+      "runtime_http_statuses": [
+        200,
+        200
+      ],
+      "runtime_mlx_decisions": 2,
+      "runtime_degraded_503": 0,
+      "runtime_observer_loop_probe_delta": 1,
+      "runtime_observer_turn_end_delta": 1,
+      "provider_real_forwarded_request_count": 3,
+      "native_main_model_api_calls_reported": 2,
+      "elapsed_seconds": 25.138
+    },
+    "hermes_down": {
+      "mode": "shadow",
+      "native_agent_completed": true,
+      "native_tool_name": "read_file",
+      "native_tool_call_result_id_paired": true,
+      "native_tool_result_matches_original_file": true,
+      "agent_final_matches_original_file": true,
+      "hidden_oracle_absent_from_task_prompt": true,
+      "original_provider_route_verified": true,
+      "native_session_normal_close": true,
+      "runtime_http_statuses": [
+        503,
+        503
+      ],
+      "runtime_mlx_decisions": 0,
+      "runtime_degraded_503": 2,
+      "runtime_observer_loop_probe_delta": 1,
+      "runtime_observer_turn_end_delta": 1,
+      "provider_real_forwarded_request_count": 3,
+      "native_main_model_api_calls_reported": 2,
+      "elapsed_seconds": 17.535
+    }
+  },
+  "provider_hard_cap": {
+    "requested_max": 9,
+    "actually_reserved": 9,
+    "finalized_upstream_http200": 9,
+    "per_run": {
+      "hermes_off": 3,
+      "hermes_shadow": 3,
+      "hermes_down": 3
+    },
+    "all_incoming_requests_accounted_for_at_budget_proxy": true,
+    "actual_subscription_credit_spend": "unknown"
+  },
+  "shadow_runtime_HTTP": {
+    "healthy_completion_mlx_200": 2,
+    "degraded_completion_503": 2,
+    "off_runtime_requests": 0,
+    "retry_requests_in_read_success_trio": 0
+  },
+  "independent_provenance": {
+    "Hermes_native_Session_SQLite_inspected": true,
+    "read_file_call_and_tool_result_ID_matched": true,
+    "hidden_input_file_and_tool_result_match": true,
+    "user_task_prompt_did_not_include_expected_file_bytes": true,
+    "native_final_message_checked": true,
+    "Provider_proxy_durable_ledger_checked": true,
+    "Runtime_metadata_only_HTTP_collector_checked": true,
+    "no_raw_secret_or_Session_ID_published": true
+  },
+  "limitations": [
+    "One isolated native read-only task per mode; not every Hermes tool class tested",
+    "Sequential mode conditions with separate native Hermes Agent invocations; no randomized performance claims",
+    "Hermes per-session usage counters differ from authoritative proxy count, so no inferred breakdown of unmatched auxiliary/retry requests",
+    "Privacy-safe HTTP collector cannot independently join exact individual Runtime call to native Session ID",
+    "Does not establish Active/Canary safety, model superiority or subscription monetary cost"
+  ],
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}

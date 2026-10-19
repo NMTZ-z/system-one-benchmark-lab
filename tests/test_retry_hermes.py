@@ -58,6 +58,43 @@ def test_retry_default_off_and_success_does_not_probe(monkeypatch):
     assert "last_retry_escalation_shadow" not in ctx.state.values
 
 
+
+def test_native_hermes_tool_name_is_used_and_conflicts_are_unsupported(monkeypatch):
+    """v0.22.1 emits tool_name, not the function_name used in old Hook Replay."""
+    plugin = load_plugin()
+    payloads = []
+
+    def safe_retry(_url, context, _timeout, request_id):
+        payloads.append(context)
+        return {"retry": {
+            "workflow": "retry_escalation_gate", "decision": "ask_user",
+            "guarded_decision": "ask_user", "raw_model_decision": None,
+            "decision_source": "rule", "safety_override_reason": None,
+            "reason": "retry_budget_unavailable", "backend": "rule",
+            "latency_ms": 0.5, "confidence": 1.0,
+            "request_id": request_id, "advisory_only": True,
+        }, "error": None}
+
+    monkeypatch.setattr(plugin, "_safe_retry", safe_retry)
+    ctx = _ctx()
+    plugin.register(ctx)
+    native = _failed(tool="read_file")
+    native["tool_name"] = native.pop("function_name")
+    assert ctx.hooks["post_tool_call"](**native) is None
+    history = _wait(ctx)
+    assert history[0]["action_status"] == "observed"
+    assert payloads[0]["operation"]["type"] == "read"
+    assert "PRIVATE-BEARER-SECRET" not in str(history) + str(payloads)
+
+    conflict = _failed(tool="write_file", call="different-native-call")
+    conflict["tool_name"] = "read_file"
+    assert ctx.hooks["post_tool_call"](**conflict) is None
+    assert ctx.state.values["last_retry_escalation_shadow"]["action_reason"] == (
+        "operation_unverified"
+    )
+    assert len(payloads) == 1
+
+
 def test_retry_shadow_unknown_write_verify_no_raw_data(monkeypatch):
     plugin=load_plugin()
     payloads=[]

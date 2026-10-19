@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "status": "provider_backed_exploratory_not_full_phase_acceptance",
+  "captured_date": "2026-10-18",
+  "frozen_source_commit": "fc49e69bd350aefd9626bb5975da2458569ee8aa",
+  "worktree_clean_at_run": true,
+  "main_model": {
+    "platform_provider": "stepfun",
+    "identity": "stepfun/step-5-preview",
+    "credential_route": "existing_step_plan_subscription",
+    "base_url_path": "/step_plan/v1",
+    "provider_is_real": true,
+    "no_new_pay_as_you_go_key": true
+  },
+  "local_decision_runtime": {
+    "model": "laya-typed-decisions",
+    "backend": "mlx",
+    "isolated": true
+  },
+  "adapters": {
+    "hermes": "0.9.0",
+    "deepseek_harness": "0.6.0"
+  },
+  "platform_versions": {
+    "hermes": "v0.22.1+11.gd923a5e",
+    "hermes_sha": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
+    "deepseek_harness": "0.1.7-rc.2",
+    "dsh_sha": "477b4f420553e8a52c2fbccc464d7561b239c443"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "hermes_fail",
+      "kind": "failed_read",
+      "native_provider_calls": 2,
+      "tool_failure_observed": true,
+      "file_still_absent": true,
+      "completion_tool_and_turn": "observed_mlx_model",
+      "retry": "observed_rule_ask_user_retry_budget_unverified",
+      "agent_completed": true,
+      "native_chain": "evidence_supported"
+    },
+    {
+      "scenario_id": "hermes_success",
+      "kind": "read_then_write",
+      "native_provider_calls": 6,
+      "auxiliary_provider_calls": 1,
+      "artifact_sha_equal": true,
+      "completion_tool_and_turn": "observed_mlx_model",
+      "agent_completed": true,
+      "native_chain": "evidence_supported",
+      "budget_per_task_compliant": false
+    },
+    {
+      "scenario_id": "dsh_fail",
+      "kind": "failed_read",
+      "native_tool_call_count": 1,
+      "native_failed_tool_result_count": 1,
+      "native_turn_end": "completed",
+      "file_still_absent": true,
+      "real_provider_tls_pass_through_requests": 3,
+      "completion_tool_and_turn": "mlx_model_http_200",
+      "retry": "rule_ask_user_http_200",
+      "native_chain": "evidence_supported_limited_to_isolated_single_run"
+    },
+    {
+      "scenario_id": "dsh_success",
+      "kind": "successful_write",
+      "native_chain": "not_run_budget_limit"
+    }
+  ],
+  "shadow_runtime_observed_requests": {
+    "count": 8,
+    "http_200": 8,
+    "completion_requests": 6,
+    "retry_requests": 2,
+    "actual_laya_model_calls": 6,
+    "rule_resolutions": 2,
+    "http_failures": 0
+  },
+  "provider_budget": {
+    "max_upstream_requests_round": 12,
+    "observed_hermes_main": 8,
+    "observed_hermes_auxiliary": 1,
+    "observed_dsh_upstream": 3,
+    "used_total": 12,
+    "per_task_primary_limit": 3,
+    "hermes_success_exceeded_limit": true,
+    "estimated_cost": "unknown_plan_credit_usage",
+    "remaining_authorized_requests": 0
+  },
+  "independent_verification": {
+    "hermes_success_byte_hash_equal": true,
+    "hermes_failed_read_absent": true,
+    "dsh_failed_read_absent": true,
+    "dsh_native_call_result_paired": true,
+    "direct_mock_llm_substitution": false
+  },
+  "limitations": [
+    "no_stepfun_provider_backed_dsh_success_in_round",
+    "no_off_shadow_runtime_down_matched_native_trials",
+    "no_wider_failure_matrix",
+    "Hermes success violated original three main-model requests per-task",
+    "provider-side credits/cost not independently available",
+    "DSH per-turn/request correlation via shared IDs not independently proven",
+    "exploratory rather than formal candidate acceptance"
+  ],
+  "phase8_2a_engineering": "BLOCKED",
+  "model_superiority": "NOT_EVALUATED",
+  "active_authority": "NOT_AUTHORIZED"
+}
