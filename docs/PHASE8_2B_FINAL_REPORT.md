@@ -141,7 +141,10 @@ independent source authentication or tamper-proof storage.
 - Hermes plug-in unit/contract tests: PASS as part of 932 Python tests.
 - **Public allowlist and sanitizer: PASS** in full Python regression
   (`tests/test_public_release.py`); Apache-2.0 LICENSE and metadata preserved.
-  Clean-commit publication-readiness will be checked separately.
+- Standalone clean-source public release build **PASS**: 210 allowlisted files,
+  source_dirty=false, license_status=included, publish_ready=true at source SHA
+  5619f9ce4357be93948a8ced248944c99fddbabe. After this documentation-only
+  PR-status update, the final commit must be rechecked for clean publication.
 - Frozen native 8.2B source post-fix: **NOT RUN**; no paid Provider requests were generated in Phase 8.2B.
 - Performance profiling: not performed; no new claims of zero overhead.
 
@@ -157,8 +160,12 @@ this report, Evidence Contract and Budget Ledger. Existing Adapter Contract
 v1 and all Gate thresholds are unchanged. No new model/Agent Adapter,
 active tool control, provider switching, installation or deployment.
 
-GitHub PR and Codex Review: **not opened at time of initial draft**;
-the draft will be updated to actual observable state, with no auto merge.
+GitHub **Draft PR #8**: https://github.com/NMTZ-z/system-one-benchmark-lab/pull/8
+(initial source commit 5619f9ce4357be93948a8ced248944c99fddbabe).
+Open, **not merged**; no production deployment. Codex Review was disabled
+by the maintainer in prior project configuration and has not been assumed
+to run or return any result. Subsequent commit SHA must be checked on PR
+before any maintainer merge decision.
 
 ## 12. Separately scoped acceptance decisions
 
