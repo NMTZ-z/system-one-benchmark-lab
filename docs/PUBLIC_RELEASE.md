@@ -140,3 +140,27 @@ The source bundle, standard wheel, isolated dependency installation, fresh pinne
 The project license is **Apache License 2.0**. The canonical `LICENSE` is included in the public allowlist and package metadata uses the SPDX identifier `Apache-2.0`.
 
 After the license commit is clean, the release builder is expected to report `license_status: included` and `publish_ready: true`. A second physical Mac remains useful future cross-machine evidence, but it is no longer required to prove that the release bundle itself contains a complete reproducible installation and ANE build path.
+
+## Phase 8.2B evidence package (isolated, offline)
+
+The release allowlist now includes the independent Phase 8.2B Evidence Contract,
+Budget Reconciliation code, offline verification CLI, static **synthetic-only**
+Hermes / DSH / contract-only samples and test cases. All are checked by the
+same public sanitizer and Git source-tree allowlist.
+
+Offline reproduction:
+
+~~~bash
+python scripts/phase8_2b_verify.py \
+  --bundle tests/fixtures/phase8_2b/all.synthetic.jsonl
+~~~
+
+A structurally passing synthetic fixture demonstrates the generic verification
+format only. It does **not** demonstrate native Agent E2E or actual Provider
+billing. Real native identities, private task/tool contents, HMAC key material
+and Provider credentials remain in isolated ignored private storage and must
+never be bundled into public releases.
+
+References: [Evidence Contract](PHASE8_2B_EVIDENCE_CONTRACT.md),
+[Budget Ledger](PHASE8_2B_BUDGET_LEDGER.md) and
+[Final Report](PHASE8_2B_FINAL_REPORT.md).

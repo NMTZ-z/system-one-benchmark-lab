@@ -364,3 +364,24 @@ future adapters choose their own safe mapping
 
 That is the intended boundary: one decision language, multiple platform-native
 execution strategies.
+
+## 15. Phase 8.2B evidence and budget extensions (additive, not Adapter v2)
+
+The Phase 8.2B offline Evidence Contract and Budget Reconciliation tools are
+**parallel verification artifacts**, not extensions to the existing strict
+Decision Envelope fields. Adapter Contract v1 remains at version 1.0. Its
+Gate decisions, Action Outcome vocabulary, safety/Canary mapping and existing
+published schema are not modified.
+
+An Adapter may optionally emit normalized, privacy-safe evidence based on
+native lifecycle events, but it must only claim capabilities that it actually
+provides. A missing stable Turn/Session/call ID remains a Coverage Gap, not
+a synthesized ID. If a private exporter cannot attest to the same native
+request ID as the isolated HTTP collector, a time-window association is
+never upgraded to verified cross-layer causality.
+
+See [Phase 8.2B Evidence Contract](PHASE8_2B_EVIDENCE_CONTRACT.md) and
+[Phase 8.2B Budget Ledger](PHASE8_2B_BUDGET_LEDGER.md). Native platform
+event extraction, identity lifecycle and execution authority remain the
+responsibility of that Adapter, while the offline verifier stays platform
+and model agnostic. No new Active or Canary authority is implied.

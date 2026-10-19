@@ -7,6 +7,10 @@ Do not expose the listening port or log raw headers, prompts, tools or responses
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
+import os
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -51,8 +55,16 @@ class Handler(BaseHTTPRequestHandler):
         rid = request.get("request_id")
         # request IDs can encode session IDs: only save a salted one-way hash,
         # never the original linkable identity or a task/response body.
-        import hashlib
         request_hash = hashlib.sha256((self.server.run_salt + str(rid)).encode()).hexdigest()[:20]
+        # Strict causal correlation remains conditional: callers must separately
+        # normalize adapter/native events using this SAME private run key.
+        secret = getattr(self.server, "correlation_secret", None)
+        decision_request_ref = (
+            hmac.new(secret, ("decision_request\x00" + rid).encode(),
+                     hashlib.sha256).hexdigest()[:32]
+            if isinstance(secret, bytes) and len(secret) >= 32
+            and isinstance(rid, str) and rid else None
+        )
         status, response = 502, b""
         try:
             proxy_request = urllib.request.Request(
@@ -73,6 +85,16 @@ class Handler(BaseHTTPRequestHandler):
             d = {}
         safe = {
             "phase8_2a": True,
+            "phase8_2b": True,
+            "run_id": getattr(self.server, "run_id", "legacy"),
+            "event_ref": os.urandom(16).hex(),
+            "decision_request_ref": decision_request_ref,
+            "response_matches_request_id": (
+                d.get("request_id") == rid
+                if isinstance(rid, str) and rid and isinstance(d.get("request_id"), str)
+                else None
+            ),
+            "correlation_status": "request_ref_only" if decision_request_ref else "missing",
             "ts_unix": round(time.time(), 3),
             "path": path,
             "request_hash": request_hash,
@@ -99,14 +121,31 @@ def main():
     parser.add_argument("--port", type=int, default=18783)
     parser.add_argument("--destination", default="http://127.0.0.1:18782")
     parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--run-id", default="legacy", help="Bounded public run alias, not native Session ID")
+    parser.add_argument("--private-key-file", type=Path, default=None,
+                        help="Optional ignored private key used by a separate evidence normalizer")
     opts = parser.parse_args()
     if not 1024 < opts.port < 65536 or opts.destination != "http://127.0.0.1:18782":
         parser.error("Only the audited localhost destination and an unprivileged port are supported")
-    import os
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}", opts.run_id):
+        parser.error("invalid public run alias")
     os.umask(0o077)
+    correlation_key = os.urandom(32)
+    if opts.private_key_file is not None:
+        private_root = (Path(__file__).resolve().parents[1] / "private").resolve()
+        key_file = opts.private_key_file.resolve()
+        if not key_file.is_relative_to(private_root) or not key_file.is_file():
+            parser.error("correlation key must be an existing ignored private file")
+        if key_file.stat().st_mode & 0o077:
+            parser.error("correlation key file must not be group/world accessible")
+        correlation_key = key_file.read_bytes()
+        if len(correlation_key) < 32:
+            parser.error("correlation key must contain 32+ random bytes")
     opts.evidence.parent.mkdir(parents=True, exist_ok=True)
     with ThreadingHTTPServer(("127.0.0.1", opts.port), Handler) as server:
         server.run_salt = os.urandom(16).hex()
+        server.correlation_secret = correlation_key
+        server.run_id = opts.run_id
         Handler.destination = opts.destination
         Handler.evidence_path = opts.evidence
         print(f"8.2A evidence proxy listening on 127.0.0.1:{opts.port}; no raw payload logging", flush=True)

@@ -1,0 +1,202 @@
+{
+  "active_permissions": "NOT_AUTHORIZED",
+  "cases": [
+    {
+      "independent_task_oracle": true,
+      "mode": "off",
+      "model_budget": {
+        "agent_reported_main_calls": 2,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 3,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 3,
+        "unattributed_requests": 1,
+        "upstream_http_responses": 3
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": null,
+      "native_process_exit": 0,
+      "native_tool_calls": 1,
+      "paired_native_results": 1,
+      "platform": "hermes",
+      "runtime_http_statuses": [],
+      "test_provider": "localhost_mock"
+    },
+    {
+      "independent_task_oracle": true,
+      "mode": "shadow",
+      "model_budget": {
+        "agent_reported_main_calls": 2,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 3,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 3,
+        "unattributed_requests": 1,
+        "upstream_http_responses": 3
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": 2,
+      "native_process_exit": 0,
+      "native_tool_calls": 1,
+      "paired_native_results": 1,
+      "platform": "hermes",
+      "runtime_http_statuses": [
+        200,
+        200
+      ],
+      "test_provider": "localhost_mock"
+    },
+    {
+      "independent_task_oracle": true,
+      "mode": "down",
+      "model_budget": {
+        "agent_reported_main_calls": 2,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 3,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 3,
+        "unattributed_requests": 1,
+        "upstream_http_responses": 3
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": 2,
+      "native_process_exit": 0,
+      "native_tool_calls": 1,
+      "paired_native_results": 1,
+      "platform": "hermes",
+      "runtime_http_statuses": [
+        503,
+        503
+      ],
+      "test_provider": "localhost_mock"
+    },
+    {
+      "distinct_sessions": 1,
+      "distinct_turns": 1,
+      "independent_task_oracle": true,
+      "mode": "off",
+      "model_budget": {
+        "agent_reported_main_calls": null,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 2,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 2,
+        "unattributed_requests": null,
+        "upstream_http_responses": 2
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": null,
+      "native_process_exit": 0,
+      "native_tool_calls": 1,
+      "paired_native_results": 1,
+      "platform": "deepseek_harness",
+      "runtime_http_statuses": [],
+      "test_provider": "localhost_mock"
+    },
+    {
+      "distinct_sessions": 1,
+      "distinct_turns": 1,
+      "independent_task_oracle": true,
+      "mode": "shadow",
+      "model_budget": {
+        "agent_reported_main_calls": null,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 2,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 2,
+        "unattributed_requests": null,
+        "upstream_http_responses": 2
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": 2,
+      "native_process_exit": 0,
+      "native_tool_calls": 1,
+      "paired_native_results": 1,
+      "platform": "deepseek_harness",
+      "runtime_http_statuses": [
+        200,
+        200
+      ],
+      "test_provider": "localhost_mock"
+    },
+    {
+      "distinct_sessions": 1,
+      "distinct_turns": 1,
+      "independent_task_oracle": true,
+      "mode": "down",
+      "model_budget": {
+        "agent_reported_main_calls": null,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 2,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 2,
+        "unattributed_requests": null,
+        "upstream_http_responses": 2
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": 2,
+      "native_process_exit": 0,
+      "native_tool_calls": 1,
+      "paired_native_results": 1,
+      "platform": "deepseek_harness",
+      "runtime_http_statuses": [
+        503,
+        503
+      ],
+      "test_provider": "localhost_mock"
+    },
+    {
+      "distinct_sessions": 2,
+      "distinct_turns": 3,
+      "independent_task_oracle": true,
+      "mode": "shadow_multiturn",
+      "model_budget": {
+        "agent_reported_main_calls": null,
+        "ledger_status": "PARTIAL",
+        "outbound_attempts": 6,
+        "remote_bill": "unknown",
+        "remote_usage_tokens": "unknown",
+        "reserved": 6,
+        "unattributed_requests": null,
+        "upstream_http_responses": 6
+      },
+      "native_agent_finished": true,
+      "native_http_links_verified": 6,
+      "native_process_exit": 0,
+      "native_tool_calls": 3,
+      "paired_native_results": 3,
+      "platform": "deepseek_harness",
+      "runtime_http_statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "test_provider": "localhost_mock"
+    }
+  ],
+  "evidence_scope": "native_agent_execution_with_local_mock_provider",
+  "independent_task_proof_method": "private_source_file_matched_native_tool_and_final",
+  "limitations": [
+    "one artificial read-file task family per mode, not representative reliability",
+    "main LLM is a local Mock Provider; no real StepFun post-change regression",
+    "real provider usage tokens and subscription charge unavailable",
+    "Hermes SQLite turn-end identity proven only for single-turn sessions",
+    "off/healthy/down durations descriptive, not statistical performance evidence"
+  ],
+  "native_exact_correlation_method": "private_sdk_or_sqlite_plus_adapter_hmac_plus_http",
+  "raw_evidence": "isolated_private_only_not_published",
+  "real_paid_provider_requests": 0,
+  "runtime_healthy_path": "isolated_deterministic_mock_rule",
+  "schema": "local-system-one/phase8_2b_native_mock_acceptance_v1",
+  "source_commit": "9172e6dbed4b7c7f744480de9a95668685fe9b22",
+  "test_date": "2026-10-19"
+}

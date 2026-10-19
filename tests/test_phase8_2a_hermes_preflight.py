@@ -49,11 +49,33 @@ def _alter_settings(home: Path, **kwargs) -> None:
     file.write_text(yaml.safe_dump(cfg))
 
 
-def test_exact_hermes_and_laya_tree_objects_match_real_earlier_evidence():
+# The 8.2A exact-source proof is immutable historical evidence. Checking
+# mutable HEAD here incorrectly rejects every later additive observability
+# feature (8.2B does not alter the operational Runtime pipeline).
+PHASE8_2A_MERGED_SOURCE = "b47a0d39c13661c0f73a247f6898ff33b186948f"
+
+
+def test_frozen_8_2a_operational_source_provenance_and_later_change_boundary():
     for path in (HERMES_PLUGIN_PATH, RUNTIME_PATH):
-        objects = [subprocess.check_output(["git", "rev-parse", f"{rev}:{path}"], cwd=ROOT, text=True).strip()
-                   for rev in (REAL_HERMES_EVIDENCE_SHA, "HEAD")]
+        objects = [
+            subprocess.check_output(
+                ["git", "rev-parse", f"{rev}:{path}"], cwd=ROOT, text=True,
+            ).strip()
+            for rev in (REAL_HERMES_EVIDENCE_SHA, PHASE8_2A_MERGED_SOURCE)
+        ]
         assert objects[0] == objects[1], path
+    changed = subprocess.check_output([
+        "git", "diff", "--name-only", PHASE8_2A_MERGED_SOURCE, "HEAD",
+        "--", HERMES_PLUGIN_PATH, RUNTIME_PATH,
+    ], cwd=ROOT, text=True).splitlines()
+    # The current phase may add offline, model-independent evidence utilities
+    # and isolated Hermes observation, not replace existing Gate/Runtime code.
+    expected = {
+        f"{HERMES_PLUGIN_PATH}/__init__.py",
+        f"{RUNTIME_PATH}/budget_observability.py",
+        f"{RUNTIME_PATH}/evidence_integrity.py",
+    }
+    assert set(changed).issubset(expected), changed
 
 
 def test_off_and_shadow_isolated_config_rejects_production_home(tmp_path):

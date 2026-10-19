@@ -317,6 +317,7 @@ Important limits:
 - Notification preferences are not personalized yet.
 - Hermes Canary is intentionally narrow and requires explicit acknowledgement.
 - A second physical Mac would strengthen cross-machine reproducibility evidence, although the clean public-path rebuild already passes on the development M4 Mac mini.
+- Phase 8.2B's verified native-Hermes/DSH request correlations are **bounded localhost-Mock tests**; real StepFun post-change billing, Laya/MLX quality, robust overhead and Active behavior have not been requalified.
 
 Conservative defaults are intentional. A wrong routing decision can be more expensive than the small amount of compute it saves.
 
@@ -326,6 +327,9 @@ Start here depending on what you want to do:
 
 - [Local System One product and API](docs/LOCAL_SYSTEM_ONE_MVP.md)
 - [Unified Adapter Contract v1](docs/ADAPTER_CONTRACT.md)
+- [Phase 8.2B Evidence Contract and privacy-safe native correlation](docs/PHASE8_2B_EVIDENCE_CONTRACT.md)
+- [Phase 8.2B Budget Ledger and reconciliation](docs/PHASE8_2B_BUDGET_LEDGER.md)
+- [Phase 8.2B scoped native Mock E2E report](docs/PHASE8_2B_FINAL_REPORT.md)
 - [Search Gate](docs/SEARCH_GATE.md)
 - [Model Tier Gate](docs/MODEL_TIER_GATE.md)
 - [Notification Gate](docs/NOTIFICATION_GATE.md)
