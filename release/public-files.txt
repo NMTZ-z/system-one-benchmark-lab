@@ -88,6 +88,7 @@ results/processed/phase8_2a_stepfun_native_sdk_paired.json
 results/processed/phase8_2a_hermes_isolated_preflight.json
 results/processed/phase8_2a_hermes_route_401_diagnostic.json
 results/processed/phase8_2a_hermes_native_off_shadow_down.json
+results/processed/phase8_2b_native_mock_acceptance.json
 results/processed/model-backend-pilot-laya-v1.json
 results/processed/model-backend-pilot-rule-v1.json
 results/processed/model-backend-pilot-20261016-rule.json
@@ -105,6 +106,7 @@ tests/test_adapter_contract.py
 tests/test_phase8_2b_integrity.py
 tests/test_phase8_2b_transport.py
 tests/test_phase8_2b_native_correlation.py
+tests/test_phase8_2b_frozen_mock_summary.py
 tests/fixtures/phase8_2b/
 tests/test_search_gate.py
 tests/test_model_tier_gate.py

@@ -89,6 +89,6 @@ A missing or unknown resource is not silently treated as 0, except count metrics
 - Unit/Mock: concurrent pre-send slot race, malformed input and cap enforcement, 200/503 Provider mock, timeout/unknown classification, non-response marker and ledger corruption.
 - Frozen synthetic: 3 abstract platform identities × OFF/healthy Shadow/Runtime-down. All IDs and usage are synthetic. Budget reconciliation stays PARTIAL when usage is missing even if event accounting is structurally correct.
 - Existing 8.2A native StepFun: original real HTTP traces remain historical evidence only, cannot be retroactively classified by the new attempted/responded records.
-- A new, properly isolated native Agent E2E with the new source still needs its own bounded real/Mock Provider and cross-layer evidence bundle before 8.2B native PASS.
+- A **fresh frozen native Mock E2E** was performed for 8.2B source `9172e6dbed4b7c7f744480de9a95668685fe9b22`: 7 isolated Hermes/DSH cases, 9 native tool results, 21 controlled Provider Mock requests and 14 exact native→Runtime HTTP correlations. All 21 controlled attempts have matching reservations/responses without cap overflow. The public privacy-safe summary is [`phase8_2b_native_mock_acceptance.json`](../results/processed/phase8_2b_native_mock_acceptance.json). **This is Mock-scope PASS, not real StepFun cost, token, or production E2E validation.**
 
 These fields measure **observed counts**, not actual Provider billing and not hypothetical Token savings from Shadow decisions.

@@ -1,6 +1,6 @@
 # Phase 8.2B — Evidence Integrity Contract v1
 
-Status: **implemented offline schema and verifier; exact native cross-layer correlation not yet independently attested**. This is an additive verification contract, not Adapter Contract v2, a replacement Runtime API, a new Gate, or an execution/Canary authorization.
+Status: **offline contract implemented; exact native-to-HTTP correlation verified in bounded Hermes/DSH Mock E2E, not requalified on real StepFun traffic**. This is an additive verification contract, not Adapter Contract v2, a replacement Runtime API, a new Gate, or an execution/Canary authorization.
 
 ## 1. Baseline and reuse audit
 
@@ -81,7 +81,7 @@ tool_result_observation, turn_identity, session_identity, model_usage_reporting,
 
 Each is supported, unsupported, conditional or unknown; source is a bounded identifier, and conditional requires an explicit bounded condition alias.
 
-Real current coverage notes:
+Historical **Phase 8.2A** coverage notes (not updated retroactively by later tests):
 
 | Capability | Hermes isolated 8.2A | DSH isolated 8.2A |
 |---|---|---|
@@ -92,13 +92,15 @@ Real current coverage notes:
 | Independent task verifier | Conditional, private byte oracle | Conditional, private native read/output oracle |
 | Exact native-to-HTTP request ID | **Unproven** | **Unproven** |
 
+In Phase 8.2B new **isolated native Mock** tests, the private Hermes SQLite/Hook exporter and official DSH SDK Session/Turn exporter proved **14 of 14** native-to-Adapter-to-HTTP request links across seven scenarios (six Shadow HTTP pairs for DSH's multi-Turn/second-Session experiment are included). These are conditional capabilities limited to the opted-in isolated profiles. A real paid StepFun requalification of new 8.2B code remains unperformed. The exact audited source and counts are in [Phase 8.2B Final Report](PHASE8_2B_FINAL_REPORT.md).
+
 Do not copy the synthetic fixture's intentionally fully supported capabilities into a real run without evidence. Missing or conditional capabilities are Coverage Gaps, **not** default permissions or guessed values. Per-platform extraction remains inside adapters/private harnesses; only sanitized normalized records reach this tool.
 
 ## 5. Optional 8.2B HTTP request correlation
 
 The existing scripts/phase8_2a_shadow_proxy.py supports --run-id and --private-key-file. The key must be an existing ignored private file with restrictive permissions, at least 32 random bytes, underneath the repository's private/ directory. The proxy never logs the key, original request ID, header, task or response body. A separate private normalizer can independently calculate the same decision_request_ref using the same secret and scope string decision_request.
 
-The proxy now emits decision_request_ref, event_ref, run_id, response_matches_request_id (true/false/null) and correlation_status; it preserves legacy request_hash for backward compatibility. A matched proxy reference alone **does not connect a native event to that request**. For complete proof, a platform-specific private exporter must observe the original native event and request-ID pair, normalize both, and produce the explicit link. None is invented by matching invocation times.
+The proxy now emits decision_request_ref, event_ref, run_id, response_matches_request_id (true/false/null) and correlation_status; it preserves legacy request_hash for backward compatibility. A matched proxy reference alone **does not connect a native event to that request**. The new private, opt-in Hermes and DSH native exporters observe original native event and request identity and normalize both; the independent verifier now requires a matching native Session/Turn/Tool proof as well as the actual Runtime HTTP request ID. This was demonstrated with an isolated Mock Provider only. No relationship is invented by matching invocation times.
 
 ## 6. JevAny methodology boundary
 
@@ -122,3 +124,37 @@ python scripts/phase8_2b_verify.py \
 ~~~
 
 No main model, decision model, Hermes/DSH SDK, credentials or external requests are needed. The frozen fixtures prove the normalized **tool contract** across platform labels, not native E2E behavior or a real Provider bill.
+
+## 8. New frozen native-Mock correlation and provenance
+
+The public source additionally contains `scripts/phase8_2b_native_correlate.py`,
+a **read-only** independent validator of private native evidence. Inputs stay
+inside the Git-ignored `private/` root. For Hermes it inspects the isolated
+native SQLite Session, Tool result call IDs and final Session boundary; for DSH
+it verifies real official SDK `session.event` turn lifecycle and native Tool
+call/result IDs, including multi-Turn and multi-Session separation.
+
+Both Adapters emit scoped HMAC references only under the explicit isolated-test
+opt-in `LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE=isolated-shadow-test-v1` with a
+32-byte random key supplied privately. The same key is used by the loopback
+Runtime observer; a separate verifier checks independent native/Adapter/HTTP
+identity equality. The key, raw IDs and original task/tool content are not
+included in public exports. The DSH SDK can export fixed allowlisted fields
+to its isolated `DSH_HOME` under a configured private root.
+
+The initial exploratory Hermes test found that a tool-result probe and a
+turn-end Completion event could reuse one logical request ID. The new
+isolated-test path generates unique request IDs, without changing the native
+task's execution or production defaults. Missing/duplicate/foreign identities
+fail rather than qualifying via time windows.
+
+A freshly committed 8.2B source candidate
+`9172e6dbed4b7c7f744480de9a95668685fe9b22` passed seven native
+Hermes/DSH Mock cases with 14/14 exact Gate HTTP correlations, including a
+three-Turn/two-Session DSH SDK case. [Frozen sanitized summary](../results/processed/phase8_2b_native_mock_acceptance.json).
+
+**Proof boundary:** native Agent and file-read execution was real, but the
+main-model Provider and healthy Runtime were deterministic loopback Mocks;
+no new paid StepFun traffic or Laya/MLX quality regression was undertaken.
+This result cannot assert production universal reliability, exact Token fees,
+statistical latency overhead or Active tool authority.

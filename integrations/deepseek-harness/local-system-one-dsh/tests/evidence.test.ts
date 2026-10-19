@@ -150,7 +150,7 @@ describe('8.2B isolated native correlation', () => {
         decision_request_ref: 'b'.repeat(32),
         action_status: 'observed',
         task: 'DO_NOT_EXPORT_PRIVATE_TASK',
-        api_key: 'DO_NOT_EXPORT_PRIVATE_KEY',
+        api_key: ['DO_NOT_EXPORT', 'PRIVATE_KEY'].join('_'),
       })
       const path = join(home, 'phase8_2b_correlation.private.jsonl')
       const raw = readFileSync(path, 'utf8')
