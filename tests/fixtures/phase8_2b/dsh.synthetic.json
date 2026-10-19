@@ -1,0 +1,751 @@
+{
+  "budgets": [
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 0,
+        "gate_requests": 0,
+        "model_inferences": 0,
+        "rule_decisions": 0
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_off_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_deepseek_harness_off_1",
+      "total_cap": 3,
+      "usage_records": []
+    },
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 0,
+        "gate_requests": 1,
+        "model_inferences": 0,
+        "rule_decisions": 1
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_shadow_healthy_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+      "total_cap": 3,
+      "usage_records": []
+    },
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 1,
+        "gate_requests": 1,
+        "model_inferences": 0,
+        "rule_decisions": 0
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+      "total_cap": 3,
+      "usage_records": []
+    }
+  ],
+  "runs": [
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "10502a42af78da795a02a5d698f39d4a",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "94b23bf2a1dba02fd0acbcc03a31f56e",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "176ecb90a2969de403b9b15921ef0050",
+            "tool_call": "d0203379998eb90a97a60bc4c7c393df",
+            "turn": "abee920c64fa2eaacef7f065cdf60f79"
+          },
+          "run_id": "fixture_deepseek_harness_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "94b23bf2a1dba02fd0acbcc03a31f56e",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "f8e8c005644deb886efc51ccabcbfe12",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "176ecb90a2969de403b9b15921ef0050",
+            "tool_call": "d0203379998eb90a97a60bc4c7c393df",
+            "turn": "abee920c64fa2eaacef7f065cdf60f79"
+          },
+          "run_id": "fixture_deepseek_harness_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "event_ref": "f8e8c005644deb886efc51ccabcbfe12",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "176ecb90a2969de403b9b15921ef0050",
+            "tool_call": "d0203379998eb90a97a60bc4c7c393df",
+            "turn": "abee920c64fa2eaacef7f065cdf60f79"
+          },
+          "run_id": "fixture_deepseek_harness_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "cda71cd4c0b27180c761d8a234d84fb2",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "176ecb90a2969de403b9b15921ef0050",
+            "tool_call": "d0203379998eb90a97a60bc4c7c393df",
+            "turn": "abee920c64fa2eaacef7f065cdf60f79"
+          },
+          "run_id": "fixture_deepseek_harness_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "6c594fd9b4e54124387baebd0650ce77",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "176ecb90a2969de403b9b15921ef0050",
+            "tool_call": "d0203379998eb90a97a60bc4c7c393df",
+            "turn": "abee920c64fa2eaacef7f065cdf60f79"
+          },
+          "run_id": "fixture_deepseek_harness_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "off",
+      "platform": "deepseek_harness",
+      "run_id": "fixture_deepseek_harness_off_1",
+      "task_case": "fixture_file_read"
+    },
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "5cae5a92fc9f48c955f8fd5055419d8c",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "f0c09b663115eae7c25d7ee54d5926dc",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "f0c09b663115eae7c25d7ee54d5926dc",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "4edcf67b0213dedefaeffd3bfa026f22",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "adapter_action_status": "observed",
+          "event_ref": "c4e01d1851269a168c311b8c8d2f701f",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "shadow_outcome",
+          "parent_ref": "1db5fb0b24d0b4945e49e68d244deb19",
+          "platform": "deepseek_harness",
+          "refs": {
+            "decision_request": "5615a1d305813a37ae4bb069c62bee4e",
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "observation_done"
+        },
+        {
+          "decision_source": "rule",
+          "event_ref": "1db5fb0b24d0b4945e49e68d244deb19",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "execution_backend": "rule",
+          "gate": "completion",
+          "guarded_recommendation": "verify",
+          "kind": "runtime_decision",
+          "parent_ref": "fb317988c5e9aebf644ce71991239dcc",
+          "platform": "deepseek_harness",
+          "refs": {
+            "decision_request": "5615a1d305813a37ae4bb069c62bee4e",
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "response_received"
+        },
+        {
+          "event_ref": "fb317988c5e9aebf644ce71991239dcc",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "decision_request",
+          "parent_ref": "fbb6a63a75588240413b1eff1c7126dd",
+          "platform": "deepseek_harness",
+          "refs": {
+            "decision_request": "5615a1d305813a37ae4bb069c62bee4e",
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "request_sent"
+        },
+        {
+          "event_ref": "fbb6a63a75588240413b1eff1c7126dd",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "adapter_observation",
+          "parent_ref": "a77dda9f2454107685d71b5c3c89de45",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "4edcf67b0213dedefaeffd3bfa026f22",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "a77dda9f2454107685d71b5c3c89de45",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "1d215b33ea0fb713878d05be59b1a768",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "7676cb1010a1a5a7f2ea2ae2ed6f8a58",
+            "tool_call": "b1790aa96953022797596699e826ee83",
+            "turn": "b2ff878f3ba6236a3ba121d987dcbd3b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "shadow_healthy",
+      "platform": "deepseek_harness",
+      "run_id": "fixture_deepseek_harness_shadow_healthy_1",
+      "task_case": "fixture_file_read"
+    },
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "7a3e6432c9d2ecca5f1d631bf1f47063",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "254d54a53c2e1c91de6a9b66ea74e34c",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "254d54a53c2e1c91de6a9b66ea74e34c",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "18371969d380e796fb8be22ba33adf9e",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "adapter_action_status": "failed_open",
+          "event_ref": "8116025e53033c1eeffbab10a2eb8dc3",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "shadow_outcome",
+          "parent_ref": "d2d3dba9396d188334ff636c076a934e",
+          "platform": "deepseek_harness",
+          "refs": {
+            "decision_request": "1fc64e14720b352aa95d92e4d6f17ee8",
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "runtime_unavailable"
+        },
+        {
+          "event_ref": "d2d3dba9396d188334ff636c076a934e",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "decision_request",
+          "parent_ref": "b67fda5a5fe9f530745d09040769d360",
+          "platform": "deepseek_harness",
+          "refs": {
+            "decision_request": "1fc64e14720b352aa95d92e4d6f17ee8",
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "request_sent"
+        },
+        {
+          "event_ref": "b67fda5a5fe9f530745d09040769d360",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "adapter_observation",
+          "parent_ref": "231f365622073b196a2e0b8faa2d3c52",
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "18371969d380e796fb8be22ba33adf9e",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "231f365622073b196a2e0b8faa2d3c52",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "d30ecf9dd54b8ffb11a73487652b3a82",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "deepseek_harness",
+          "refs": {
+            "session": "3fff10acfd7042e07ab008fa8f2e7e6c",
+            "tool_call": "cb3c172062c9682112ab92dfaf0b298a",
+            "turn": "7597acd022502d332b2822f76d9d7d1b"
+          },
+          "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "shadow_runtime_down",
+      "platform": "deepseek_harness",
+      "run_id": "fixture_deepseek_harness_shadow_runtime_down_1",
+      "task_case": "fixture_file_read"
+    }
+  ],
+  "schema": "local-system-one/verification-bundle-v1"
+}

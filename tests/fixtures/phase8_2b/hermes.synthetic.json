@@ -1,0 +1,751 @@
+{
+  "budgets": [
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 0,
+        "gate_requests": 0,
+        "model_inferences": 0,
+        "rule_decisions": 0
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_off_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_off_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_off_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_off_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_off_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_off_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_off_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_off_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_off_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_off_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_off_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_off_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_hermes_off_1",
+      "total_cap": 3,
+      "usage_records": []
+    },
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 0,
+        "gate_requests": 1,
+        "model_inferences": 0,
+        "rule_decisions": 1
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_shadow_healthy_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_hermes_shadow_healthy_1",
+      "total_cap": 3,
+      "usage_records": []
+    },
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 1,
+        "gate_requests": 1,
+        "model_inferences": 0,
+        "rule_decisions": 0
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_hermes_shadow_runtime_down_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_hermes_shadow_runtime_down_1",
+      "total_cap": 3,
+      "usage_records": []
+    }
+  ],
+  "runs": [
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "90150f0f2f77af538e4ecae338e310c5",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "4eddec534871acf5ea6e79b19a55cfce",
+          "platform": "hermes",
+          "refs": {
+            "session": "e579fca78a5b582226fa7fd213411f95",
+            "tool_call": "355c9272bca4d0736b9894a58283a43d",
+            "turn": "18da14b3fcd1107dc4ce83ed41bf9f6c"
+          },
+          "run_id": "fixture_hermes_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "4eddec534871acf5ea6e79b19a55cfce",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "1b83cd97c8b46c3e8656bf94c7ea6039",
+          "platform": "hermes",
+          "refs": {
+            "session": "e579fca78a5b582226fa7fd213411f95",
+            "tool_call": "355c9272bca4d0736b9894a58283a43d",
+            "turn": "18da14b3fcd1107dc4ce83ed41bf9f6c"
+          },
+          "run_id": "fixture_hermes_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "event_ref": "1b83cd97c8b46c3e8656bf94c7ea6039",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "e579fca78a5b582226fa7fd213411f95",
+            "tool_call": "355c9272bca4d0736b9894a58283a43d",
+            "turn": "18da14b3fcd1107dc4ce83ed41bf9f6c"
+          },
+          "run_id": "fixture_hermes_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "a2eda857f6b56928bc0bc68949d7a315",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "e579fca78a5b582226fa7fd213411f95",
+            "tool_call": "355c9272bca4d0736b9894a58283a43d",
+            "turn": "18da14b3fcd1107dc4ce83ed41bf9f6c"
+          },
+          "run_id": "fixture_hermes_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "ed8d71d5a82d6476f0450eafca51b3d8",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "e579fca78a5b582226fa7fd213411f95",
+            "tool_call": "355c9272bca4d0736b9894a58283a43d",
+            "turn": "18da14b3fcd1107dc4ce83ed41bf9f6c"
+          },
+          "run_id": "fixture_hermes_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "off",
+      "platform": "hermes",
+      "run_id": "fixture_hermes_off_1",
+      "task_case": "fixture_file_read"
+    },
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "df84380f23c1f6ec8a67d049f76323f5",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "de90fc728218afcb0bba26658115e826",
+          "platform": "hermes",
+          "refs": {
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "de90fc728218afcb0bba26658115e826",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "d0331b00b8119961b95449581cf33044",
+          "platform": "hermes",
+          "refs": {
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "adapter_action_status": "observed",
+          "event_ref": "7d9fafde0c1d01996fb7cd602c9d0dff",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "shadow_outcome",
+          "parent_ref": "fe915db0360f4131fbe3ac6581a62f60",
+          "platform": "hermes",
+          "refs": {
+            "decision_request": "c627d0890243c7ce9e4c46a0f07540cf",
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "observation_done"
+        },
+        {
+          "decision_source": "rule",
+          "event_ref": "fe915db0360f4131fbe3ac6581a62f60",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "execution_backend": "rule",
+          "gate": "completion",
+          "guarded_recommendation": "verify",
+          "kind": "runtime_decision",
+          "parent_ref": "6bac63ed239014ce42f096b491505380",
+          "platform": "hermes",
+          "refs": {
+            "decision_request": "c627d0890243c7ce9e4c46a0f07540cf",
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "response_received"
+        },
+        {
+          "event_ref": "6bac63ed239014ce42f096b491505380",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "decision_request",
+          "parent_ref": "a64f463dec1b9174f7061d8b098d197c",
+          "platform": "hermes",
+          "refs": {
+            "decision_request": "c627d0890243c7ce9e4c46a0f07540cf",
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "request_sent"
+        },
+        {
+          "event_ref": "a64f463dec1b9174f7061d8b098d197c",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "adapter_observation",
+          "parent_ref": "ab947bf0326eb11da5d023632628263d",
+          "platform": "hermes",
+          "refs": {
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "d0331b00b8119961b95449581cf33044",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "ab947bf0326eb11da5d023632628263d",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "9ecf5db69afb90f2d15c466c594f1cf7",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "42871bd009a2288ad68d93b813c973b5",
+            "tool_call": "4f634576b178141e8e4340617c521860",
+            "turn": "1a68c781647c5c1073b48a0e4467bfcc"
+          },
+          "run_id": "fixture_hermes_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "shadow_healthy",
+      "platform": "hermes",
+      "run_id": "fixture_hermes_shadow_healthy_1",
+      "task_case": "fixture_file_read"
+    },
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "59b46c805ebb61acfd45c97d6e83f96d",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "d58eeb95fe8c2b713ddec87b9790207d",
+          "platform": "hermes",
+          "refs": {
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "d58eeb95fe8c2b713ddec87b9790207d",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "a76cea2b9e459d5081ad1a9dcd487357",
+          "platform": "hermes",
+          "refs": {
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "adapter_action_status": "failed_open",
+          "event_ref": "e8e173b0378d304ff3be983260d70438",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "shadow_outcome",
+          "parent_ref": "8b791a6f15fa723549387f5986ac2b76",
+          "platform": "hermes",
+          "refs": {
+            "decision_request": "7f0dfc930a9f22b66b895669b80df780",
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "runtime_unavailable"
+        },
+        {
+          "event_ref": "8b791a6f15fa723549387f5986ac2b76",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "decision_request",
+          "parent_ref": "b18c41a9673dad97d69f126e85ba0d5b",
+          "platform": "hermes",
+          "refs": {
+            "decision_request": "7f0dfc930a9f22b66b895669b80df780",
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "request_sent"
+        },
+        {
+          "event_ref": "b18c41a9673dad97d69f126e85ba0d5b",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "adapter_observation",
+          "parent_ref": "c33ce2d1b9ed2651e8107fec6325b2d0",
+          "platform": "hermes",
+          "refs": {
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "a76cea2b9e459d5081ad1a9dcd487357",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "c33ce2d1b9ed2651e8107fec6325b2d0",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "f390f9fff04ae0cbd26cae53646ff024",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "hermes",
+          "refs": {
+            "session": "4b72891778d1a6e011d2273a240d4966",
+            "tool_call": "0bdf594a54e051752e9ad89dbf46af63",
+            "turn": "2117ab124fa132f67e26018a5b2ce3e6"
+          },
+          "run_id": "fixture_hermes_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "shadow_runtime_down",
+      "platform": "hermes",
+      "run_id": "fixture_hermes_shadow_runtime_down_1",
+      "task_case": "fixture_file_read"
+    }
+  ],
+  "schema": "local-system-one/verification-bundle-v1"
+}

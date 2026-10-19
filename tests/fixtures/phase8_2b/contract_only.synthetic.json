@@ -1,0 +1,751 @@
+{
+  "budgets": [
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 0,
+        "gate_requests": 0,
+        "model_inferences": 0,
+        "rule_decisions": 0
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_off_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_off_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_off_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_off_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_off_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_off_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_off_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_off_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_off_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_off_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_off_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_off_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_contract_only_off_1",
+      "total_cap": 3,
+      "usage_records": []
+    },
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 0,
+        "gate_requests": 1,
+        "model_inferences": 0,
+        "rule_decisions": 1
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_shadow_healthy_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_contract_only_shadow_healthy_1",
+      "total_cap": 3,
+      "usage_records": []
+    },
+    {
+      "agent_reported_calls": 2,
+      "controlled_egress_verified": true,
+      "decision_calls": {
+        "failed_or_timed_out": 1,
+        "gate_requests": 1,
+        "model_inferences": 0,
+        "rule_decisions": 0
+      },
+      "per_run_cap": 3,
+      "records": [
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 1
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 2
+        },
+        {
+          "kind": "reserved",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "kind": "attempted",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "http_status": 200,
+          "kind": "responded",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 3
+        },
+        {
+          "duration_ms": 1.25,
+          "http_status": 200,
+          "kind": "result",
+          "run": "fixture_contract_only_shadow_runtime_down_1",
+          "slot": 3
+        }
+      ],
+      "run_id": "fixture_contract_only_shadow_runtime_down_1",
+      "total_cap": 3,
+      "usage_records": []
+    }
+  ],
+  "runs": [
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "f01cb91e6cfc75ae4d5cb242a08bfa94",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "eb04f549a0fbd216e405275c39530a3a",
+          "platform": "contract_only",
+          "refs": {
+            "session": "39ab27d08c3058f751fb4bb559d0d377",
+            "tool_call": "a0793aa1a599fdc8b3022057f4c9caae",
+            "turn": "4b592265f395cbbf5a01af403b38a668"
+          },
+          "run_id": "fixture_contract_only_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "eb04f549a0fbd216e405275c39530a3a",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "e1c1d2e900bd10a30ee2b37209813b59",
+          "platform": "contract_only",
+          "refs": {
+            "session": "39ab27d08c3058f751fb4bb559d0d377",
+            "tool_call": "a0793aa1a599fdc8b3022057f4c9caae",
+            "turn": "4b592265f395cbbf5a01af403b38a668"
+          },
+          "run_id": "fixture_contract_only_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "event_ref": "e1c1d2e900bd10a30ee2b37209813b59",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "39ab27d08c3058f751fb4bb559d0d377",
+            "tool_call": "a0793aa1a599fdc8b3022057f4c9caae",
+            "turn": "4b592265f395cbbf5a01af403b38a668"
+          },
+          "run_id": "fixture_contract_only_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "b47486ef065b2dbe0197c7644a380619",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "39ab27d08c3058f751fb4bb559d0d377",
+            "tool_call": "a0793aa1a599fdc8b3022057f4c9caae",
+            "turn": "4b592265f395cbbf5a01af403b38a668"
+          },
+          "run_id": "fixture_contract_only_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "273cfe4c002f04c772c7ea7cd77bed12",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "39ab27d08c3058f751fb4bb559d0d377",
+            "tool_call": "a0793aa1a599fdc8b3022057f4c9caae",
+            "turn": "4b592265f395cbbf5a01af403b38a668"
+          },
+          "run_id": "fixture_contract_only_off_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "off",
+      "platform": "contract_only",
+      "run_id": "fixture_contract_only_off_1",
+      "task_case": "fixture_file_read"
+    },
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "ca79c72f591422012d70c63a2abfabbe",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "ccf3c42e395c238a98c02c2d109a32fb",
+          "platform": "contract_only",
+          "refs": {
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "ccf3c42e395c238a98c02c2d109a32fb",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "4fbe3f594d4a823e27663f6f5226c846",
+          "platform": "contract_only",
+          "refs": {
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "adapter_action_status": "observed",
+          "event_ref": "1e57722a250d8605e3949565a28f1c83",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "shadow_outcome",
+          "parent_ref": "a79edf64c13cf9f395a7971b0ffc0c91",
+          "platform": "contract_only",
+          "refs": {
+            "decision_request": "86ffa49e1ac8e81f53f2910496d90ef3",
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "observation_done"
+        },
+        {
+          "decision_source": "rule",
+          "event_ref": "a79edf64c13cf9f395a7971b0ffc0c91",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "execution_backend": "rule",
+          "gate": "completion",
+          "guarded_recommendation": "verify",
+          "kind": "runtime_decision",
+          "parent_ref": "3519af802e11ebd6afe56810f65a0fd3",
+          "platform": "contract_only",
+          "refs": {
+            "decision_request": "86ffa49e1ac8e81f53f2910496d90ef3",
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "response_received"
+        },
+        {
+          "event_ref": "3519af802e11ebd6afe56810f65a0fd3",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "decision_request",
+          "parent_ref": "eb049038f3e2c8d8d2e5083994650c89",
+          "platform": "contract_only",
+          "refs": {
+            "decision_request": "86ffa49e1ac8e81f53f2910496d90ef3",
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "request_sent"
+        },
+        {
+          "event_ref": "eb049038f3e2c8d8d2e5083994650c89",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "adapter_observation",
+          "parent_ref": "167bf22e05c6d9ed7e162c93ba8f8c57",
+          "platform": "contract_only",
+          "refs": {
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "4fbe3f594d4a823e27663f6f5226c846",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "167bf22e05c6d9ed7e162c93ba8f8c57",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "741c2a351a8df75cddcaf45f16387a89",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "5563be7610103ed3373ce33145fbf75c",
+            "tool_call": "efa246120741e0163e3c823929710c2f",
+            "turn": "00545889d6c9851c40c5363ea5ccf5b7"
+          },
+          "run_id": "fixture_contract_only_shadow_healthy_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "shadow_healthy",
+      "platform": "contract_only",
+      "run_id": "fixture_contract_only_shadow_healthy_1",
+      "task_case": "fixture_file_read"
+    },
+    {
+      "capabilities": {
+        "independent_outcome_verification": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "model_usage_reporting": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "provider_budget_enforcement": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "request_attempt_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "session_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "tool_result_observation": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        },
+        "turn_identity": {
+          "source": "synthetic_fixture",
+          "status": "supported"
+        }
+      },
+      "events": [
+        {
+          "event_ref": "352795a761666dacb4eb89861b89faac",
+          "evidence_source": "independently_verified",
+          "evidence_status": "verified",
+          "kind": "independent_verification",
+          "outcome": "pass",
+          "parent_ref": "6ae32ae30fe88d544b77f32e5a9b14ce",
+          "platform": "contract_only",
+          "refs": {
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "verifier_done"
+        },
+        {
+          "event_ref": "6ae32ae30fe88d544b77f32e5a9b14ce",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "agent_execution",
+          "outcome": "pass",
+          "parent_ref": "c442b676962f978bc4e26dc5a6ca4f35",
+          "platform": "contract_only",
+          "refs": {
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_closed"
+        },
+        {
+          "adapter_action_status": "failed_open",
+          "event_ref": "f7a4693c87d7981174c7cd8cd31df067",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "shadow_outcome",
+          "parent_ref": "96443b827da62300f8ff023bbff70c36",
+          "platform": "contract_only",
+          "refs": {
+            "decision_request": "1221bc22af2589051a1decddfeae8c41",
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "runtime_unavailable"
+        },
+        {
+          "event_ref": "96443b827da62300f8ff023bbff70c36",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "decision_request",
+          "parent_ref": "c39ed83ab8c5cfd729ab37c8bd68ac9d",
+          "platform": "contract_only",
+          "refs": {
+            "decision_request": "1221bc22af2589051a1decddfeae8c41",
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "request_sent"
+        },
+        {
+          "event_ref": "c39ed83ab8c5cfd729ab37c8bd68ac9d",
+          "evidence_source": "platform_reported",
+          "evidence_status": "verified",
+          "gate": "completion",
+          "kind": "adapter_observation",
+          "parent_ref": "4334a872a4a23d4b3e73d85790e98a78",
+          "platform": "contract_only",
+          "refs": {
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "c442b676962f978bc4e26dc5a6ca4f35",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "turn_end"
+        },
+        {
+          "event_ref": "4334a872a4a23d4b3e73d85790e98a78",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_result"
+        },
+        {
+          "event_ref": "8ed902c7a70b4c8269080425b49d44a7",
+          "evidence_source": "native_observed",
+          "evidence_status": "verified",
+          "kind": "native_event",
+          "parent_ref": null,
+          "platform": "contract_only",
+          "refs": {
+            "session": "a6bf9aa281b9039006c5235ea16ae8fe",
+            "tool_call": "0c8a352ce36d2d7e3e4f570e3dc95c51",
+            "turn": "5e0c8ea5e38101b1f356b481af2f0aa6"
+          },
+          "run_id": "fixture_contract_only_shadow_runtime_down_1",
+          "schema": "local-system-one/evidence-v1",
+          "stage": "tool_call"
+        }
+      ],
+      "mode": "shadow_runtime_down",
+      "platform": "contract_only",
+      "run_id": "fixture_contract_only_shadow_runtime_down_1",
+      "task_case": "fixture_file_read"
+    }
+  ],
+  "schema": "local-system-one/verification-bundle-v1"
+}

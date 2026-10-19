@@ -37,7 +37,7 @@ class BudgetLedger:
         events = []
         for line in self.path.read_text(encoding="utf-8").splitlines():
             value = json.loads(line)
-            if not isinstance(value, dict) or value.get("kind") not in {"reserved", "result"}:
+            if not isinstance(value, dict) or value.get("kind") not in {"reserved", "attempted", "responded", "outcome_unknown", "result"}:
                 raise ValueError("invalid budget ledger")
             events.append(value)
         return events
@@ -60,6 +60,37 @@ class BudgetLedger:
                 slot = len(used) + 1
                 self._append({"kind": "reserved", "run": run, "slot": slot})
                 return slot
+            finally:
+                fcntl.flock(lock, fcntl.LOCK_UN)
+
+    def mark(self, run: str, slot: int, kind: str, status: int | None = None) -> None:
+        """Append a 8.2B request lifecycle fact without altering old result rows.
+
+        Only this controlled HTTP outlet can truthfully emit attempted/response.
+        """
+        if kind not in {"attempted", "responded", "outcome_unknown"}:
+            raise ValueError("unsupported budget lifecycle")
+        with self.lock_path.open("a+") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                events = self._events()
+                if not any(e.get("kind") == "reserved" and e.get("run") == run
+                           and e.get("slot") == slot for e in events):
+                    raise ValueError("budget lifecycle requires a reservation")
+                if any(e.get("run") == run and e.get("slot") == slot
+                       and e.get("kind") == kind for e in events):
+                    raise ValueError("duplicate budget lifecycle")
+                if kind != "attempted" and not any(
+                    e.get("run") == run and e.get("slot") == slot
+                    and e.get("kind") == "attempted" for e in events
+                ):
+                    raise ValueError("terminal outcome without attempt")
+                entry = {"kind": kind, "run": run, "slot": slot}
+                if kind == "responded":
+                    if not isinstance(status, int) or not 100 <= status <= 599:
+                        raise ValueError("invalid provider response status")
+                    entry["http_status"] = status
+                self._append(entry)
             finally:
                 fcntl.flock(lock, fcntl.LOCK_UN)
 
@@ -144,6 +175,7 @@ class ProviderCapHandler(BaseHTTPRequestHandler):
             return
         began = time.monotonic()
         status = 0
+        attempted = False
         try:
             upstream_request = urllib.request.Request(
                 self.server.upstream, data=body, method="POST",
@@ -153,12 +185,16 @@ class ProviderCapHandler(BaseHTTPRequestHandler):
                     "Accept": self.headers.get("Accept", "text/event-stream"),
                 },
             )
+            # Pre-send durable marker; failure here prevents upstream I/O.
+            self.server.ledger.mark(self.server.run_id, slot, "attempted")
+            attempted = True
             try:
                 upstream = urllib.request.urlopen(upstream_request, timeout=75)
             except urllib.error.HTTPError as exc:
                 upstream = exc
             with upstream:
                 status = upstream.status
+                self.server.ledger.mark(self.server.run_id, slot, "responded", status)
                 self.send_response(status)
                 self.send_header("Content-Type", upstream.headers.get("Content-Type", "application/json"))
                 self.send_header("Connection", "close")
@@ -171,6 +207,10 @@ class ProviderCapHandler(BaseHTTPRequestHandler):
                         break
         except (OSError, TimeoutError):
             if status == 0:
+                # Remote execution/billing is unknown after outbound I/O.
+                # The local 502 is NOT a remote Provider response.
+                if attempted:
+                    self.server.ledger.mark(self.server.run_id, slot, "outcome_unknown")
                 status = 502
                 try:
                     self._json(502, {"error": "real_provider_unavailable"})
