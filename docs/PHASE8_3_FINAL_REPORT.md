@@ -181,3 +181,25 @@ Publication sanitizer and post-commit cleanliness are separate gates.
 value NOT_ESTABLISHED; production Active NOT_AUTHORIZED.** The original
 Phase 8.3A real Provider requalification remains BLOCKED pending an
 explicit budget and independent native test oracle.
+
+
+## 11. Phase 8.3A attempted real-provider requalification (2026-10-21)
+
+After the separately authorized bounded 8-case StepFun Step Plan + Laya
+Shadow protocol was frozen in Git, tool safety checks blocked the
+creation of a newly authenticated isolated native test environment.
+We did **not** bypass the block, copy credentials or touch production.
+
+The actual 8-case real-provider experiment **has not run**. The
+independent native-verification result, exact post-change real
+native-to-HTTP causal linkage, physical request budget use and live
+Agent task outcomes all remain unmeasured / BLOCKED. Existing 8.2A
+real StepFun and 8.2B native Mock records cannot fill that gap.
+
+See [native real test protocol](PHASE8_3_NATIVE_REAL_SHADOW_PROTOCOL.md)
+and [attempt and blocker report](PHASE8_3_NATIVE_REAL_ATTEMPT_REPORT.md).
+Offline budget/evidence tests can pass without promoting this status
+to a real-provider acceptance. Latest scoped regression Python
+**1012/1012 PASS**, DSH Vitest **64/64 PASS**, TypeScript
+typecheck/build PASS. PR #9 remains Draft; Active remains
+NOT_AUTHORIZED.
