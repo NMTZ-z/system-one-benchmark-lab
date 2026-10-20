@@ -125,3 +125,11 @@ Prioritize a **new independent evidence set**: sample mixed native tasks with in
 Only after new post-8.2B real StepFun + Laya Shadow E2E under a strict physical-request budget and independent native oracle, consider a separately approved non-mutating Canary for low-risk decisions. Do **not** accelerate to 8D Action Risk Gate or Active solely on these retrospective accuracy rates.
 
 **Implementation status:** source and full Python/DSH regression validated on the isolated feature branch. The GitHub PR and commit metadata must match the actually published branch state, not hypothetical identifiers.
+
+## 9. GitHub PR and review status (2026-10-20)
+
+- Feature: `feat/phase8-3-decision-value` from verified GitHub `main` at `062d52e753e7e00d91a536dc81e9d85b8819cb12`.
+- Main engineering commit: `20352d7afb1cd83258eed7918fe97d0e3c5e61ea`.
+- **Draft PR [#9](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/9): OPEN / DRAFT / NOT MERGED.**
+- Independent code review remains pending. Codex automated review was turned off by the maintainer; lack of a new review notification is not evidence of approval.
+- Explicitly out of scope: updating NAS `main`, changing production Hermes/DSH profiles, authorizing real paid StepFun runs, Active decisions, automatic merge, or deployment.
