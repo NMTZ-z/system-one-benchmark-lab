@@ -10,10 +10,10 @@
   "freeze": {
     "case_count": 210,
     "dataset_sha256": "f1f06888a5fc5bb7edcdda2db7e438d8b89e1c27303814c518f34baa1e5a2f2e",
-    "evaluator_sha256": "58ab67ba7da6e2659977b56b32ac6afb6bdb360c88607f810682fbc8730ca888",
+    "evaluator_sha256": "513723f6c848d1eb2236cc3e5b9409ee0dbda7b106cbb4740c0f4f2d9fd5c45f",
     "freeze_kind": "historical_observed",
     "model_identity": "convaiinnovations/laya-typed-decisions@f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
-    "protocol_sha256": "61a9107c26624f5e827a380f868354a3cf6006e8acd2910a13c59bc65cd6112a",
+    "protocol_sha256": "ac1d2d7c935982606c573b512867dbf884b7e77803e6a76980a2e45d7fbebab6",
     "requested_backend": "mlx",
     "schema": "local-system-one/decision-value-freeze-v1",
     "source_commit": "062d52e753e7e00d91a536dc81e9d85b8819cb12"
@@ -21,6 +21,76 @@
   "grouping_rule": "never pool gate/source/split",
   "groups": {
     "completion/public_reconstruction/development": {
+      "completion_policy_controls": {
+        "comparator_warning": "Originally reported Rule-only includes an additional positive verified-flags heuristic absent from original Rules+Laya's pre-model hard rules. The original B/C accuracy difference is NOT a paired causal model effect.",
+        "interpretation": "historical_public_policy_replay_not_real_blind",
+        "matched_existing_hard_rules": {
+          "shared_rules_plus_conservative_verify": {
+            "acceptable_accuracy": 0.633333,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 20,
+            "observed": 30,
+            "preferred_accuracy": 0.633333,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.455136,
+              0.781261
+            ]
+          },
+          "shared_rules_plus_observed_model": {
+            "acceptable_accuracy": 0.633333,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 20,
+            "observed": 30,
+            "preferred_accuracy": 0.633333,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.455136,
+              0.781261
+            ]
+          }
+        },
+        "matched_positive_flag_rule_counterfactual": {
+          "active_completion_authorized": false,
+          "actual_model_calls_avoided": "NOT_MEASURED",
+          "hypothetical_model_calls_after_short_circuit": 11,
+          "hypothetically_avoided_model_calls": 3,
+          "measured_model_calls_original": 14,
+          "positive_flag_cases": 3,
+          "positive_flag_first_then_observed_model_on_remainder": {
+            "acceptable_accuracy": 0.733333,
+            "complete_precision": 1.0,
+            "complete_recall": 0.3,
+            "non_complete_support": 20,
+            "observed": 30,
+            "preferred_accuracy": 0.733333,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.55552,
+              0.858173
+            ]
+          },
+          "rule_only_with_positive_flag": {
+            "acceptable_accuracy": 0.733333,
+            "complete_precision": 1.0,
+            "complete_recall": 0.3,
+            "non_complete_support": 20,
+            "observed": 30,
+            "preferred_accuracy": 0.733333,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.55552,
+              0.858173
+            ]
+          }
+        }
+      },
       "gate": "completion",
       "latency_small_sample": true,
       "model_attempted": 14,
@@ -85,6 +155,76 @@
       "typed_opportunity_coverage": 0.466667
     },
     "completion/synthetic/development": {
+      "completion_policy_controls": {
+        "comparator_warning": "Originally reported Rule-only includes an additional positive verified-flags heuristic absent from original Rules+Laya's pre-model hard rules. The original B/C accuracy difference is NOT a paired causal model effect.",
+        "interpretation": "historical_public_policy_replay_not_real_blind",
+        "matched_existing_hard_rules": {
+          "shared_rules_plus_conservative_verify": {
+            "acceptable_accuracy": 0.555556,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 60,
+            "observed": 90,
+            "preferred_accuracy": 0.555556,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.452719,
+              0.653843
+            ]
+          },
+          "shared_rules_plus_observed_model": {
+            "acceptable_accuracy": 0.633333,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 60,
+            "observed": 90,
+            "preferred_accuracy": 0.633333,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.530223,
+              0.725527
+            ]
+          }
+        },
+        "matched_positive_flag_rule_counterfactual": {
+          "active_completion_authorized": false,
+          "actual_model_calls_avoided": "NOT_MEASURED",
+          "hypothetical_model_calls_after_short_circuit": 20,
+          "hypothetically_avoided_model_calls": 30,
+          "measured_model_calls_original": 50,
+          "positive_flag_cases": 30,
+          "positive_flag_first_then_observed_model_on_remainder": {
+            "acceptable_accuracy": 0.966667,
+            "complete_precision": 1.0,
+            "complete_recall": 1.0,
+            "non_complete_support": 60,
+            "observed": 90,
+            "preferred_accuracy": 0.966667,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.906527,
+              0.9886
+            ]
+          },
+          "rule_only_with_positive_flag": {
+            "acceptable_accuracy": 0.888889,
+            "complete_precision": 1.0,
+            "complete_recall": 1.0,
+            "non_complete_support": 60,
+            "observed": 90,
+            "preferred_accuracy": 0.888889,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.807422,
+              0.938517
+            ]
+          }
+        }
+      },
       "gate": "completion",
       "latency_small_sample": false,
       "model_attempted": 50,
@@ -149,6 +289,7 @@
       "typed_opportunity_coverage": 0.555556
     },
     "retry_escalation/synthetic/adversarial": {
+      "completion_policy_controls": null,
       "gate": "retry_escalation",
       "latency_small_sample": true,
       "model_attempted": 15,
@@ -210,6 +351,7 @@
       "typed_opportunity_coverage": 0.5
     },
     "retry_escalation/synthetic/calibration": {
+      "completion_policy_controls": null,
       "gate": "retry_escalation",
       "latency_small_sample": true,
       "model_attempted": 15,
@@ -271,6 +413,7 @@
       "typed_opportunity_coverage": 0.5
     },
     "retry_escalation/synthetic/historical_holdout": {
+      "completion_policy_controls": null,
       "gate": "retry_escalation",
       "latency_small_sample": true,
       "model_attempted": 15,
@@ -337,7 +480,9 @@
     "Synthetic editorial oracle labels are not independent real-world task outcomes.",
     "Native task success and native decision quality are distinct; missing is null.",
     "Opportunity schema and hashes cannot authenticate fabricated evidence.",
-    "Historical/observed splits are not a newly independent blind test."
+    "Historical/observed splits are not a newly independent blind test.",
+    "Completion original B/C used different rule sets: consult completion_policy_controls.",
+    "Matched positive-flag short circuit is a counterfactual policy, not actual avoided calls."
   ],
   "schema": "local-system-one/decision-value-report-v1"
 }

@@ -61,9 +61,11 @@ The [paired evaluation protocol](docs/PHASE8_3_EVALUATION_PROTOCOL.md) separates
 native Agent outcomes, Rule-only answers, and Rules + Laya suggestions. Its first
 [bounded offline report](docs/PHASE8_3_FINAL_REPORT.md) covers 210 *previously
 published* synthetic or public-reconstructed cases with 109 local MLX model calls.
-In this limited replay, Retry benefits from Laya more consistently than Completion;
-some Completion Rule-only baselines outperform the hybrid. **These are not fresh
-blind results, real Agent savings, Active authorization, or new StepFun E2E.**
+In this limited replay, Retry benefits from Laya on historical synthetic cases.
+A follow-on audit identified unequal pre-model Completion rules in the initial
+comparison; see the rules-matched controls in the final report before interpreting
+Completion accuracy. **These are not fresh blind results, real Agent savings,
+Active authorization, or new StepFun E2E.**
 
 ## Quick start
 

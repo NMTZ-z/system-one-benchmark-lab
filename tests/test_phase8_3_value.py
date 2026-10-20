@@ -184,3 +184,58 @@ def test_odd_sample_p50_is_observed_value_not_zero():
     assert _percentile([48.0, 52.0, 61.0], .5) == 52.0
     assert _percentile([48.0], .95) == 48.0
     assert _percentile([], .5) is None
+
+
+def test_completion_matched_rule_controls_do_not_claim_actual_savings():
+    r = case()
+    r["gold"] = {"acceptable": ["complete"], "preferred": "complete",
+                 "oracle": "synthetic_editorial"}
+    r["rule_only"] = {"decision": "complete"}
+    r["rules_model"].update({
+        "raw_model_decision": "complete", "guarded_decision": "verify",
+        "model_invoked": True, "model_completed": True, "decision_source": "model",
+        "backend": "mlx", "safety_override": True, "model_latency_ms": 45.0,
+    })
+    summary = next(iter(evaluate_rows([r])["groups"].values()))
+    controls = summary["completion_policy_controls"]
+    original = controls["matched_existing_hard_rules"]
+    enhanced = controls["matched_positive_flag_rule_counterfactual"]
+    assert original["shared_rules_plus_conservative_verify"]["acceptable_accuracy"] == 0.0
+    assert original["shared_rules_plus_observed_model"]["acceptable_accuracy"] == 0.0
+    assert enhanced["rule_only_with_positive_flag"]["acceptable_accuracy"] == 1.0
+    assert enhanced["positive_flag_first_then_observed_model_on_remainder"]["acceptable_accuracy"] == 1.0
+    assert enhanced["positive_flag_cases"] == 1
+    assert enhanced["measured_model_calls_original"] == 1
+    assert enhanced["hypothetical_model_calls_after_short_circuit"] == 0
+    assert enhanced["hypothetically_avoided_model_calls"] == 1
+    assert enhanced["actual_model_calls_avoided"] == "NOT_MEASURED"
+    assert summary["model_attempted"] == 1
+    assert summary["model_completed"] == 1
+
+
+def test_published_completion_matched_baselines_have_distinct_provenance():
+    # This is a previously public observed replay: prove comparator fairness,
+    # not an independent blind accuracy or a real native Agent result.
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / (
+        "benchmarks/decision_value/fixtures/phase8_3_public_replay.jsonl"
+    )
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    summary = evaluate_rows(rows)
+    synthetic = summary["groups"]["completion/synthetic/development"]
+    reconstruction = summary["groups"]["completion/public_reconstruction/development"]
+    a = synthetic["completion_policy_controls"]
+    b = reconstruction["completion_policy_controls"]
+    assert a["matched_existing_hard_rules"][
+        "shared_rules_plus_conservative_verify"]["acceptable_accuracy"] == 0.555556
+    assert a["matched_existing_hard_rules"][
+        "shared_rules_plus_observed_model"]["acceptable_accuracy"] == 0.633333
+    assert a["matched_positive_flag_rule_counterfactual"][
+        "positive_flag_first_then_observed_model_on_remainder"]["acceptable_accuracy"] == 0.966667
+    assert b["matched_existing_hard_rules"][
+        "shared_rules_plus_observed_model"]["acceptable_accuracy"] == 0.633333
+    assert b["matched_positive_flag_rule_counterfactual"][
+        "positive_flag_first_then_observed_model_on_remainder"]["acceptable_accuracy"] == 0.733333
+    assert sum(x["matched_positive_flag_rule_counterfactual"]["hypothetically_avoided_model_calls"]
+               for x in (a, b)) == 33
+    assert sum(group["model_attempted"] for group in summary["groups"].values()) == 109

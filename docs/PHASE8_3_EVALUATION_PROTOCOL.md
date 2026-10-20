@@ -12,6 +12,18 @@ The primary question is whether **Rules + Local Typed Decision** improves *indep
 
 The same `standardized_input_sha256` identifies the per-case input for B and C. This is a *consistency marker*, not proof of source authentication; native evidence must also satisfy the Phase 8.2B independent verifier. No other decisions are made based only on matching timestamps.
 
+### Required rules-matched Completion controls
+
+**Re-audit finding:** the historical Phase 8B `rule_only()` comparator includes a positive verified-flags `complete` shortcut not present in production Completion `_hard_gate()`. Therefore its original B/C accuracy difference must **not** be interpreted as model incremental value.
+
+Report both separate policy contrasts for Completion, without modifying the frozen gold or recorded inference:
+
+- **B0/C0:** identical original seven pre-model hard rules, B0 abstains to `verify` on unresolved states, C0 retains the *observed* Laya result with unchanged safety guard.
+- **B1/C1:** B1 = original Phase 8B positive-flag Rule-only replay; C1 = same B1 rule applied first, with the originally observed Laya result reused **only** for remaining unresolved states. C1 is a **counterfactual** and its hypothetical skipped local calls are not real saved compute.
+- All flagged positive completions originate from *public editorial flags*, not freshly authenticated native outcomes. Never activate B1/C1 as auto-stop on this evidence.
+
+Retry B/C already share the same deterministic rules. Aggregate scores must continue to distinguish synthetic and public-reconstruction provenance.
+
 ## 2. Datasets, labels and blinding
 
 Keep these sources separate:

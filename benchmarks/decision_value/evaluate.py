@@ -228,11 +228,28 @@ def validate_case(record: Any) -> dict:
 def _policy_quality(rows: list[dict], policy: str) -> dict:
     n = len(rows)
     def pred(r):
-        return (
-            r["rule_only"]["decision"] if policy == "rule_only" else
-            r["rules_model"]["guarded_decision"] if policy == "rules_model" else
-            r["native"]["decision"]
-        )
+        if policy == "rule_only":
+            return r["rule_only"]["decision"]
+        if policy == "rules_model":
+            return r["rules_model"]["guarded_decision"]
+        if policy == "native":
+            return r["native"]["decision"]
+        if policy == "completion_shared_hard_rules":
+            # Exact pre-model Completion hard rules already recorded by
+            # the frozen Opportunity capture, plus conservative abstention.
+            return (r["_derived_opportunity"]["rule_decision"]
+                    if r["_derived_opportunity"]["category"] == "rule_only"
+                    else "verify")
+        if policy == "completion_positive_flag_then_model":
+            # Retrospective counterfactual ONLY. Captured Phase 8B
+            # rule-only() additionally returns complete for two favorable
+            # flags, but the Phase 8A Completion Gate does not run that
+            # positive rule before model inference.
+            if (r["_derived_opportunity"]["category"] != "rule_only"
+                    and r["rule_only"]["decision"] == "complete"):
+                return "complete"
+            return r["rules_model"]["guarded_decision"]
+        raise EvaluationError("unsupported policy variant")
     compared = [r for r in rows if pred(r) is not None and (
         policy != "native" or r["native"]["decision_independently_adjudicated"]
     )]
@@ -291,6 +308,43 @@ def evaluate_rows(cases: list[dict]) -> dict:
                    if r["rules_model"]["model_latency_ms"] is not None]
         native_known = [r["native"]["provider_attempts"] for r in rows
                         if r["native"]["provider_attempts"] is not None]
+        completion_controls = None
+        if gate == "completion":
+            additional_positive = [
+                r for r in rows
+                if r["_derived_opportunity"]["category"] != "rule_only"
+                and r["rule_only"]["decision"] == "complete"
+            ]
+            skipped_calls = sum(r["rules_model"]["model_invoked"]
+                                for r in additional_positive)
+            completion_controls = {
+                "interpretation": "historical_public_policy_replay_not_real_blind",
+                "comparator_warning": (
+                    "Originally reported Rule-only includes an additional "
+                    "positive verified-flags heuristic absent from original "
+                    "Rules+Laya's pre-model hard rules. The original B/C "
+                    "accuracy difference is NOT a paired causal model effect."
+                ),
+                "matched_existing_hard_rules": {
+                    "shared_rules_plus_conservative_verify":
+                        _policy_quality(rows, "completion_shared_hard_rules"),
+                    "shared_rules_plus_observed_model":
+                        _policy_quality(rows, "rules_model"),
+                },
+                "matched_positive_flag_rule_counterfactual": {
+                    "rule_only_with_positive_flag":
+                        _policy_quality(rows, "rule_only"),
+                    "positive_flag_first_then_observed_model_on_remainder":
+                        _policy_quality(rows, "completion_positive_flag_then_model"),
+                    "positive_flag_cases": len(additional_positive),
+                    "measured_model_calls_original": len(attempted),
+                    "hypothetical_model_calls_after_short_circuit":
+                        len(attempted) - skipped_calls,
+                    "hypothetically_avoided_model_calls": skipped_calls,
+                    "actual_model_calls_avoided": "NOT_MEASURED",
+                    "active_completion_authorized": False,
+                },
+            }
         output["/".join((gate, source, split))] = {
             "gate": gate, "source": source, "split": split, "n": len(rows),
             "opportunity_categories": dict(sorted(cats.items())),
@@ -301,6 +355,7 @@ def evaluate_rows(cases: list[dict]) -> dict:
             "model_participation_rate": _rate(len(attempted), len(rows)),
             "model_attempts_among_candidates": _rate(len(attempted), cats["typed_model_candidate"]),
             "safety_overrides": len(overridden),
+            "completion_policy_controls": completion_controls,
             "rule_only_quality": _policy_quality(rows, "rule_only"),
             "rules_model_quality": _policy_quality(rows, "rules_model"),
             "native_decision_quality": _policy_quality(rows, "native"),
@@ -326,6 +381,8 @@ def evaluate_rows(cases: list[dict]) -> dict:
             "Native task success and native decision quality are distinct; missing is null.",
             "Opportunity schema and hashes cannot authenticate fabricated evidence.",
             "Historical/observed splits are not a newly independent blind test.",
+            "Completion original B/C used different rule sets: consult completion_policy_controls.",
+            "Matched positive-flag short circuit is a counterfactual policy, not actual avoided calls.",
         ],
     }
 

@@ -4,7 +4,9 @@
 
 ## Executive finding
 
-**The value of a local Typed Decision model depends on the Gate and available evidence.** On 210 previously published public/historical case replays (including 30 public-reconstruction Completion cases), 109 actual Laya 421M MLX Engine calls completed. On this particular sample, Rules + Laya materially improved synthetic Retry/Escalation decisions over Rule-only. However, in both Completion slices, the specified Rule-only baseline **outperformed** Rules + Laya. We did not change the existing Completion threshold or Retry safety policy to make the results look better.
+**The value of a local Typed Decision model depends on the Gate and available evidence.** On 210 previously published public/historical case replays (including 30 public-reconstruction Completion cases), 109 actual Laya 421M MLX Engine calls completed. On this particular sample, Rules + Laya materially improved synthetic Retry/Escalation decisions over Rule-only.
+
+**Post-implementation audit correction:** the original Completion comparison was not rules-matched. Its Rule-only policy had an extra favorable-flag `complete` heuristic, absent from the model-first branch. The originally quoted Completion accuracy loss is therefore **not evidence of a causal Laya disadvantage**. Matched, retrospective Completion controls are reported below without changing the original dataset or any Gate. We did not change the existing Completion threshold or Retry safety policy to make the results look better.
 
 These results are **not** a new independent blind study, native Agent successes, verified Provider token savings, or paid StepFun E2E evidence. The actual Agent-level benefit remains **NOT_MEASURED**.
 
@@ -44,11 +46,13 @@ Reused existing 8.2A native runner, private independent task verifiers, 8.2B exa
 
 No Adapter Contract v2, new runtime Gate, scheduler, Provider, dynamic switching, background service, production config or active action was introduced.
 
+The original Phase 8.2A historical-source regression test now explicitly permits this **one new pure offline** `local_system_one/decision_opportunity.py` path in its post-8.2A changed-file allowlist. Original native Gate / Runtime operational source SHA checks remain unchanged; no broad allowlist weakening was applied.
+
 ## 4. Paired benchmark: 8.3C
 
 Sources: the **already-public** 120-case Phase 8A Completion gold corpus (90 synthetic, 30 public-reconstruction) and the **previously frozen/published** 90-case Phase 8C Retry corpus (30 each calibration, historical holdout and adversarial). All 210 cases are *previously observed*. "Real" in the old Phase 8A public gold has provenance `public_repo_reconstructed`; this report conservatively uses `public_reconstruction`, **not** `real_agent`. No new blind holdout was generated.
 
-Baseline B uses established Completion conservative Rule-only replay policy or existing Retry Gate policy. Candidate C uses identical source inputs and safety rules, with actual locally cached Laya/MLX inference. Native Baseline A has no paired independently verified Agent outcome in these samples, so it remains unknown, not magically filled from the Agent final response.
+Baseline B uses the Phase 8B Completion conservative Rule-only replay policy or existing Retry Gate policy. Candidate C uses identical source inputs with actual locally cached Laya/MLX inference. **For Completion, B includes a positive `required_checks_completed=True AND final_state_verified=True → complete` heuristic that is NOT present in C's actual pre-model rules.** The original B/C columns below are historical descriptive outputs, **not a rules-matched causal contrast**. For Retry, the two pipelines share the same `_resolve_rules` predicate. Native Baseline A has no paired independently verified Agent outcome in these samples, so it remains unknown, not magically filled from the Agent final response.
 
 | Gate / source / split | N | Rule-only | Typed opportunities / actual MLX calls | B acceptable accuracy | C acceptable accuracy | Safety overrides |
 |---|---:|---:|---:|---:|---:|---:|
@@ -59,13 +63,26 @@ Baseline B uses established Completion conservative Rule-only replay policy or e
 | Retry, synthetic adversarial | 30 | 15 | 15 / 15 | 66.67% | **93.33%** | 0 |
 | **Separated totals** | **210** | **101** | **109 / 109** | **Do not pool** | **Do not pool** | **40** |
 
-These are *editorial-label accuracy rates* in retrospective public corpora. The difference between two policies is **not** real-world generalization or statistically established agent value.
+These are *editorial-label accuracy rates* in retrospective public corpora. The difference between two policies is **not** real-world generalization or statistically established agent value. The Completion B/C numbers above are additionally **confounded by unequal rule sets**.
 
-### Completion analysis
+### Completion: rules-matched secondary controls (correction)
 
-Both Completion slices have zero observed premature `complete` predictions in the bounded replay, but the hybrid has **0 Complete Recall** in these slices: 40 raw `complete` outputs were guarded to `verify` by the unchanged existing `min_complete_probability=0.70` threshold. The preexisting rule-only policy recognizes some independently flagged verified-complete cases that the hybrid did not release as `complete`.
+An independent re-check of the existing frozen capture discovered **33/120 Completion cases** (30 synthetic, 3 public reconstructions) where the extended Rule-only heuristic returned `complete`, while the actual Completion Gate still invoked Laya and guarded to `verify`. The source code makes this discrepancy explicit: `benchmarks/completion/phase8b_offline.py::rule_only()` has a favorable-flag shortcut that `local_system_one/workflows/completion_gate.py::_hard_gate()` does not.
 
-**Interpretation:** a model may add caution at the expense of useful Completion recall/accuracy. Rule-only-first or no-model eligibility for already verified low-ambiguity states deserves attention. Do **not** lower the threshold simply to manufacture improved accuracy.
+For a valid paired analysis we provide **two separately named rule sets**, with the original recorded model recommendations preserved and *no model re-training, new gold labels or threshold changes*:
+
+| Rules-matched Completion contrast | Synthetic N=90 | Public reconstruction N=30 | Inference status |
+|---|---:|---:|---|
+| Shared pre-model hard rules + conservative `verify` (B0) | 55.56% | 63.33% | Offline replay |
+| **Same pre-model hard rules** + Laya (C0) | **63.33%** | **63.33%** | Originally observed Laya decisions |
+| Extended positive-flag Rule-only heuristic (B1) | 88.89% | 73.33% | Offline replay |
+| **Same positive-flag heuristic first** + residual Laya (C1) | **96.67%** | **73.33%** | **Counterfactual policy replay, not actually executed as C1** |
+
+The C1 counterfactual reuses **already captured** Laya recommendations only where B1 would abstain/leave multiple choices, and deterministically skips hypothetical inference in the 33 favorable-flag cases. This suggests **76 rather than 109 local calls** across all 210 public replay cases *if that experimental policy had actually been deployed*. **No calls were actually saved in the completed capture, and no main-model or Agent-level savings were measured.**
+
+Neither `required_checks_completed` nor `final_state_verified` in these public editorial fixtures authenticates the correctness of a real external task. **Do not install B1 as an Active auto-completion rule.** The 0.70 Completion confidence guard remains unchanged. Forty originally observed raw `complete` choices were guarded to `verify`; this observed 40 is not the same denominator as the 33 unmatched positive-rule shortcuts.
+
+**Corrected interpretation:** on previously known synthetic Completion scenarios, model residual classification offers a limited 7.78 percentage-point uplift with rules genuinely matched. On the 30 public-reconstruction cases it provides **no observed extra accuracy**. No independent native E2E benefit is established. Test on new, independently verified tasks before prioritizing Completion delegation.
 
 ### Retry/Escalation analysis
 
@@ -74,7 +91,7 @@ Actual model participation was 15/30 on each previously public synthetic split; 
 ### Input freeze and evaluator
 
 - `benchmarks/decision_value/capture.py` uses current Gate and benchmark code for frozen-public **offline** recording, storing only bounded labels, evidence, statuses, timings and one SHA-256 digest per *public* standardized input.
-- `benchmarks/decision_value/evaluate.py` rejects duplicate case IDs, invented native outcomes, false inference accounting, malformed candidates, rule bypass, disallowed Active authority, contradictory gold/provenance and digest changes.
+- `benchmarks/decision_value/evaluate.py` rejects duplicate case IDs, invented native outcomes, false inference accounting, malformed candidates, rule bypass, disallowed Active authority, contradictory gold/provenance and digest changes. It separately reports the **actual historic** B/C decision policies and the **rules-matched** Completion B0/C0 and B1/C1 counterfactuals; it never pretends counterfactual skipped calls happened.
 - Captured JSONL plus freeze manifest are published at `benchmarks/decision_value/fixtures/phase8_3_public_replay.*`. The freeze pins **dataset, protocol, and evaluator source SHA-256** with the source baseline commit and model/backend identity.
 - Public machine-readable aggregate: `results/processed/phase8_3_decision_value.json`. No private logs or task bodies are exported by the 8.3 capture.
 - Editing a pinned source, labels or evaluator invalidates the old freeze instead of quietly changing a reported score.
@@ -102,7 +119,7 @@ Local model timings depend on cache and environment; 14/15 inference-call groups
 
 Existing Hermes and DSH Gate semantics remain unchanged: OFF / Shadow, independent Gate enablement, fail-open observational path and reversible integration. The new classifier/benchmark is isolated and cannot execute tools or retries. Scripts do not read private native traces or export credentials.
 
-**Recorded regression (2026-10-20): Python 994/994 PASS** (including 43 new Phase 8.3 tests and existing Hermes/DSH regression), **DSH Vitest 64/64 PASS**, **TypeScript typecheck PASS**, **DSH build PASS**. Public release builder/sanitizer and final clean-source verification are separate mandatory release checks; failing or missing evidence must remain BLOCKED. Missing automated Codex Review does not constitute approval.
+**Recorded regression (2026-10-20): Python 996/996 PASS** (including 45 new Phase 8.3 tests, the updated frozen Phase 8.2A allowlist, and existing Hermes/DSH regression), **DSH Vitest 64/64 PASS**, **TypeScript typecheck PASS**, **DSH build PASS**. Public release builder/sanitizer and final clean-source verification are separate mandatory release checks; failing or missing evidence must remain BLOCKED. Missing automated Codex Review does not constitute approval.
 
 The methodology references JevAny solely as published research context. No JevAny code, training scripts, data, prompts, model weights, visual assets or package dependencies were copied or used.
 
