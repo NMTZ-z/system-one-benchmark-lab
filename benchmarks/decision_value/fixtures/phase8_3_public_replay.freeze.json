@@ -1,0 +1,11 @@
+{
+  "case_count": 210,
+  "dataset_sha256": "f1f06888a5fc5bb7edcdda2db7e438d8b89e1c27303814c518f34baa1e5a2f2e",
+  "evaluator_sha256": "58ab67ba7da6e2659977b56b32ac6afb6bdb360c88607f810682fbc8730ca888",
+  "freeze_kind": "historical_observed",
+  "model_identity": "convaiinnovations/laya-typed-decisions@f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+  "protocol_sha256": "61a9107c26624f5e827a380f868354a3cf6006e8acd2910a13c59bc65cd6112a",
+  "requested_backend": "mlx",
+  "schema": "local-system-one/decision-value-freeze-v1",
+  "source_commit": "062d52e753e7e00d91a536dc81e9d85b8819cb12"
+}

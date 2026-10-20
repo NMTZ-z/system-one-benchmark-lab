@@ -148,3 +148,12 @@ tests/test_model_backend_fifteenth_review.py
 tests/test_model_backend_sixteenth_review.py
 tests/test_model_backend_seventeenth_review.py
 tests/test_model_backend_eighteenth_review.py
+
+# Phase 8.3 offline, observational research only.
+benchmarks/decision_value/
+docs/PHASE8_3_OPPORTUNITY_CONTRACT.md
+docs/PHASE8_3_EVALUATION_PROTOCOL.md
+docs/PHASE8_3_FINAL_REPORT.md
+tests/test_phase8_3_opportunity.py
+tests/test_phase8_3_value.py
+results/processed/phase8_3_decision_value.json

@@ -51,6 +51,20 @@ This distinction matters: the project deliberately separates **technical capabil
 
 **Experimental model providers:** [Model Backend Pilot v1](docs/MODEL_BACKEND_PILOT.md) adds an offline-first, research-only Laya/Jev comparison interface. Default production use remains Laya-only; Jev remote calls and Active Gate execution are not enabled.
 
+## Phase 8.3 — Where is a small model actually useful?
+
+The experimental [Decision Opportunity Contract](docs/PHASE8_3_OPPORTUNITY_CONTRACT.md)
+classifies observed decision points as `rule_only`, `typed_model_candidate`,
+`native_agent`, or `unsupported`, without changing production Gate behavior.
+
+The [paired evaluation protocol](docs/PHASE8_3_EVALUATION_PROTOCOL.md) separates
+native Agent outcomes, Rule-only answers, and Rules + Laya suggestions. Its first
+[bounded offline report](docs/PHASE8_3_FINAL_REPORT.md) covers 210 *previously
+published* synthetic or public-reconstructed cases with 109 local MLX model calls.
+In this limited replay, Retry benefits from Laya more consistently than Completion;
+some Completion Rule-only baselines outperform the hybrid. **These are not fresh
+blind results, real Agent savings, Active authorization, or new StepFun E2E.**
+
 ## Quick start
 
 ### Requirements
