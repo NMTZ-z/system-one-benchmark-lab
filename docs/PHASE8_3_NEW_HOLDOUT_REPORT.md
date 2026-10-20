@@ -192,3 +192,19 @@ HMAC key, full external request or true user file path is committed.
 independently adjudicated real Agent cases with audited native event
 provenance, plus explicit paid StepFun request/time/expense cap. The
 mock/fault-injection gold is insufficient to claim real-world safety.
+
+## 8. Local checkpoint fingerprint (post-run provenance)
+
+The local cached HF snapshot used by the completed replay has these observed
+SHA-256 file digests (collected after the one-shot replay):
+
+- model.safetensors:
+  4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e
+- rl_agent_config.json:
+  ebf0cd524d92342a6be5e48e9fca3d7c2babfb5a56ccd79d2171ef5d8c7f7be8
+
+The model repo/revision had been preregistered, and the runner required that
+exact locally cached revision. These post-run hashes improve reproducibility
+but are **not themselves evidence of a before-and-after checkpoint integrity
+attestation**. They do not certify model authorship, quality, license
+compatibility or that any real Agent operation used this checkpoint.
