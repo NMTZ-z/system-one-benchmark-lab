@@ -150,3 +150,34 @@ Only after new post-8.2B real StepFun + Laya Shadow E2E under a strict physical-
 - **Draft PR [#9](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/9): OPEN / DRAFT / NOT MERGED.**
 - Independent code review remains pending. Codex automated review was turned off by the maintainer; lack of a new review notification is not evidence of approval.
 - Explicitly out of scope: updating NAS `main`, changing production Hermes/DSH profiles, authorizing real paid StepFun runs, Active decisions, automatic merge, or deployment.
+
+
+## 10. New preregistered synthetic holdout supplement (2026-10-20)
+
+**This section postdates the original 210-case public historical replay and
+does not silently replace it.** The new 80-case cohort is separately frozen
+in Git at `1245a3cb17120f0f6bee198a34aa159ea3eeb851` **before** Laya
+was invoked. See [prereg protocol](PHASE8_3_NEW_HOLDOUT_PROTOCOL.md) and
+[detailed findings](PHASE8_3_NEW_HOLDOUT_REPORT.md).
+
+- Completion: 40 simulated cases, B0 Rule-only **30/40 (75%)** vs rules-matched
+  C0 Laya **30/40 (75%)**, 15 real MLX calls, 14 threshold safety overrides.
+- Retry: 40 separate policy-controlled fault-injection cases, B0 Rule-only
+  **36/40 (90%)** vs C0 Laya **40/40 (100%)**, 14 real MLX calls and zero
+  policy-forbidden retry recommendations on the 33 blocked cases.
+- Captured local model invocations **29/29 completed**. Real StepFun native
+  requests **0**, Native Agent outcome **NOT_MEASURED**.
+- Gold is newly authored synthetic/fault-simulation editorial truth, **not
+  an external adjudicated real Agent oracle**. The 100% Retry result is
+  limited by handcrafted selection and 40-case support. Posthoc
+  positive-flag Completion shortcut perfection indicates fixture bias,
+  not an Active policy approval.
+
+**Latest supplemented regression:** Python **1008/1008 PASS**,
+DSH Vitest **64/64 PASS**, TypeScript typecheck and build PASS.
+Publication sanitizer and post-commit cleanliness are separate gates.
+
+**Engineering / freeze checks: PASS (offline); real-world incremental
+value NOT_ESTABLISHED; production Active NOT_AUTHORIZED.** The original
+Phase 8.3A real Provider requalification remains BLOCKED pending an
+explicit budget and independent native test oracle.

@@ -67,6 +67,17 @@ comparison; see the rules-matched controls in the final report before interpreti
 Completion accuracy. **These are not fresh blind results, real Agent savings,
 Active authorization, or new StepFun E2E.**
 
+### New preregistered synthetic holdout (Phase 8.3)
+
+A separate [80-case pre-model frozen pilot](docs/PHASE8_3_NEW_HOLDOUT_REPORT.md)
+uses the same safe B0/C0 hard rules. Completion was 75% vs 75% on 40
+author-created cases, and Retry was 90% vs 100% on 40 distinct simulated
+failure cases. Actual Laya MLX calls were 29. The data and labeling were
+committed before running Laya, but remain synthetic and author-adjudicated:
+**this does not prove real-Agent gains, production safety or API savings**.
+The [frozen protocol](docs/PHASE8_3_NEW_HOLDOUT_PROTOCOL.md) explains
+limits and how no Active permissions were added.
+
 ## Quick start
 
 ### Requirements
