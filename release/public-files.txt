@@ -157,3 +157,9 @@ docs/PHASE8_3_FINAL_REPORT.md
 tests/test_phase8_3_opportunity.py
 tests/test_phase8_3_value.py
 results/processed/phase8_3_decision_value.json
+
+# Phase 8.3 preregistered new synthetic-only decision pilot.
+docs/PHASE8_3_NEW_HOLDOUT_PROTOCOL.md
+benchmarks/decision_value/holdout_v1/
+tests/test_phase8_3_new_holdout.py
+results/processed/phase8_3_new_holdout_v1.json
