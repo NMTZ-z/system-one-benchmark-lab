@@ -284,3 +284,65 @@ def test_symlinked_physical_ledger_lock_is_rejected(historical_ledger):
     lock.symlink_to(ledger.parent/"invalid-key-destination")
     with pytest.raises(closeout.CloseoutBlocked,match="symlinked"):
         closeout.audited_snapshot(ledger)
+
+
+def test_h3_append_keeps_frozen_real_H2_prefix_and_unknown_H1(monkeypatch,tmp_path):
+    """H2 immutable success cannot be overwritten by later failure/recovery."""
+    import phase8_3_transport_closeout as c
+    p=tmp_path/"global.jsonl"
+    events=[]
+    for s in range(1,7):
+        name="h1_read_off" if s<=3 else "h2_read_shadow"
+        events.extend([{"kind":"reserved","run":name,"slot":s},
+                       {"kind":"attempted","run":name,"slot":s}])
+        if s!=1:
+            events.extend([{"kind":"responded","run":name,"slot":s,"http_status":200},
+                           {"kind":"result","run":name,"slot":s,"http_status":200,"duration_ms":1}])
+    prefix=b"".join(json.dumps(v,sort_keys=True).encode()+b"\n" for v in events)
+    p.write_bytes(prefix)
+    line10=b"".join(json.dumps(v,sort_keys=True).encode()+b"\n" for v in events[:10])
+    monkeypatch.setattr(c,"H1_ORIGINAL_SHA256",hashlib.sha256(line10).hexdigest())
+    monkeypatch.setattr(c,"H2_ORIGINAL_SHA256",hashlib.sha256(prefix).hexdigest())
+    assert len(events)==22
+    before=c.audited_snapshot(p,new_run=c.H3)
+    assert before["reserved_global"]==6 and before["reserved_new"]==0
+    ledger=BudgetLedger(p,total_limit=24,per_run_limit=3)
+    for code in (200,200):
+        slot=ledger.reserve(c.H3)
+        ledger.mark(c.H3,slot,"attempted")
+        ledger.mark(c.H3,slot,"responded",code)
+        ledger.finish(c.H3,slot,code,2)
+    after=c.drain_run(p,run_id=c.H3,maximum_seconds=0)
+    assert after["new_run_status"]=="SCOPE_COMPLETE"
+    assert after["reserved_global"]==8
+    assert after["reserved_h1"]==3
+    assert after["reserved_h2"]==3
+    assert after["reserved_new"]==2
+    assert after["responded_new"]==2
+    assert after["historic_h1_unresolved"]==1
+    assert after["overall_phase_8_3a_integrity"]=="BLOCKED_HISTORICAL_UNRESOLVED"
+    assert p.read_bytes().startswith(prefix)
+
+
+def test_h3_history_refuses_mutated_H2_prefix(monkeypatch,tmp_path):
+    import phase8_3_transport_closeout as c
+    p=tmp_path/"global.jsonl"
+    records=[]
+    for slot in range(1,7):
+        owner=c.H1 if slot<=3 else c.H2
+        records.extend([{"kind":"reserved","run":owner,"slot":slot},
+                        {"kind":"attempted","run":owner,"slot":slot}])
+        if slot!=1:
+            records.extend([{"kind":"responded","run":owner,"slot":slot,"http_status":200},
+                            {"kind":"result","run":owner,"slot":slot,"http_status":200,"duration_ms":12}])
+    lines=[json.dumps(x,sort_keys=True).encode()+b"\n" for x in records]
+    monkeypatch.setattr(c,"H1_ORIGINAL_SHA256",hashlib.sha256(b"".join(lines[:10])).hexdigest())
+    monkeypatch.setattr(c,"H2_ORIGINAL_SHA256",hashlib.sha256(b"".join(lines)).hexdigest())
+    records += [{"kind":"reserved","run":c.H3,"slot":7},
+                {"kind":"attempted","run":c.H3,"slot":7}]
+    p.write_bytes(b"".join(json.dumps(x,sort_keys=True).encode()+b"\n" for x in records))
+    assert c.audited_snapshot(p,new_run=c.H3)["reserved_new"]==1
+    records[15]["http_status"]=503
+    p.write_bytes(b"".join(json.dumps(x,sort_keys=True).encode()+b"\n" for x in records))
+    with pytest.raises(c.CloseoutBlocked,match="original H1\\+H2 ledger prefix"):
+        c.audited_snapshot(p,new_run=c.H3)

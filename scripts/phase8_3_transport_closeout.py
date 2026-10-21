@@ -18,8 +18,11 @@ from pathlib import Path
 import time
 
 H1_ORIGINAL_SHA256 = "bded2cecb79bcf22a6cdb39a4186b99fb68e881651d18142de370e3b120133de"
+H2_ORIGINAL_SHA256 = "dbd2be172785d94ded75e264be1534f4f9396a33edf4bb4f555492604b6a7b3f"
 H1 = "h1_read_off"
-NEW_SUPPORTED_RUNS = frozenset({"h2_read_shadow"})
+H2 = "h2_read_shadow"
+H3 = "h3_runtime_down"
+NEW_SUPPORTED_RUNS = frozenset({H2,H3})
 TOTAL_CAP = 24
 PER_CASE_CAP = 3
 KINDS = frozenset({"reserved", "attempted", "responded", "outcome_unknown", "result"})
@@ -55,6 +58,11 @@ def _read(ledger: Path) -> tuple[list[dict], bytes]:
     lines = raw.splitlines(keepends=True)
     if len(lines) < 10 or hashlib.sha256(b"".join(lines[:10])).hexdigest() != H1_ORIGINAL_SHA256:
         raise CloseoutBlocked("original H1 ledger prefix has been altered")
+    # When a third real scenario is appended, also protect the *entire*
+    # H1+H2 public-evidence prefix. H2 transport must never be rewritten to
+    # give the subsequent run an apparently clean historical budget.
+    if len(lines)>22 and hashlib.sha256(b"".join(lines[:22])).hexdigest()!=H2_ORIGINAL_SHA256:
+        raise CloseoutBlocked("original H1+H2 ledger prefix has been altered")
     records = []
     for line in lines:
         row = json.loads(line)
@@ -88,8 +96,18 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
             by[e["run"]][slot].append(e)
     if len(reservations) > TOTAL_CAP or sorted(reservations) != list(range(1, len(reservations)+1)):
         raise CloseoutBlocked("physical reservation count/ordering violated")
-    if set(reservations.values())-({H1,new_run}):
+    if set(reservations.values())-({H1,H2,H3}):
         raise CloseoutBlocked("undeclared Provider task observed")
+    if new_run==H3:
+        h2slots={s for s,r in reservations.items() if r==H2}
+        if h2slots!={4,5,6}:
+            raise CloseoutBlocked("original three H2 Provider slots missing")
+        h2events=Counter(x["kind"] for y in by[H2].values() for x in y)
+        if h2events!={"attempted":3,"responded":3,"result":3}:
+            raise CloseoutBlocked("original H2 terminals have changed")
+        if any(e.get("http_status")!=200 for e in rows
+               if e.get("run")==H2 and e.get("kind")=="responded"):
+            raise CloseoutBlocked("original H2 upstream provider outcomes changed")
     if set(s for s,r in reservations.items() if r == H1) != {1,2,3}:
         raise CloseoutBlocked("historical physical reservations changed")
     previous = by[H1]
@@ -98,7 +116,7 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         != {"attempted":3,"responded":2,"result":2}):
         raise CloseoutBlocked("original H1 history changed")
     slots = {s:v for s,v in by[new_run].items()}
-    if len(slots)>PER_CASE_CAP or any(s<=3 for s in slots):
+    if len(slots)>PER_CASE_CAP or any(s <= (6 if new_run==H3 else 3) for s in slots):
         raise CloseoutBlocked("new Provider attempt outside authorized physical slots")
     stats = Counter()
     invalid = []
@@ -127,6 +145,8 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         "run_id": new_run,
         "reserved_global": len(reservations),
         "reserved_h1": 3,
+        "reserved_h2": 3 if new_run==H3 else len(
+            [s for s,r in reservations.items() if r==H2]),
         "reserved_new": len(slots),
         "attempted_new": stats["attempted"],
         "responded_new": stats["responded"],

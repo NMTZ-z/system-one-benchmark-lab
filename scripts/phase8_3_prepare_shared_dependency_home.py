@@ -10,11 +10,13 @@ editing production config, starting gateways or sending Provider requests.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -35,6 +37,21 @@ TEST_HOME = BASE / "system-one-phase83lab"
 
 class TestHomeError(ValueError):
     """New dedicated Hermes authentication environment is not safe/ready."""
+
+
+def isolated_test_config(mode: str="off") -> dict:
+    """Only this dedicated test home: avoid unintended billable auto-title.
+
+    Hermes 0.22.1 starts an async LLM title upgrade on a fresh user turn.
+    In H1/H2, a physical Provider request outlived Agent completion.
+    This is a controlled hypothesis test, not retrospective causation.
+    Retain the free deterministic derived title without any title LLM call.
+    """
+    cfg=copy.deepcopy(safe_config(mode))
+    cfg["auxiliary"]={"title_generation":{
+        "enabled":True, "model_upgrade_enabled":False,
+    }}
+    return cfg
 
 
 def _regular(path: Path, directory: bool = False) -> None:
@@ -101,7 +118,7 @@ def prepare() -> dict:
             to.chmod(0o600)
         cfg = TEST_HOME / "config.yaml"
         with cfg.open("x", encoding="utf-8") as file:
-            file.write(yaml.safe_dump(safe_config("off"), sort_keys=False))
+            file.write(yaml.safe_dump(isolated_test_config("off"), sort_keys=False))
         cfg.chmod(0o600)
         # Empty .env is a *defensive* profile-owned marker, not a copy from
         # ~/.hermes/.env; stops accidental reliance on a parent's credentials.
@@ -152,7 +169,7 @@ def inspect(*, official_auth: bool = True) -> dict:
     cfg = yaml.safe_load((TEST_HOME / "config.yaml").read_text(encoding="utf-8"))
     mode = (cfg.get("plugins", {}).get("entries", {})
             .get("local-system-one-hermes", {}).get("settings", {}).get("mode"))
-    if mode not in ("off", "shadow") or cfg != safe_config(mode):
+    if mode not in ("off", "shadow") or cfg != isolated_test_config(mode):
         raise TestHomeError("unapproved test Home model, Provider URL or Gate config")
     # Existing 8.2A validators are used ONLY after exact Home and model
     # URL are pinned. strict_repo=False cannot admit arbitrary Homes.
@@ -207,6 +224,57 @@ def inspect(*, official_auth: bool = True) -> dict:
     }
 
 
+def disable_test_title_model_upgrade() -> dict:
+    """One-way migration from frozen H2 test policy to H3 evidence policy.
+
+    Only changes an additional background AUTO-TITLE LLM request in the
+    dedicated, already authenticated test data Home. No new/provider I/O.
+    The previous H1/H2 test SHA/config are historical and not rewritten.
+    """
+    dependency_scope()
+    _regular(TEST_HOME,directory=True)
+    target=TEST_HOME/"config.yaml"
+    _regular(target)
+    before=yaml.safe_load(target.read_text(encoding="utf-8"))
+    if before!=safe_config("off"):
+        raise TestHomeError("title migration requires exact prior OFF-only test config")
+    # Ensure H1/H2 have already exited and no test Provider/Runtime listener
+    # is in use before touching the isolated config.
+    for port in (18782,18793,18794):
+        with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as sock:
+            sock.settimeout(.35)
+            if sock.connect_ex(("127.0.0.1",port))==0:
+                raise TestHomeError("isolated test listener still active")
+    from phase8_3_pin_stepfun_route import inspect as route_inspect
+    if route_inspect().get("route_status")!="PINNED_PROXY":
+        raise TestHomeError("isolated manual StepFun credential URL is not pinned")
+    tmp=TEST_HOME/"config.yaml.phase83.title.tmp"
+    if tmp.exists() or tmp.is_symlink():
+        raise TestHomeError("untrusted test migration temp file")
+    oldmask=os.umask(0o077)
+    try:
+        with tmp.open("x",encoding="utf-8") as f:
+            f.write(yaml.safe_dump(isolated_test_config("off"),sort_keys=False))
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.chmod(0o600)
+        tmp.replace(target)
+    finally:
+        os.umask(oldmask)
+    report=inspect(official_auth=True)
+    if not report["credential_stage_ready"] or report["mode"]!="off":
+        raise TestHomeError("post-migration isolated auth or OFF not verified")
+    return {
+        "isolated_test_home_only":True,
+        "background_title_model_upgrade_enabled":False,
+        "deterministic_derived_title_retained":True,
+        "mode":"off",
+        "main_provider_requests":0,
+        "production_changed":False,
+        "active_authority":"NOT_AUTHORIZED",
+    }
+
+
 def set_test_mode(mode: str) -> dict:
     """Atomically select OFF/Shadow only in the ONE fixed test data Home.
 
@@ -227,7 +295,7 @@ def set_test_mode(mode: str) -> dict:
     old=os.umask(0o077)
     try:
         with tmp.open("x",encoding="utf-8") as f:
-            f.write(yaml.safe_dump(safe_config(mode),sort_keys=False))
+            f.write(yaml.safe_dump(isolated_test_config(mode),sort_keys=False))
             f.flush()
             os.fsync(f.fileno())
         tmp.chmod(0o600)
@@ -252,10 +320,13 @@ def main() -> None:
     op.add_argument("--prepare", action="store_true")
     op.add_argument("--check", action="store_true")
     op.add_argument("--set-mode",choices=["off","shadow"])
+    op.add_argument("--disable-title-model-upgrade",action="store_true")
     args = p.parse_args()
     try:
         result = (prepare() if args.prepare else
-                  set_test_mode(args.set_mode) if args.set_mode else inspect())
+                  set_test_mode(args.set_mode) if args.set_mode else
+                  disable_test_title_model_upgrade()
+                  if args.disable_title_model_upgrade else inspect())
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
         if args.check and not result["credential_stage_ready"]:
             raise SystemExit(3)

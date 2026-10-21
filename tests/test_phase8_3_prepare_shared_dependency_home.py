@@ -161,3 +161,65 @@ def test_strict_shared_test_home_shadow_mode_switch_does_not_touch_owner_facts(f
     with pytest.raises(unit.TestHomeError,match="OFF and Shadow"):
         unit.set_test_mode("active")
     assert facts.read_bytes()==old
+
+
+
+def test_background_auto_title_model_upgrade_is_disabled_only_in_new_test_home():
+    import phase8_3_prepare_shared_dependency_home as scoped
+    from phase8_3_prepare_clean_home import safe_config as old_safety
+    for mode in ("off","shadow"):
+        profile=scoped.isolated_test_config(mode)
+        titles=profile["auxiliary"]["title_generation"]
+        assert titles=={"enabled":True,"model_upgrade_enabled":False}
+        assert profile["model"]["base_url"]==scoped.PROVIDER_ORIGIN
+        assert profile["plugins"]["entries"]["local-system-one-hermes"]["settings"]["mode"]==mode
+        assert "auxiliary" not in old_safety(mode)
+
+
+def test_real_test_home_title_migration_is_explicit_one_way_and_credential_safe(fixture_home, monkeypatch):
+    home,facts=fixture_home
+    unit.prepare()
+    # The actual historical H1/H2 Home was created before the new profile
+    # template disabled title upgrade. Construct that exact old config in
+    # a disposable pytest HOME, never the owner's real test Home.
+    (home/"config.yaml").write_text(yaml.safe_dump(unit.safe_config("off")))
+    old_facts=facts.read_bytes()
+    old_yaml=yaml.safe_load((home/"config.yaml").read_text())
+    assert "auxiliary" not in old_yaml
+    import json
+    auth=home/"auth.json"
+    original={"credential_pool":{"stepfun":[{
+        "source":"manual","auth_type":"api_key",
+        "access_token":"SYNTHETIC_TEST_ONLY_KEY",
+        "base_url":unit.PROVIDER_ORIGIN,
+    }]}}
+    auth.write_text(json.dumps(original))
+    auth.chmod(0o600)
+    import phase8_3_pin_stepfun_route as pinner
+    monkeypatch.setattr(pinner,"inspect",lambda:{"route_status":"PINNED_PROXY"})
+    monkeypatch.setattr(unit,"auth_state_from_text",lambda *x:"READY")
+    from types import SimpleNamespace
+    monkeypatch.setattr(unit.subprocess,"run",lambda *a,**kw:SimpleNamespace(stdout="stepfun: logged in",returncode=0))
+    monkeypatch.setattr(unit,"validate_provider_proxy_route",lambda *a,**kw:None)
+    result=unit.disable_test_title_model_upgrade()
+    assert result["background_title_model_upgrade_enabled"] is False
+    assert result["deterministic_derived_title_retained"] is True
+    assert result["main_provider_requests"]==0
+    assert result["active_authority"]=="NOT_AUTHORIZED"
+    current=yaml.safe_load((home/"config.yaml").read_text())
+    assert current==unit.isolated_test_config("off")
+    assert json.loads(auth.read_text())==original
+    assert facts.read_bytes()==old_facts
+    with pytest.raises(unit.TestHomeError,match="requires exact prior"):
+        unit.disable_test_title_model_upgrade()
+
+
+def test_title_migration_denied_if_credential_url_is_not_proxy(fixture_home,monkeypatch):
+    home,_=fixture_home
+    unit.prepare()
+    (home/"config.yaml").write_text(yaml.safe_dump(unit.safe_config("off")))
+    import phase8_3_pin_stepfun_route as pinner
+    monkeypatch.setattr(pinner,"inspect",lambda:{"route_status":"REGISTRY_ROUTE_NOT_PROXY"})
+    with pytest.raises(unit.TestHomeError,match="not pinned"):
+        unit.disable_test_title_model_upgrade()
+    assert yaml.safe_load((home/"config.yaml").read_text())==unit.safe_config("off")

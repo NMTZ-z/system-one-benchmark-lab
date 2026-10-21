@@ -179,9 +179,17 @@ def analyze(native: dict, prior_run: dict, physical: list[dict],
 
 def read_private_evidence() -> dict:
     root=PRIVATE
-    ledger=root/"provider_real_ledger.private.jsonl"
-    physical=_rows(ledger)
+    # H2's historical physical ledger is frozen independently of subsequent
+    # real H3 append-only reservations. Never recompute H2 evidence from a
+    # later global ledger or overwrite the original H2 public aggregate.
+    live=root/"provider_real_ledger.private.jsonl"
+    snapshot=root/"provider_h1_h2_frozen.private.jsonl"
+    expected_h2="dbd2be172785d94ded75e264be1534f4f9396a33edf4bb4f555492604b6a7b3f"
+    ledger=snapshot if snapshot.is_file() else live
     digest=hashlib.sha256(ledger.read_bytes()).hexdigest()
+    if digest!=expected_h2 or ledger.is_symlink():
+        raise H2EvidenceError("historical H2 ledger SHA has changed")
+    physical=_rows(ledger)
     return analyze(
         _one(root/"runs"/RUN_ID/"verified_summary.private.json"),
         _one(root/"runs/h2_verified.private.json"),

@@ -393,3 +393,26 @@ of the overall Phase 8.3A Provider history to PASS.
 Post-H2 1121 Python tests passed, DSH Vitest 64 passed and
 TypeScript typecheck/build passed. No extra StepFun calls or
 production modifications followed the single H2 pilot.
+
+## 14. Pre-H3 title-generation hypothesis and historical evidence
+
+Source inspection of Hermes v0.22.1 confirms background
+title_generation runs an asynchronous model call for a new session
+by default. The original test Home did not override title generation.
+H2's first physical Provider request lasted 33.13 seconds, outliving
+its 29.581-second Agent execution. The oneshot process waits at
+most 10 seconds for a background title thread and may exit before
+it finishes. Auxiliary API counts in H1/H2 were recorded as zero.
+This is a leading explanation for the third physical request and
+the original H1 incomplete first request, but not a proven per-slot
+attribution, since proxy records did not retain request purpose.
+
+For the separately frozen H3 Runtime-down test, only the isolated
+test Home's model-generated title upgrade is disabled, while ordinary
+deterministic titles stay enabled. This permits an observational
+physical-to-logical count check under an independently documented
+configuration change. Prior real H1/H2 evidence is not modified
+or relabeled, and the original 24 physical request budget remains.
+
+H3 pre-model source and experiment contract are described in
+PHASE8_3_REAL_H3_PREREGISTRATION.md.
