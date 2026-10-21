@@ -1,12 +1,18 @@
 # Phase 8.3A — Native StepFun + Laya Shadow real-provider attempt
 
-**Current verdict: BLOCKED BEFORE PROVIDER EXECUTION.**
-**Execution environment: isolated Phase 8.3 worktree, 2026-10-21.**
+**Historical first-attempt verdict (early 2026-10-21): BLOCKED BEFORE
+PROVIDER EXECUTION. Current late-2026-10-21 result: H1/H2/H3 real
+native tasks each executed once; H2 healthy Laya Shadow and H3
+Runtime-down fail-open passed scoped criteria. Overall Phase 8.3A
+remains BLOCKED by one historical H1 unresolved Provider request.**
+**Execution environment: isolated Phase 8.3 worktree.**
 
-This report distinguishes an **authorized plan** from an actually executed
-real-provider validation. Do not interpret existing 8.2A real evidence, 8.2B
-Mock evidence or the new Phase 8.3 synthetic offline accuracy as success of
-this 8.3A real post-change test.
+This document is an APPEND-ONLY CHRONOLOGY. Its early sections describe
+the first blocked authentication attempt, not the current latest
+experiment. See Sections 12–16 and the separate H1/H2/H3 real
+reports for what ran later. Do not substitute old Phase 8.2A native
+data, Phase 8.2B Mock evidence, or Phase 8.3 synthetic accuracy for
+the independently observed new real-provider tasks.
 
 ## 1. Established baselines
 
@@ -416,3 +422,57 @@ or relabeled, and the original 24 physical request budget remains.
 
 H3 pre-model source and experiment contract are described in
 PHASE8_3_REAL_H3_PREREGISTRATION.md.
+
+## 15. Actual H3 real native fail-open execution and post-run adjudication
+
+One explicitly authorized H3 real StepFun Step Plan task ran on the
+clean preregistered 40a7b4416db07e6eedcf505131e0c9b3e1a98eac
+source. The isolated Hermes Agent's read_file task completed
+correctly; independent native SQLite and original file evidence
+matched, and the final answer was supported. Runtime port 18782
+was **intentionally DOWN**. The isolated observer recorded two
+real HTTP 503 and native Completion hooks recorded two failed_open
+events, with independent **2/2 keyed native/Adapter/HTTP correlation**.
+No action authority was granted to System One.
+
+H3 added physical slots 7–8 to the same append-only 24-slot
+Provider budget; both were attempted and terminal HTTP 200.
+For H3 only, background model-generated session titles were
+disabled in the test Home. The resulting **two physical Provider
+requests vs two native-reported main calls** support the hypothesis
+that background title generation caused H1/H2's extra requests,
+but the original physical requests were NOT labeled by role and
+cannot be conclusively assigned. The original H1 slot 1 remains
+attempted and unresolved.
+
+The H3 one-shot run finished with scoped PASS and was not retried.
+The isolated test Home was returned to OFF and no test-only
+listeners remained. H4 and DSH real tasks remain NOT RUN.
+Phase8.3A overall is still BLOCKED on historical H1 physical
+request terminal integrity and unmeasured Provider billing; no
+Canary/Active or new paid task is approved.
+
+The independent real-H3 verifier and allowlisted public aggregate
+were added after the original frozen real-run source. See
+[H3 native fail-open report](PHASE8_3_REAL_NATIVE_H3_REPORT.md).
+
+### Post-H3 verification and independently preserved historical H1/H2/H3
+
+After the H3 original read-only task and failure-control observations,
+a separate post-run verification exposed an earlier replay limitation:
+H1 used to parse the entire growing global Provider ledger and H2
+used to collect ALL stored plugin observations, including later H3.
+They now respectively use the SHA-256 authenticated H1 original
+first-ten-row archive and only the exact original H2 HMAC request
+refs. H3 uses its own archived keyed references, native file
+oracle and first-30-row Provider snapshot.
+
+All three historical cases revalidate with the ORIGINAL decisions,
+without a new main-model request: H1 remains
+BLOCKED_BUDGET_RECONCILIATION (1 unknown physical request), H2
+PASS_SCOPED, H3 PASS_SCOPED. New tamper tests refuse mutated,
+duplicated, missing or cross-run evidence.
+
+Final full regression: Python 1151/1151 PASS, DSH Vitest 64/64
+PASS, TypeScript typecheck and build PASS. H4 and DSH
+D1–D4 real Provider tasks remain NOT RUN.

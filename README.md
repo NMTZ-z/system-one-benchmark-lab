@@ -80,18 +80,38 @@ limits and how no Active permissions were added.
 
 ### Native real-provider qualification status (Phase 8.3A)
 
-The subsequent [real Hermes H2 Shadow trial](docs/PHASE8_3_REAL_NATIVE_H2_REPORT.md) verified one native read-only task, 3/3 real StepFun Provider response lifecycles, two local Laya/MLX decisions, and 2/2 exact native-to-HTTP links. H1's missing historical Provider terminal record remains unresolved and Provider usage/cost attribution is partial; Phase 8.3A overall is **still BLOCKED** and Active is not authorized.
+The [H1/H2/H3 real StepFun native experiment reports](docs/PHASE8_3_REAL_NATIVE_H3_REPORT.md)
+now document genuine Hermes read-only tasks on the existing StepFun
+Step Plan subscription, not simulated Agent runs:
 
-The new [real StepFun H1 OFF native read report](docs/PHASE8_3_REAL_NATIVE_H1_REPORT.md) verifies the Agent tool/file outcome but records one unresolved upstream request (3 attempted, 2 HTTP 200), so real-provider acceptance stays **BLOCKED** and no further paid testing was initiated.
+- [H1 OFF](docs/PHASE8_3_REAL_NATIVE_H1_REPORT.md): native tool and
+  independent file proof PASS, but only 2 of 3 attempted physical
+  Provider requests reached a recorded terminal result.
+- [H2 healthy Shadow](docs/PHASE8_3_REAL_NATIVE_H2_REPORT.md):
+  actual Laya/MLX inference twice, exact 2/2 native-to-HTTP HMAC links,
+  all three new physical Provider attempts finalized.
+- [H3 Runtime-down Shadow](docs/PHASE8_3_REAL_NATIVE_H3_REPORT.md):
+  real native file task PASS while the decision Runtime was unavailable;
+  two independently correlated HTTP 503 and failed_open events; both
+  new physical StepFun requests finalized. Automatic model-backed
+  title upgrades were disabled **only in the isolated test Home**.
+  Physical request count fell to 2 vs two Agent-reported main calls.
+  This supports, but does not uniquely prove, the title-LLM attribution
+  for extra physical requests in H1/H2.
 
-The official Hermes isolated login now uses the safe standalone data Home under ~/.hermes/system-one-phase83lab, to reuse existing owner dependencies WITHOUT sharing credentials or configuration. The repository-private legacy Home required a separate PM dependency generation; do not use it for login. See the linked auth handoff.
+**Global: 8/24 physical StepFun requests reserved, 7 HTTP 200 terminal
+responses, and 1 H1 historical request still unresolved.** Physical
+request billing/credit usage and Agent-level savings are NOT MEASURED.
+The original H1 missing response was not retroactively filled;
+Phase 8.3A global Provider budget integrity remains **BLOCKED**.
+H4 and DSH D1–D4 real tasks have not run. These are scoped real
+read-only/Shadow proofs only; **Active/Canary is not authorized**.
 
-The real StepFun Step Plan + Laya OFF/Shadow validation is **not yet
-completed**. A fresh, credential-empty [Hermes/DSH isolated environment
-and official-auth handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md) is
-available, with both DSH SDK OFF and Shadow initialization verified
-without any Agent task or Provider request. This is a preflight,
-**not real Native E2E, Active permission or evidence of API savings**.
+The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
+documents the owner-created standalone Hermes test Home, supported
+nonproduction StepFun authentication and strict bounded proxy route.
+Raw native messages, credentials, original hidden files and keyed
+correlation values are not part of the public repository.
 
 ## Quick start
 

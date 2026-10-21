@@ -1,0 +1,64 @@
+{
+  "Hermes_self_reported_input_tokens": 7244,
+  "Hermes_self_reported_main_api_calls": 2,
+  "Hermes_self_reported_output_tokens": 92,
+  "active_authority": "NOT_AUTHORIZED",
+  "actual_StepFun_plan_credit_debit": "UNKNOWN",
+  "h3_scoped_qualification": "PASS_SCOPED",
+  "main_model": "stepfun/step-5-preview",
+  "native_mode": "shadow",
+  "native_task": {
+    "agent_exit_code": 0,
+    "file_was_not_mutated": true,
+    "final_answer_matches_original_file": true,
+    "observed_agent_elapsed_seconds": 13.632,
+    "one_native_read_file_and_result_identity": true,
+    "outcome": "PASS_SCOPED",
+    "tool_bytes_match_original_file": true
+  },
+  "original_real_execution_source_sha": "40a7b4416db07e6eedcf505131e0c9b3e1a98eac",
+  "other_native_tasks_not_run": [
+    "H4",
+    "DSH_D1_D2_D3_D4"
+  ],
+  "phase8_3a_overall": "BLOCKED_HISTORICAL_H1_UNRESOLVED",
+  "platform": "hermes",
+  "provider_physical": {
+    "H3_attempted": 2,
+    "H3_original_ledger_sha256": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+    "H3_physically_unattributed": 0,
+    "H3_responded_HTTP_200": 2,
+    "H3_unresolved": 0,
+    "H3_usage_accounting": "PARTIAL_TOKEN_BILLING",
+    "billing_provenance": "UNKNOWN",
+    "original_H1_H2_prefix_sha256": "dbd2be172785d94ded75e264be1534f4f9396a33edf4bb4f555492604b6a7b3f",
+    "original_H1_prefix_sha256": "bded2cecb79bcf22a6cdb39a4186b99fb68e881651d18142de370e3b120133de",
+    "original_h1_unresolved": 1,
+    "previous_h1_requests": 3,
+    "previous_h2_requests": 3,
+    "total_requests_reserved_so_far": 8
+  },
+  "real_agent_cost_saving": "NOT_MEASURED",
+  "remaining_physical_slots_not_execution_authority": 16,
+  "schema": "local-system-one/phase8_3-h3-real-native-adjudicated-v1",
+  "shadow_runtime_down": {
+    "active_action_allowed": false,
+    "adapter_failed_open_observations": 2,
+    "causal_request_correlation": "PASS_SCOPED",
+    "native_adapter_http_exact_pairs": 2,
+    "observed_completion_HTTP_503": 2,
+    "observer_backends": [
+      null,
+      null
+    ],
+    "runtime_service": "INTENTIONALLY_NOT_RUNNING"
+  },
+  "test_profile_restored_off": true,
+  "title_generation_test_home": {
+    "H3_physical_vs_main_counts": "2_vs_2",
+    "background_model_upgrade": "DISABLED",
+    "derived_nonmodel_title": "RETAINED",
+    "historical_H1_H2_extra_request_identity": "UNKNOWN",
+    "hypothesis_status": "SUPPORTS_BACKGROUND_TITLE_EXPLANATION_NOT_CAUSALLY_PROVEN"
+  }
+}

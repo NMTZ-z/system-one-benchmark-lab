@@ -299,7 +299,21 @@ def _native_oracle() -> dict:
 
 def _native_http_correlate(key: bytes, http: list[dict]) -> dict:
     from phase8_2b_native_correlate import correlate
-    adapter=_plugin_observations()
+    # This H2 test Home is intentionally reused by later H3/H4 studies.
+    # For historical re-verification, select ONLY records that prove
+    # membership in the original immutable H2 HTTP request-ref set.
+    # The deeper join still cryptographically checks each with this
+    # run's private key and native SQLite tool/session identity.
+    refs=[r.get("decision_request_ref") for r in http]
+    if (len(refs)!=2 or any(not isinstance(r,str) or len(r)!=32 for r in refs)
+            or len(set(refs))!=len(refs)):
+        return {"status":"BLOCKED","native_http_pairs_verified":0,
+                "cause":"original_H2_HTTP_reference_set_invalid"}
+    all_observed=_plugin_observations()
+    adapter=[r for r in all_observed if r.get("decision_request_ref") in set(refs)]
+    if (len(adapter)!=2 or len({r.get("decision_request_ref") for r in adapter})!=2):
+        return {"status":"BLOCKED","native_http_pairs_verified":0,
+                "cause":"missing_or_duplicate_H2_adapter_reference"}
     try:
         r=correlate("hermes",TEST_HOME/"state.db",adapter,http,key)
     except (ValueError,TypeError,sqlite3.Error,OSError):

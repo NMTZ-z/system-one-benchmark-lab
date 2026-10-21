@@ -2,6 +2,19 @@
 
 **Checkpoint: 2026-10-20. Status: OFFLINE ENGINEERING ACCEPTANCE (LIMITED). Paid Native StepFun requalification BLOCKED. Active NOT AUTHORIZED.**
 
+
+**Latest 2026-10-21 addendum:** Three *actual* Hermes + StepFun
+Step Plan native read-only tests are now completed: H1 OFF
+PASS_SCOPED (one original physical Provider result missing), H2
+real Laya/MLX Shadow PASS_SCOPED (2/2 causal links), and H3
+Runtime-down Shadow PASS_SCOPED (2/2 HTTP 503, 2/2 failed_open).
+There have been 8 real physical Provider attempts, 7 recorded HTTP
+200 and 1 original H1 attempt without terminal evidence. The global
+budget/Provider-billing gate remains **BLOCKED** and Active is
+NOT_AUTHORIZED. Historical startup-era sections below are retained
+as dated checkpoints, not as the latest native-run status. See
+Section 16 and the [H3 report](PHASE8_3_REAL_NATIVE_H3_REPORT.md).
+
 ## Executive finding
 
 **The value of a local Typed Decision model depends on the Gate and available evidence.** On 210 previously published public/historical case replays (including 30 public-reconstruction Completion cases), 109 actual Laya 421M MLX Engine calls completed. On this particular sample, Rules + Laya materially improved synthetic Retry/Escalation decisions over Rule-only.
@@ -360,3 +373,46 @@ physical calls is not attributed to two self-reported logical calls;
 Provider-reported token charges are unknown). H1 remains BLOCKED.
 Post-run Python **1121/1121 PASS**, DSH Vitest **64/64 PASS**,
 TypeScript typecheck/build PASS. No further live Provider requests.
+
+## 16. Executed H3 real Runtime-down Shadow and title-generation hypothesis (2026-10-21)
+
+On frozen predeclared H3 real-provider source
+40a7b4416db07e6eedcf505131e0c9b3e1a98eac,
+Hermes/StepFun completed a **real native read_file** task while the
+System One Laya Runtime was intentionally not running. A separate
+observer recorded **two actual HTTP 503** responses, both native
+Completion observations were marked **failed_open**, and the
+independent HMAC/native SQLite/Adapter/HTTP verifier proved **2/2
+exact causal request links**. The task's original file bytes, tool
+result and Agent answer matched independently; the native Agent
+exited normally after 13.632 s. No Active/canary action was enabled.
+The isolated Hermes test Home was returned to OFF and all test-only
+services stopped.
+
+The original H1/H2 Provider ledger (6 slots) was hash-frozen first.
+H3 appended **two actual physical StepFun requests** in slots 7–8;
+both reached real HTTP 200 and terminal proxy results. Agent
+self-reported two main calls, matching H3's physical attempts.
+Only in this NEW test Home, for H3, background LLM title upgrading
+was disabled while nonmodel instant titles remained enabled.
+Installed Hermes source confirms a concurrent model-backed title
+upgrade is enabled by default, and H2's extra long-lived physical
+call outlasted the Agent process. **This supports, but does not
+prove, the title upgrade attribution of H1/H2's extra call**.
+Those earlier physical slots still have no per-request role identity.
+
+Global historical Provider budget remains **BLOCKED** because H1
+slot 1 is still attempted/unfinalized. Total physical attempts
+now **8/24**, seven recorded HTTP 200, one H1 unknown. The
+remaining nominal 16 slots are NOT permission for more Provider
+tests. H4 and all DSH real tasks are NOT RUN. Token and subscription
+cost changes have NOT BEEN MEASURED; Active NOT_AUTHORIZED.
+
+An independent read-only post-run H3 verifier checks the frozen
+original file/native SQLite/HTTP/HMAC and cumulative ledger.
+H2 historical re-verification was fixed to select H2's own two
+keyed request refs, allowing later H3 events to be appended
+without altering H2's original acceptance. See the separate
+[H3 real report](PHASE8_3_REAL_NATIVE_H3_REPORT.md),
+[H3 preregistration](PHASE8_3_REAL_H3_PREREGISTRATION.md) and
+privacy-safe H3 machine-readable aggregate.

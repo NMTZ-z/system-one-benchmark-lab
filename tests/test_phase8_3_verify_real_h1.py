@@ -107,3 +107,54 @@ def test_wrong_ledger_run_id_or_count_never_passes():
     rows[0]["run"]="unexpected_run"
     with pytest.raises((verifier.H1EvidenceError,ValueError)):
         verifier.analyze(native,private,rows,oracle,evidence_hash="a"*64)
+
+
+def test_historical_H1_exact_original_archive_survives_future_H2_H3_append(tmp_path,monkeypatch):
+    import json
+    from hashlib import sha256
+    _,_,rows,_=_cases()
+    original=b"".join(
+        json.dumps(row,sort_keys=True).encode()+b"\n" for row in rows
+    )
+    assert len(rows)==10
+    prior=tmp_path/"frozen_h1.private.jsonl"
+    current=tmp_path/"append_only_global.private.jsonl"
+    prior.write_bytes(original)
+    prior.chmod(0o600)
+    appended=b''.join(
+        json.dumps({"kind":kind,"run":"h2_read_shadow","slot":4},sort_keys=True).encode()+b"\n"
+        for kind in ("reserved","attempted","responded","result")
+    )
+    current.write_bytes(original+appended)
+    monkeypatch.setattr(verifier,"H1_ORIGINAL_LEDGER_SHA",sha256(original).hexdigest())
+    expected,digest=verifier.historical_h1_ledger(prior,current)
+    assert expected==rows
+    assert digest==sha256(original).hexdigest()
+    assert sum(row["kind"]=="reserved" for row in expected)==3
+
+
+def test_historical_H1_snapshot_and_global_prefix_detect_tampering(tmp_path,monkeypatch):
+    import json
+    from hashlib import sha256
+    _,_,rows,_=_cases()
+    raw=b"".join(json.dumps(r,sort_keys=True).encode()+b"\n" for r in rows)
+    prior=tmp_path/"h1.jsonl"
+    current=tmp_path/"global.jsonl"
+    prior.write_bytes(raw)
+    current.write_bytes(raw+b'{"kind":"reserved","run":"h2_read_shadow","slot":4}\n')
+    monkeypatch.setattr(verifier,"H1_ORIGINAL_LEDGER_SHA",sha256(raw).hexdigest())
+    # Post-H3 attempt to repair the missing H1 terminal event must not pass.
+    changed=raw.replace(b'"slot": 1',b'"slot": 9',1)
+    assert changed!=raw
+    prior.write_bytes(changed)
+    with pytest.raises(verifier.H1EvidenceError,match="hash mismatch"):
+        verifier.historical_h1_ledger(prior,current)
+    prior.write_bytes(raw)
+    current.write_bytes(changed)
+    with pytest.raises(verifier.H1EvidenceError,match="global physical ledger"):
+        verifier.historical_h1_ledger(prior,current)
+    current.write_bytes(raw)
+    prior.unlink()
+    prior.symlink_to(current)
+    with pytest.raises(verifier.H1EvidenceError,match="symlink"):
+        verifier.historical_h1_ledger(prior,current)

@@ -20,6 +20,7 @@ from phase8_3_real_hermes_pilot import (
 )
 
 SOURCE_H1 = "82993477667817c8941caa429feea576d091a424"
+H1_ORIGINAL_LEDGER_SHA = "bded2cecb79bcf22a6cdb39a4186b99fb68e881651d18142de370e3b120133de"
 OUTPUT = ROOT / "results/processed/phase8_3_h1_real_stepfun_partial.json"
 
 
@@ -137,15 +138,39 @@ def analyze(native: dict, private_summary: dict, records: list[dict], oracle: di
     }
 
 
+def historical_h1_ledger(archive: Path, current: Path) -> tuple[list[dict], str]:
+    """Revalidate original 10 physical H1 records after future append-only runs.
+
+    The historical 8.2A H1 report was produced from this exact immutable
+    prefix before H2/H3 were run. Neither later Provider slots nor a
+    synthesized outcome for missing slot 1 can enter H1 adjudication.
+    The global Provider ledger MUST still contain the same first ten rows.
+    """
+    if archive.is_symlink() or current.is_symlink():
+        raise H1EvidenceError("historical H1 ledger path is a symlink")
+    if not archive.is_file() or not current.is_file():
+        raise H1EvidenceError("historical H1 ledger or global original missing")
+    raw=archive.read_bytes()
+    if hashlib.sha256(raw).hexdigest()!=H1_ORIGINAL_LEDGER_SHA:
+        raise H1EvidenceError("original H1 immutable ledger hash mismatch")
+    original_lines=raw.splitlines(keepends=True)
+    global_lines=current.read_bytes().splitlines(keepends=True)
+    if (len(original_lines)!=10 or len(global_lines)<10
+            or b"".join(global_lines[:10])!=raw):
+        raise H1EvidenceError("H1 records changed in the global physical ledger")
+    return _ledger(archive),H1_ORIGINAL_LEDGER_SHA
+
+
 def verify_private_h1() -> dict:
     root=PRIVATE
-    ledger_path=root/"provider_real_ledger.private.jsonl"
-    ledger=_ledger(ledger_path)
+    ledger_path=root/"provider_h1_frozen.private.jsonl"
+    ledger,ledger_digest=historical_h1_ledger(
+        ledger_path,root/"provider_real_ledger.private.jsonl")
     native=_json_file(root/"runs/h1_read_off/verified_summary.private.json")
     private=_json_file(root/"runs/h1_verified.private.json")
     independent=_independent_native_proof()
     return analyze(native,private,ledger,independent,
-                   evidence_hash=hashlib.sha256(ledger_path.read_bytes()).hexdigest())
+                   evidence_hash=ledger_digest)
 
 
 def main() -> None:

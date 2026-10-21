@@ -159,3 +159,39 @@ def test_exact_hidden_original_file_and_strict_identity_never_exported():
     assert "sessionId" not in result
     assert "native_call_id" not in result
     assert "raw_prompt" not in result
+
+
+def test_h2_reverification_excludes_later_h3_events_only_by_original_hmac_refs(monkeypatch):
+    import phase8_3_real_hermes_h2 as source
+    import phase8_2b_native_correlate as strict
+    expected={"a"*32,"b"*32}
+    fake=[{"decision_request_ref":v,"gate":"completion"} for v in ("a"*32,"c"*32,"b"*32)]
+    monkeypatch.setattr(source,"_plugin_observations",lambda:fake)
+    seen={}
+    def stub(_platform,_db,adapter,http,_key):
+        seen["refs"]={x["decision_request_ref"] for x in adapter}
+        return {"status":"PASS","native_http_pairs_verified":2,
+                "adapter_completion_observations":2,"issues":[]}
+    monkeypatch.setattr(strict,"correlate",stub)
+    result=source._native_http_correlate(b"x"*32,[
+        {"decision_request_ref":"a"*32},
+        {"decision_request_ref":"b"*32},
+    ])
+    assert result["status"]=="PASS"
+    assert seen["refs"]==expected
+
+
+def test_h2_reverification_fails_closed_on_missing_or_repeated_historical_refs(monkeypatch):
+    import phase8_3_real_hermes_h2 as source
+    monkeypatch.setattr(source,"_plugin_observations",lambda:[
+        {"decision_request_ref":"a"*32,"gate":"completion"},
+        {"decision_request_ref":"a"*32,"gate":"completion"},
+        {"decision_request_ref":"c"*32,"gate":"completion"},
+    ])
+    outcome=source._native_http_correlate(b"k"*32,[
+        {"decision_request_ref":"a"*32},
+        {"decision_request_ref":"b"*32},
+    ])
+    assert outcome["status"]=="BLOCKED"
+    assert outcome["native_http_pairs_verified"]==0
+    assert outcome["cause"]=="missing_or_duplicate_H2_adapter_reference"
