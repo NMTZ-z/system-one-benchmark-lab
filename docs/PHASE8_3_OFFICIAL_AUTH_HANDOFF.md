@@ -53,7 +53,7 @@ unset STEPFUN_API_KEY STEPFUN_BASE_URL
 hermes auth add stepfun --type api-key --label phase8-3-isolated
 
 # Read-only official authentication and loopback-route preflight.
-python3.12 scripts/phase8_3_prepare_clean_home.py --check
+../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_prepare_clean_home.py --check
 ~~~
 
 The read-only check must report credential_status READY,
@@ -76,7 +76,7 @@ until a supported separate secure-input mechanism is available.
 
 ~~~bash
 cd ~/Projects/system-one-phase8-3
-python3.12 scripts/phase8_3_sdk_offline_preflight.py --run
+../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_sdk_offline_preflight.py --run
 ~~~
 
 The SDK tool permits ONLY initialize and shutdown, and sets a fresh
@@ -122,9 +122,9 @@ bounded native runner may select the appropriate test mode using:
 
 ~~~bash
 cd ~/Projects/system-one-phase8-3
-python3.12 scripts/phase8_3_prepare_clean_home.py --set-mode shadow
+../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_prepare_clean_home.py --set-mode shadow
 # or explicitly restore the harmless baseline:
-python3.12 scripts/phase8_3_prepare_clean_home.py --set-mode off
+../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_prepare_clean_home.py --set-mode off
 ~~~
 
 This command edits ONLY the new ignored Hermes test-home config using
