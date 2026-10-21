@@ -266,3 +266,53 @@ and never reruns H1 by overwriting prior evidence.
 This section only describes a prepared test harness. Real execution
 must be reported in a subsequent separate, truthfully pinned
 post-execution record, not inferred from preflight.
+
+## 12. Executed real StepFun H1 OFF test: task PASS; budget BLOCKED
+
+A single one-shot H1 was performed on clean, pinned
+Git 82993477667817c8941caa429feea576d091a424 with the newly
+authenticated and loopback-pinned Hermes test Home. Real upstream
+StepFun Step Plan was used behind the explicit 24-global/3-run
+pre-network reservation cap. No other real case was executed.
+
+The native Agent returned successfully and an independent SQLite,
+tool-result and original-file oracle verified the read_file task.
+However, 3 real HTTPS requests were attempted while the private
+proxy ledger contains terminal records for only two HTTP 200
+responses. Slot 1 remains attempted/unresolved. The real proxy was
+stopped immediately at Agent completion under the original frozen
+harness, potentially truncating the pending request. No retrospective
+Provider outcome or fee can be inferred.
+
+The independent budget reconciler reports BLOCKED
+(reserved_without_proxy_result), 1 physically unattributed
+request and unknown billing. H1 task-only PASS is not Phase 8.3A
+overall PASS. New real StepFun tasks are STOPPED until safety
+qualification of the outstanding lifecycle and test harness. A
+bounded no-new-request drain has been added after the fact, with
+offline-only tests; it does not change past evidence.
+
+Full facts and limitations:
+PHASE8_3_REAL_NATIVE_H1_REPORT.md.
+
+## 13. Post-H1 independent verification and test stop
+
+H1 was independently re-adjudicated using the original isolated Hermes
+SQLite session/tool records, original hidden file bytes, the separate
+durable StepFun provider ledger and the original native-run summary.
+The fixed execution commit is 82993477667817c8941caa429feea576d091a424.
+
+Task result is PASS_SCOPED. Provider budget integrity is BLOCKED with
+one attempted/unfinalized slot and one physically unattributed request.
+No further Agent native scenario was run and no Provider attempt was
+retried or retroactively marked complete.
+
+The revised harness waits for already attempted Provider responses to
+finish before stopping its proxy, subject to a bounded upper limit; it
+does not generate new provider calls. Full Python regression
+1082/1082 and DSH 64/64 passed, alongside TypeScript checks/build.
+This is offline code validation of the mitigation, not proof the old
+unknown Provider outcome was resolved.
+
+See Phase8.3 real H1 report and the processed H1 aggregate for the
+exact separated task/transport evidence boundary.

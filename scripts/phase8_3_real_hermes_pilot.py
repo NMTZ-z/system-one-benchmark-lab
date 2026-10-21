@@ -214,6 +214,38 @@ def _ledger_report(ledger: Path) -> dict:
     }
 
 
+def _drain_completed_provider_responses(
+    ledger: Path, *, maximum_seconds: float = 80.0
+) -> bool:
+    """Wait ONLY for already-reserved local proxy lifecycle to finish.
+
+    Does not initiate any new Provider request. The existing upstream
+    transport timeout is 75 seconds; a bounded drain leaves that chance
+    to emit a real response or an outcome_unknown before proxy shutdown.
+    """
+    if not 0 <= maximum_seconds <= 85:
+        raise PilotBlocked("invalid bounded Provider lifecycle drain")
+    end = time.monotonic() + maximum_seconds
+    while True:
+        if ledger.is_file():
+            rows = [json.loads(line) for line in
+                    ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
+            reserve = {r["slot"] for r in rows if r.get("kind") == "reserved"}
+            attempted = {r["slot"] for r in rows if r.get("kind") == "attempted"}
+            final = {r["slot"] for r in rows if r.get("kind") == "result"}
+            terminal = {r["slot"] for r in rows if r.get("kind") in {
+                "responded", "outcome_unknown",
+            }}
+            if (reserve and reserve == attempted == final == terminal
+                    and len(reserve) <= PER_CASE_MAX
+                    and len(reserve) == sum(r.get("kind") == "reserved" for r in rows)
+                    and {r.get("run") for r in rows} == {RUN_ID}):
+                return True
+        if time.monotonic() >= end:
+            return False
+        time.sleep(min(.35, max(.01, end-time.monotonic())))
+
+
 def _independent_native_proof() -> dict:
     """Reuse prior independently checked Hermes SQLite native identity oracle.
 
@@ -250,11 +282,17 @@ def run(sha: str) -> dict:
     native_status = None
     native_timed_out = False
     failure = None
+    drain_complete = False
     try:
         proxy = _start_proxy(sha, ledger, logpath / "h1_real_proxy.private.log")
         native_status, native_timed_out = _run_native(
             sha, logpath / "h1_native.private.log"
         )
+        # Do not kill the live HTTP proxy immediately when the native
+        # Agent finishes. Hermes may have left an in-flight physical request
+        # unrelated to its logical main-call count. Reserve it permanently,
+        # allow bounded terminal accounting, never label it free/auxiliary.
+        drain_complete = _drain_completed_provider_responses(ledger)
     except BaseException as exc:
         failure = type(exc).__name__
     finally:
@@ -267,7 +305,8 @@ def run(sha: str) -> dict:
     proof = _independent_native_proof()
     verified = (
         failure is None and native_status == 0
-        and not native_timed_out and accounting.get("present") is True
+        and not native_timed_out and drain_complete
+        and accounting.get("present") is True
         and accounting["reserved"] > 0
         and accounting["reserved"] == accounting["attempted"]
         == accounting["terminal"] == accounting["responded"]
@@ -285,6 +324,7 @@ def run(sha: str) -> dict:
         "task_timeout_seconds": NATIVE_TIMEOUT,
         "native_runner_returncode": native_status,
         "native_runner_timed_out": native_timed_out,
+        "proxy_lifecycle_drain_completed": drain_complete,
         "transport": accounting,
         "independent_native": proof,
         "failure_class": failure,

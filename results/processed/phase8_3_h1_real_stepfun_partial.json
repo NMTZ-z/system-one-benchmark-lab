@@ -1,0 +1,47 @@
+{
+  "active_authority": "NOT_AUTHORIZED",
+  "benchmark_real_world_value": "NOT_ESTABLISHED",
+  "billing_currency_amount": "UNKNOWN",
+  "decision_model": "not_invoked_by_off_mode",
+  "main_model": "stepfun/step-5-preview",
+  "native_adapter_http_identity_link": "NOT_APPLICABLE_OFF",
+  "native_task": {
+    "agent_final_matches_file": true,
+    "independent_tool_call_result_match": true,
+    "native_agent_exit_success": true,
+    "original_file_bytes_verified": true,
+    "task_result": "PASS_SCOPED"
+  },
+  "original_native_source_commit": "82993477667817c8941caa429feea576d091a424",
+  "permission_to_run_more_provider_tasks": false,
+  "phase8_3_real_native_acceptance": "BLOCKED_BUDGET_RECONCILIATION",
+  "physical_request_budget": {
+    "attempted": 3,
+    "attempted_unresolved": 1,
+    "budget_integrity": "BLOCKED",
+    "cap_global": 24,
+    "cap_this_run": 3,
+    "issues": [
+      "reserved_without_proxy_result"
+    ],
+    "provider_responded": 2,
+    "proxy_unfinalized": 1,
+    "unattributed_requests": 1
+  },
+  "platform": "hermes",
+  "private_budget_ledger_sha256": "bded2cecb79bcf22a6cdb39a4186b99fb68e881651d18142de370e3b120133de",
+  "provider_confirmed_token_spend": "NOT_MEASURED",
+  "provider_response_codes": [
+    200,
+    200
+  ],
+  "provider_transport": "real_stepfun_step_plan_outbound_over_capped_proxy",
+  "real_agent_savings": "NOT_MEASURED",
+  "scenario": "read_only_hidden_fixture",
+  "schema": "local-system-one/phase8_3-real-native-h1-evidence-v1",
+  "source_native_reported_input_tokens": 7238,
+  "source_native_reported_main_model_calls": 2,
+  "source_native_reported_output_tokens": 287,
+  "subscription_plan_debit": "UNKNOWN",
+  "system_one_mode": "off"
+}

@@ -275,3 +275,41 @@ Vitest 64/64 PASS**, TypeScript typecheck and build PASS. No
 additional paid Provider calls or real Agent native tests occurred.
 The PR remains a draft until native success/failure quality and
 cost evidence are independently demonstrated.
+
+## 14. Real StepFun H1 OFF task and Provider-ledger blocker
+
+The first **real** Phase 8.3A Hermes OFF native read-file trial
+ran against pinned code 82993477667817c8941caa429feea576d091a424.
+Native tool and independent original-file oracles all PASS.
+Physical StepFun main Provider traffic was **3 attempted** with
+only **2 recorded HTTP 200** and 1 attempted/unfinalized slot.
+The 8.2B reconciler returns **BLOCKED** on
+reserved_without_proxy_result. This is not a real Laya quality
+result and token/fee benefits are NOT MEASURED.
+
+The original test harness ended the provider proxy as soon as
+Hermes returned; a new bounded drain prevents premature termination
+of future already-reserved outbound lifecycles, but does not
+retroactively supply a missing Provider response. There has been
+**no rerun and no further paid requests** while accounting is
+blocked. H2-H4 and D1-D4 are still NOT RUN. Active remains
+NOT AUTHORIZED.
+
+Read the dedicated Phase8.3 real H1 report and its frozen
+machine-readable evidence before interpreting the historical
+synthetic benchmark as native Agent benefit.
+
+### Phase 8.3A post-real-H1 regression and budget integrity
+
+The one-shot H1 native Agent task genuinely passed its independent file
+oracle, but the physical Provider ledger recorded 3 attempted requests,
+only 2 acknowledged HTTP 200 responses and 1 missing terminal event.
+The independent 8.2B Budget Reconciler explicitly returns BLOCKED.
+Future tests now have a bounded provider-transport lifecycle drain,
+but **H1 was not rerun** and its missing event was not fabricated.
+
+The amended post-run regression is **Python 1082/1082 PASS**,
+**DSH Vitest 64/64 PASS**, TypeScript typecheck/build PASS.
+Further paid E2E is stopped pending complete safe reconciliation.
+Original main Agent token and billing savings remain NOT_MEASURED,
+and Active remains NOT_AUTHORIZED.

@@ -91,3 +91,34 @@ def test_real_runner_can_only_run_with_explicit_cli_acknowledgment():
     assert '"--execute-real-provider"' in source
     assert '"--authorize-existing-step-plan"' in source
     assert 'skip_verification' not in source
+
+
+def test_proxy_graceful_drain_waits_only_for_terminal_records(tmp_path):
+    path = tmp_path / "private.jsonl"
+    all_events = [
+        {"kind":"reserved","run":"h1_read_off","slot":1},
+        {"kind":"attempted","run":"h1_read_off","slot":1},
+        {"kind":"responded","run":"h1_read_off","slot":1,"http_status":200},
+        {"kind":"result","run":"h1_read_off","slot":1,"http_status":200,"duration_ms":1},
+    ]
+    path.write_text("\n".join(json.dumps(x) for x in all_events)+"\n")
+    assert pilot._drain_completed_provider_responses(path,maximum_seconds=0)
+    path.write_text("\n".join(json.dumps(x) for x in all_events[:-2])+"\n")
+    assert not pilot._drain_completed_provider_responses(path,maximum_seconds=0)
+
+
+def test_proxy_drain_never_allows_unbounded_wait(tmp_path):
+    with pytest.raises(pilot.PilotBlocked):
+        pilot._drain_completed_provider_responses(tmp_path/"empty",maximum_seconds=200)
+
+
+
+def test_proxy_drain_never_accepts_terminal_record_without_attempt(tmp_path):
+    path = tmp_path / "ledger.jsonl"
+    rows = [
+        {"kind":"reserved","run":pilot.RUN_ID,"slot":1},
+        {"kind":"responded","run":pilot.RUN_ID,"slot":1,"http_status":200},
+        {"kind":"result","run":pilot.RUN_ID,"slot":1,"http_status":200,"duration_ms":1},
+    ]
+    path.write_text("\n".join(json.dumps(row) for row in rows)+"\n")
+    assert not pilot._drain_completed_provider_responses(path,maximum_seconds=0)
