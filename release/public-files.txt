@@ -178,3 +178,5 @@ tests/test_phase8_3_prepare_shared_dependency_home.py
 tests/test_phase8_3_native_runner_shared_home.py
 scripts/phase8_3_pin_stepfun_route.py
 tests/test_phase8_3_pin_stepfun_route.py
+scripts/phase8_3_real_hermes_pilot.py
+tests/test_phase8_3_real_hermes_pilot.py

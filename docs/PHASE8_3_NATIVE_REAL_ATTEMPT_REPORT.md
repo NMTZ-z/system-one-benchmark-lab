@@ -242,3 +242,27 @@ in the same protected file, prints no key and never accesses another
 Home. The original test-only budget and read-only Agent task limits
 remain in force. Real Native E2E must still be separately executed and
 correlated; login readiness does not prove an Agent outcome or savings.
+
+
+## 11. Frozen H1 real Provider native task preparation
+
+A single-shot H1 native test runner now exists at
+scripts/phase8_3_real_hermes_pilot.py. It starts the existing Step
+Plan pass-through with the previously authorized 24 global and 3
+physical requests per run, then invokes the native Hermes OFF-mode
+read-only task. It uses the newly pinned isolated manual credential
+and does not load the owner's default Home or alternate Provider.
+All raw provider, native and file evidence is confined to ignored
+test storage. It refuses a dirty candidate, inconsistent auth route,
+a preexisting ledger, wrong test mode, occupied proxy port, or
+unbounded outbound cap.
+
+The independently extracted Hermes SQLite tool call/result and
+original-file oracle are checked separately from the Agent's final
+text. A task that fails its strict proof is reported PARTIAL/BLOCKED,
+never converted to a successful Agent result. The runner is opt-in
+and never reruns H1 by overwriting prior evidence.
+
+This section only describes a prepared test harness. Real execution
+must be reported in a subsequent separate, truthfully pinned
+post-execution record, not inferred from preflight.
