@@ -107,3 +107,31 @@ def test_clean_auth_environment_does_not_contain_provider_secrets(fixture_home, 
         "ANTHROPIC_API_KEY", "HTTPS_PROXY",
     }
     assert env["HERMES_DISABLE_LAZY_INSTALLS"] == "1"
+
+
+def test_credential_registry_base_url_cannot_claim_proxy_readiness(fixture_home, monkeypatch):
+    home, _ = fixture_home
+    unit.prepare()
+    fake = {
+        "credential_pool": {"stepfun": [{
+            "source": "manual", "auth_type": "api_key",
+            "base_url": "https://api.stepfun.ai/step_plan/v1",
+            "access_token": "SYNTHETIC_TOKEN_NOT_REAL",
+        }]}
+    }
+    auth = home / "auth.json"
+    import json
+    auth.write_text(json.dumps(fake))
+    auth.chmod(0o600)
+    # This test does not launch a CLI or import any production credentials.
+    monkeypatch.setattr(unit, "auth_state_from_text", lambda stdout, code: "READY")
+    monkeypatch.setattr(unit.subprocess, "run", lambda *a, **kw: type("Reply", (), {"stdout":"stepfun: logged in", "returncode":0})())
+    monkeypatch.setattr(unit, "validate_provider_proxy_route", lambda *a,**kw:None)
+    result = unit.inspect(official_auth=True)
+    assert result["credential_status"] == "UNVERIFIED_PROXY_ROUTE"
+    assert result["credential_stage_ready"] is False
+    fake["credential_pool"]["stepfun"][0]["base_url"] = unit.PROVIDER_ORIGIN
+    auth.write_text(json.dumps(fake))
+    result = unit.inspect(official_auth=True)
+    assert result["credential_status"] == "READY"
+    assert result["credential_stage_ready"] is True

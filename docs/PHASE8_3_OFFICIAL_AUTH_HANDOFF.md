@@ -160,3 +160,18 @@ The dedicated shared-dependency Home still has **no auth.json** and
 Hermes officially reports stepfun: logged out. This proves that
 the CLI bootstrap now succeeds without loading any legacy credentials,
 NOT that a live StepFun task was authorized or run.
+
+## Post-login local Provider route invariant
+
+Hermes auth status may report a valid login while a credential pool row
+points at the canonical public StepFun URL. During credential rotation,
+the runtime can rebind to the stored credential URL. Phase 8.3 therefore
+requires the manual credential row, not just config.yaml, to be pinned
+to the loopback budget proxy.
+
+The test-only utility scripts/phase8_3_pin_stepfun_route.py inspects
+and, when explicitly invoked, updates only that single manual
+credential's base_url metadata. It never prints, shares, transfers or
+rotates the actual API key, never modifies a production Home and never
+makes a Provider request. A separate live-budget and event-provenance
+verification remains compulsory before Agent execution.

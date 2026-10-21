@@ -178,7 +178,19 @@ def inspect(*, official_auth: bool = True) -> dict:
                 try:
                     validate_provider_proxy_route(
                         TEST_HOME, PROVIDER_ORIGIN, strict_repo=False)
-                except (OSError, ValueError, TypeError, KeyError):
+                    # The legacy 8.2A check admits a canonical StepFun pool
+                    # URL, but Hermes credential rotation can rebind the
+                    # endpoint to that off-proxy URL. For 8.3, EVERY eligible
+                    # stored credential must be pinned to the capped loopback.
+                    auth_store = json.loads(key.read_text(encoding="utf-8"))
+                    pool = auth_store["credential_pool"]
+                    entries = pool["stepfun"]
+                    if (set(pool) != {"stepfun"} or not isinstance(entries, list)
+                            or len(entries) != 1
+                            or entries[0].get("source") != "manual"
+                            or entries[0].get("base_url") != PROVIDER_ORIGIN):
+                        raise TestHomeError("stored test credential could bypass the proxy")
+                except (OSError, ValueError, TypeError, KeyError, TestHomeError):
                     state = "UNVERIFIED_PROXY_ROUTE"
     return {
         "isolated_home": "~/.hermes/system-one-phase83lab",

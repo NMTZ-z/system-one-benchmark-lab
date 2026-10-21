@@ -217,3 +217,28 @@ Final regression **1051 Python PASS** and **64 DSH Vitest PASS**,
 TypeScript typecheck/build PASS. Real eight-case Provider-backed
 validation is still **BLOCKED: the new Home has not yet been logged in**.
 The existing planned test cap is not consumed by any of these checks.
+
+## 10. Post-login physical Provider route hardening (2026-10-21)
+
+The owner completed login in the fresh isolated Hermes Home. The first
+read-only verification returned UNVERIFIED_PROXY_ROUTE because Hermes had
+an environment-seeded StepFun record and a separately added manual one.
+The official Hermes auth remove command was executed against the
+**test Home only** to suppress the unused environment record. The new
+manual credential was retained unchanged. No Provider request occurred.
+
+Source inspection found that Hermes' runtime credential rotation can
+use the credential's persisted URL. Merely validating config.yaml's
+loopback Provider URL does not prove an actual request cannot bypass
+the cap. A stronger Phase 8.3 preflight now requires exactly one manually
+authorized StepFun pool row, with its OWN stored URL pointing at the
+audited local budget proxy. Any other pool entry or external URL blocks
+a native Provider attempt.
+
+An isolated-only atomic metadata updater was added to change ONLY the
+new test manual credential's base_url from Hermes' canonical Step Plan
+registry endpoint to the local proxy. It preserves the existing key
+in the same protected file, prints no key and never accesses another
+Home. The original test-only budget and read-only Agent task limits
+remain in force. Real Native E2E must still be separately executed and
+correlated; login readiness does not prove an Agent outcome or savings.
