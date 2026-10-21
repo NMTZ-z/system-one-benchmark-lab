@@ -238,3 +238,40 @@ credential or any main-model call.
 This does not supersede or inflate the 80-case synthetic benchmark,
 does not establish native StepFun outcome and does not grant
 Active rights. See the official auth handoff.
+
+## 13. Authentication bootstrap recovery without credential reuse
+
+A user attempting the fresh Hermes test Home encountered Hermes PM's
+missing committed dependency environment. Inspection proved that the
+owner install's committed venv under ~/.hermes/installs was not
+available to an external repository-private HERMES_HOME. A bounded
+scoped repair was attempted but timed out before installation committed;
+the test-only partial state was cleaned up.
+
+A NEW Home under the existing owner data root
+(~/.hermes/system-one-phase83lab) was then prepared with public
+System One plugin files, OFF-only configuration and an empty .env.
+Hermes' official authentication status works there, correctly saying
+stepfun: logged out, without touching the owner's configuration,
+sharing old secrets or sending any Provider call.
+
+The secure owner-entered login is still needed. Native Provider
+acceptance remains BLOCKED, with no billable requests initiated
+and no Active authority. See the updated official auth handoff and
+attempt report for the exact scope and instructions.
+
+
+### Final isolated auth/bootstrap regression
+
+The fixed new Hermes Home under ~/.hermes/system-one-phase83lab
+inherits only the parent's already committed *dependency environment*.
+The new test Home's config and credentials are its own; old auth files
+were neither read nor copied. The native runner now accepts ONLY this
+one extra pinned Home after independent credentials/URL checks, while
+keeping existing hard Provider/task limits.
+
+Latest scoped regression: **Python 1051/1051 PASS**, **DSH
+Vitest 64/64 PASS**, TypeScript typecheck and build PASS. No
+additional paid Provider calls or real Agent native tests occurred.
+The PR remains a draft until native success/failure quality and
+cost evidence are independently demonstrated.

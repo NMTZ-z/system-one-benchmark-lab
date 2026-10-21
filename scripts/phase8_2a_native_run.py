@@ -20,6 +20,11 @@ import urllib.request
 
 from phase8_2a_verify import inspect_native_jsonl
 from phase8_2a_hermes_preflight import auth_state_from_text, validate_home, validate_provider_proxy_route
+from phase8_3_prepare_shared_dependency_home import (
+    TEST_HOME as PHASE8_3_SHARED_TEST_HOME,
+    clean_auth_environment as phase8_3_clean_auth_environment,
+    inspect as phase8_3_inspect_home,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 CONTENT = b"P82A_NATIVE_FILE_OK_V1"
@@ -49,6 +54,40 @@ def _plugin_counts(home: Path) -> dict[str, int]:
     return counts
 
 
+def _phase8_3_fixed_hermes_home(home: Path) -> bool:
+    """Opt-in only the exact new, independently verified Hermes test Home."""
+    home = Path(home)
+    if home.is_symlink():
+        return False
+    return (home.absolute() == PHASE8_3_SHARED_TEST_HOME.absolute()
+            and not PHASE8_3_SHARED_TEST_HOME.is_symlink())
+
+
+def _validate_native_hermes_home(home: Path) -> bool:
+    """Return whether the Hermes Home uses the new shared dependency root."""
+    if _phase8_3_fixed_hermes_home(home):
+        info = phase8_3_inspect_home(official_auth=True)
+        if not info["credential_stage_ready"]:
+            raise ValueError("new isolated Phase 8.3 Home is not authenticated")
+        validate_home(home, strict_repo=False)
+        return True
+    validate_home(home)  # old 8.2A strict repo/private constraint unchanged
+    return False
+
+
+def _check_phase8_3_limits(args: argparse.Namespace, budget: dict) -> None:
+    """Phase 8.3 cannot widen any inherited 8.2A Provider/task caps."""
+    if (args.mode not in {"off", "shadow"} or args.scenario != "read_nonce"
+            or args.provider_proxy_port != 18794
+            or not 10 <= args.timeout <= 90):
+        raise ValueError("Phase 8.3 real native task must be read-only and bounded")
+    total = budget.get("total_cap")
+    per_run = budget.get("per_run_cap")
+    if (type(total) is not int or not 1 <= total <= 24 or
+            type(per_run) is not int or per_run != 3):
+        raise ValueError("Phase 8.3 budget proxy cap exceeds authorization")
+
+
 def native_run(args: argparse.Namespace) -> dict:
     if not args.authorize_existing_step_plan:
         raise ValueError("explicit existing-plan authorization flag required")
@@ -63,17 +102,21 @@ def native_run(args: argparse.Namespace) -> dict:
     dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True)
     if dirty:
         raise ValueError("formal run requires frozen clean Git worktree")
+    new_shared_hermes = False
     if args.platform == "hermes":
         if args.hermes_home is None:
             raise ValueError("explicit isolated Hermes home is required")
-        validate_home(args.hermes_home)
-        if not os.environ.get("STEPFUN_API_KEY"):
+        new_shared_hermes = _validate_native_hermes_home(args.hermes_home)
+        if new_shared_hermes or not os.environ.get("STEPFUN_API_KEY"):
             # Hermes' official isolated auth pool can hold a separately
             # provisioned credential. Never import another home's key or
             # read .env in the test runner.
-            auth_env = os.environ.copy()
-            auth_env["HERMES_HOME"] = str(args.hermes_home.resolve())
-            auth_env["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
+            if new_shared_hermes:
+                auth_env = phase8_3_clean_auth_environment()
+            else:
+                auth_env = os.environ.copy()
+                auth_env["HERMES_HOME"] = str(args.hermes_home.resolve())
+                auth_env["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
             try:
                 status = subprocess.run(
                     ["hermes", "auth", "status", "stepfun"],
@@ -95,8 +138,11 @@ def native_run(args: argparse.Namespace) -> dict:
         # Hermes pooled entries have their own endpoint precedence. Checking
         # STEPFUN_BASE_URL alone failed in the earlier 401/uncapped attempt.
         # Attest to ALL possible StepFun pool URL routes before spending.
-        validate_provider_proxy_route(args.hermes_home, base_url)
+        validate_provider_proxy_route(
+            args.hermes_home, base_url, strict_repo=not new_shared_hermes)
     b = _get(base_url + "/_budget")
+    if new_shared_hermes:
+        _check_phase8_3_limits(args, b)
     if b.get("run") != args.run or b.get("per_run_cap") != 3:
         raise ValueError("provider cap proxy wrong run ID or per-run limit")
     if b.get("used_run") != 0 or b.get("used_total", 9999) >= b.get("total_cap", 0):
@@ -117,13 +163,21 @@ def native_run(args: argparse.Namespace) -> dict:
         prompt = (f"受控文件工具测试：必须仅使用平台原生 {tool_name} 工具将字符串 "
                   f"P82A_NATIVE_FILE_OK_V1 精确写到绝对路径 {target}。"
                   "不允许 shell、bash、浏览器、网络、其他工具。无论成功与否如实报告。")
-    env = os.environ.copy()
+    # Phase 8.3 must never inherit another Hermes/Provider credential.
+    env = (phase8_3_clean_auth_environment() if new_shared_hermes
+           else os.environ.copy())
+    if new_shared_hermes and os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE") == "isolated-shadow-test-v1":
+        secret = os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX", "")
+        if not re.fullmatch(r"[a-f0-9]{64}", secret):
+            raise ValueError("invalid test-only HMAC evidence key")
+        env["LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE"] = "isolated-shadow-test-v1"
+        env["LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX"] = secret
     env["STEPFUN_BASE_URL"] = base_url
     env["DSH_TELEMETRY_MODE"] = "DISABLED"
     env["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
     if args.platform == "hermes":
         home = args.hermes_home.resolve()
-        if not home.is_relative_to(REPO / "private"):
+        if not new_shared_hermes and not home.is_relative_to(REPO / "private"):
             raise ValueError("Hermes home must be isolated under private/")
         env["HERMES_HOME"] = str(home)
         import yaml

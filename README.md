@@ -80,6 +80,8 @@ limits and how no Active permissions were added.
 
 ### Native real-provider qualification status (Phase 8.3A)
 
+The official Hermes isolated login now uses the safe standalone data Home under ~/.hermes/system-one-phase83lab, to reuse existing owner dependencies WITHOUT sharing credentials or configuration. The repository-private legacy Home required a separate PM dependency generation; do not use it for login. See the linked auth handoff.
+
 The real StepFun Step Plan + Laya OFF/Shadow validation is **not yet
 completed**. A fresh, credential-empty [Hermes/DSH isolated environment
 and official-auth handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md) is

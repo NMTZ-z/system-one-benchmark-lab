@@ -173,3 +173,6 @@ scripts/phase8_3_sdk_offline_preflight.py
 tests/test_phase8_3_prepare_clean_home.py
 tests/test_phase8_3_sdk_offline_preflight.py
 docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md
+scripts/phase8_3_prepare_shared_dependency_home.py
+tests/test_phase8_3_prepare_shared_dependency_home.py
+tests/test_phase8_3_native_runner_shared_home.py

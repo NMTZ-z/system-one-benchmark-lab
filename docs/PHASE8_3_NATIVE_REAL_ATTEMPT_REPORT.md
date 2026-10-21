@@ -148,3 +148,72 @@ regressions pass.
 step is for the owner to use the official fresh test-home interactive
 auth login described in PHASE8_3_OFFICIAL_AUTH_HANDOFF.md. The prior
 tool safety block has not been bypassed.
+
+## 7. Test Home dependency repair diagnosis and supported recovery (2026-10-21)
+
+The new Hermes auth-add request failed **before any credential input**,
+reporting a missing committed dependency environment for its external
+repository-private HERMES_HOME. This was confirmed in Hermes PM source:
+the project's dependency state is scoped to a data Home, so the test
+Home did not inherit ~/.hermes/installs.
+
+An explicit repair attempt under the **test Home only** was stopped at a
+bounded timeout after beginning uv dependency installation. No dependency
+generation or token was committed there; the partial test-only
+install/cache/repair marker were cleaned up without touching the owner
+installed dependency facts. No real Provider call was made.
+
+A separate credential-empty data Home at ~/.hermes/system-one-phase83lab,
+outside the automatic Hermes profiles/ area but inside the existing
+shared dependency root, was prepared with public plugin files and
+OFF-only test settings. A real official Hermes auth status call under
+this new Home returns **stepfun: logged out**, not the former dependency
+error. No old credentials were copied or linked, and no Provider traffic
+was initiated.
+
+The official user-controlled login and independent safe status preflight
+are documented in PHASE8_3_OFFICIAL_AUTH_HANDOFF.md. The eight actual
+native tasks remain **NOT RUN**. No completion, retry safety, Provider
+cost or Agent savings claims are created from this configuration fix.
+
+
+## 8. Exact test-only native-run path (no Provider executed)
+
+The legacy Phase 8.2A native-run CLI originally accepted only Hermes
+Homes beneath repository-private, so it would have rejected the new
+supported shared-dependency Home after successful official login.
+A narrow Phase 8.3 exception now accepts only the fixed
+~/.hermes/system-one-phase83lab Home after its independent secure
+source/auth and Provider-route checks. The runner still requires the
+frozen clean SHA, shadow-only mode, the pre-network budget proxy,
+read-only native tasks, at most 24 global physical StepFun attempts,
+3 per task and 90-second task timeout. All other Homes retain the old
+strict rule.
+
+No real Provider request was launched by this adjustment. Any native
+SDK/Agent success and fresh HMAC causal correlation remain BLOCKED
+until a fresh official auth token is provided by the owner, live
+budget egress is verified and the scenario-specific evidence oracle
+is ready.
+
+
+## 9. Shared-dependency bootstrap completion and new-run safeguards
+
+After diagnosing the broken repository-private Hermes PM environment,
+the new safe data Home was prepared under ~/.hermes/system-one-phase83lab.
+The official Hermes CLI now starts and returns a normal logged-out
+StepFun state. It has a separate empty .env and fresh public plugin
+copy with OFF-only settings and loopback-only main Provider URL.
+No old Provider token or production config was imported.
+
+The existing native runner now accepts only this exact test Home,
+after independent official-auth readiness and byte/endpoint checks.
+It rejects non-read-only tasks, other Provider ports, broader than
+24 global or three per-case physical requests, runtimes exceeding
+90 seconds, and Active/Canary mode. The previous strict HOME rule
+for all other locations remains in effect.
+
+Final regression **1051 Python PASS** and **64 DSH Vitest PASS**,
+TypeScript typecheck/build PASS. Real eight-case Provider-backed
+validation is still **BLOCKED: the new Home has not yet been logged in**.
+The existing planned test cap is not consumed by any of these checks.

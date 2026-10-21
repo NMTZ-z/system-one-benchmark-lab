@@ -1,153 +1,162 @@
-# Phase 8.3A — Fresh isolated test authentication handoff
+# Phase 8.3A — Supported isolated Hermes authentication
 
-**2026-10-21 — Offline setup PASS; new credential NOT PROVISIONED;
-real Provider E2E NOT RUN.**
+**Updated 2026-10-21: dependency root cause diagnosed, supported
+shared-dependency test Home prepared. Real StepFun E2E NOT RUN.**
 
-The former attempt to attach an older test credential to a fresh test
-environment was blocked. That boundary has not been bypassed: no legacy or
-production credential was copied, linked, exported or reused.
+## What caused the reported error
 
-## New environments, created without credentials
+The first test Home, under this repository's ignored private/ directory,
+was deliberately independent of the main Hermes Home. Recent Hermes PM
+scopes its committed Python environment to HERMES_HOME. The normal owner's
+dependency generation exists under ~/.hermes/installs/, while the
+repository-private Home lacked its own committed generation.
 
-Hermes now has a separate, empty OFF-only test home at:
+Hermes therefore refused authentication before showing the credential
+prompt and suggested hermes pm repair. This did not indicate a failed
+StepFun token, an unavailable model or a System One Runtime problem.
 
-    private/phase8_3_native_real/hermes_home/
+An official, scoped PM repair was attempted only inside the empty test
+Home. It entered uv dependency installation but reached the bounded
+execution timeout before a generation was committed. The abandoned
+test-only install/cache directories and incomplete marker were subsequently
+cleaned up. No production dependency state or default Profile was
+modified. **Do not rerun PM repair using the former repository-private
+test Home.**
 
-It contains only publicly committed Hermes plugin source and safe test
-configuration. The main provider is StepFun Step Plan step-5-preview, and
-its URL is locked to the capped localhost port 18794, never an uncapped
-Provider or pay-as-you-go endpoint.
+## Supported recovery without copying credentials
 
-Two new DSH SDK patches (OFF and Shadow) exist under:
+The Hermes source also supports independent data Homes located *under*
+the owner's existing ~/.hermes/ root: those reuse the already committed
+dependency environment. A fixed new test-only Home was created at:
 
-    private/phase8_3_native_real/dsh_patches/
+    ~/.hermes/system-one-phase83lab
 
-They use the same capped localhost Provider route, no automatic retry,
-OFF/Shadow-only Gate settings and an environment-variable *name* for
-secure input. There is no embedded token or other credential.
+It is deliberately NOT under ~/.hermes/profiles/, so it is not a named
+Profile automatically enumerated by a running Hermes multiplexer.
+Its config, intentionally empty .env, authentication state and plugin
+directory remain dedicated to the test. The original default Home and
+gateway configuration are unchanged.
 
-Both official DSH SDK configurations were independently tested with only
-initialize and shutdown RPC, under a clean HOME/DSH_HOME and with NO
-credential variables inherited. Both initialized successfully and shut
-down normally: native tasks 0, paid main-model requests 0.
+The new Home was initialized without cloning or linking any previous
+credential. It contains only the required source plugin files and the
+explicit OFF-only StepFun Step Plan configuration. The model Provider
+address is fixed to http://127.0.0.1:18794 (the planned controlled
+network-outlet proxy), **not** the pay-as-you-go API. Its auth.json file
+is not yet present.
 
-The new test files are Git-ignored, private-permission protected, and
-the scaffolder rejects suspicious credential symlinks (even dangling
-ones), unsafe Provider URLs, Active/Canary or profile overwriting.
+Verified in the actual Hermes CLI with this Home:
+- Existing owner dependency environment available: YES.
+- Official Hermes auth status: stepfun: logged out.
+- No PM dependency error at startup.
+- New private credential imported: NO.
+- Real main-model requests: 0.
+- Existing production config and committed dependency record untouched.
 
-## The one required user-controlled Hermes login
+This is an *authentication preflight* only; no native Agent test was run.
 
-A user may authenticate this NEW, dedicated test profile using Hermes'
-official interactive terminal prompt. On the user's Mac, from a trusted
-interactive Terminal window:
+## Required next human-controlled action on Mac
+
+Run these commands from a Mac Terminal in a new shell. Enter the StepFun
+key **only** at the official secure interactive prompt. Do not put it in
+CLI arguments, this conversation, project code or shell history.
 
 ~~~bash
 cd ~/Projects/system-one-phase8-3
-export HERMES_HOME="$PWD/private/phase8_3_native_real/hermes_home"
+export HERMES_HOME="$HOME/.hermes/system-one-phase83lab"
 export HERMES_DISABLE_LAZY_INSTALLS=1
-# Use a fresh terminal and do not inherit existing provider-token/route overrides.
 unset STEPFUN_API_KEY STEPFUN_BASE_URL
 
-# The API key is entered ONLY at the official non-echoing prompt.
-# Never use the --api-key argument or paste any key into ChatGPT.
 hermes auth add stepfun --type api-key --label phase8-3-isolated
 
-# Read-only official authentication and loopback-route preflight.
-../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_prepare_clean_home.py --check
+../system-one-benchmark-lab/.venv/bin/python \
+  scripts/phase8_3_prepare_shared_dependency_home.py --check
 ~~~
 
-The read-only check must report credential_status READY,
-credential_stage_ready true and worktree_clean true. Any other value
-means BLOCKED. Its separate ready_for_provider_test field deliberately
-remains FALSE until a later frozen native runner proves a live, hard-capped
-Provider outlet. Authentication alone can never approve or trigger a
-Provider request, Active control or an uncapped run. The auth status preflight additionally runs with an allowlisted clean
-HOME/HERMES_HOME environment, excluding any inherited provider keys or
-proxy overrides. No existing or production credentials should be linked
-to the new profile.
+Do not use the former Home at
+private/phase8_3_native_real/hermes_home for this login.
+Do not run hermes pm repair against the normal owner Profile. The
+official CLI for the fresh Home already launches.
 
-DeepSeek Harness separately requires an owner-supplied
-STEPFUN_API_KEY environment variable in an isolated real-run process.
-That credential has NOT been acquired or imported and must not be
-extracted from Hermes. The real DSH native test is therefore BLOCKED
-until a supported separate secure-input mechanism is available.
+The check must eventually return credential_status READY and
+credential_stage_ready true. All other values mean authentication
+is incomplete or the controlled proxy route was not authenticated.
+Even when credentials are ready, the real Provider test is **still
+BLOCKED** until a separately frozen native runner verifies the
+24-request global / 3-request per-task physical cap, isolated model
+routing, evidence collectors and native task limits.
 
-## Repeat the no-Provider native SDK check
+This check intentionally does not send any StepFun model request and
+does not grant Active/Canary rights.
 
-~~~bash
-cd ~/Projects/system-one-phase8-3
-../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_sdk_offline_preflight.py --run
-~~~
+## DeepSeek Harness isolation
 
-The SDK tool permits ONLY initialize and shutdown, and sets a fresh
-environment that cannot inherit StepFun/other Provider keys or proxy
-variables. It sends zero prompts, native tool tasks or Provider calls.
+The new OFF/Shadow DSH SDK patch files under
+private/phase8_3_native_real/dsh_patches/ remain unchanged. Both modes
+have passed true native SDK initialize/shutdown with an empty Provider
+environment and 0 model calls. They are *not* a real Provider E2E test.
 
-## Real test authorization remains tightly bounded
+The DSH main-Provider adapter requires a separate secure process-scoped
+StepFun credential. This tool chain must not extract or copy a key from
+the new Hermes Home, earlier test Homes, the owner's default Home, .env
+or another agent. This remains independently BLOCKED.
 
-Before a future real request, source must be frozen and clean; provider
-egress must be proved restricted to the existing StepFun Step Plan
-request-cap proxy, with 24 maximum physical requests globally and 3 per
-native scenario, including auxiliaries and failed calls. Each native
-task has a 90-second wall limit. The only local decision Runtime is
-the separately isolated Laya/MLX service, never Active.
+## Status and safety gates
 
-The eight preregistered Hermes and DSH tests must use independently
-checked native tool/file results, opt-in HMAC request-ID correlation
-and independent budget reconciliation. Provider credit consumption
-remains unknown unless separately verified. No new paid API Provider,
-purchase, production state mutation, or Git merge is allowed.
-
-## Current evidence status
-
-| Item | Verdict |
+| Dimension | Verdict |
 |---|---|
-| Hermes empty isolated OFF profile | PASS |
-| DSH OFF/Shadow official native SDK init/shutdown | PASS, no Provider |
-| Private auth file for new Hermes home | NOT PRESENT |
-| Separate DSH secure Provider credential | NOT PROVISIONED |
-| Eight-case StepFun + Laya native Shadow E2E | BLOCKED, NOT RUN |
-| Real Agent value or billed savings | NOT MEASURED |
-| Active readiness | NOT AUTHORIZED |
+| Official Hermes dependency-state root cause | VERIFIED |
+| Owner Python dependencies changed | NO |
+| Fixed standalone test Home under owner data root | PASS |
+| Hermes auth CLI bootstrap using that Home | PASS, logged out |
+| Old key/token imported or symlinked | NO |
+| DSH SDK OFF/Shadow initialization | PASS, no Provider |
+| Actual StepFun requests in this qualification round | 0 |
+| Hermes new-home interactive login | USER ACTION STILL REQUIRED |
+| Native Hermes + DSH eight-task real E2E | BLOCKED, NOT RUN |
+| Agent API/token/time/billing savings | NOT MEASURED |
+| System One Active authorization | NOT AUTHORIZED |
 
-This document intentionally never contains any credential value,
-original user file path, raw SDK frame, native Session ID, or private
-task data.
-
-
-## Switch only the fresh test home OFF/Shadow
-
-After separate official login and the real budget preflight, a future
-bounded native runner may select the appropriate test mode using:
-
-~~~bash
-cd ~/Projects/system-one-phase8-3
-../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_prepare_clean_home.py --set-mode shadow
-# or explicitly restore the harmless baseline:
-../system-one-benchmark-lab/.venv/bin/python scripts/phase8_3_prepare_clean_home.py --set-mode off
-~~~
-
-This command edits ONLY the new ignored Hermes test-home config using
-an atomic file replacement, refuses Active or Canary, and never reads or
-changes production configuration. The real Provider experiment remains
-BLOCKED until the separate authentication and budget gates pass.
+Only privacy-safe configuration/source state and bounded derived evidence
+may be committed. Raw keys, sessions, request/response content and local
+test files never enter public Git. The Phase 8.3 PR stays Draft.
 
 
-## New-profile regression and exact readiness status
+## Native real-run boundary on this fixed Home
 
-The final new-profile / SDK hardening regression on 2026-10-21 passed:
+The existing Phase 8.2A native runner has now been narrowly extended to
+accept only the *exact* new shared-dependency test Home as an additional
+authorized identity. Other Homes still require its original strict
+repository-private validation. The new Home is independently checked
+by the Phase 8.3 official auth tool before any Provider I/O.
 
-- Python full tree: 1030/1030 PASS.
-- DSH Vitest: 64/64 PASS.
-- TypeScript typecheck and DSH build: PASS.
-- SDK native bootstrap: OFF and Shadow initialize/shutdown PASS with
-  no Provider credential in subprocess environment, zero submitted tasks.
-- Fresh Hermes status: credential_status MISSING_NEW_PROFILE_LOGIN;
-  credential_stage_ready false, ready_for_provider_test false,
-  live_provider_budget_attested false.
-- Test Home contains no auth.json, symlinked credential or token file;
-  none of the previous test/prod credentials were transferred.
+For the new Home only, the runner now:
+- Requires official clean-environment login verification, not merely an
+  inherited STEPFUN_API_KEY or a credential in another Home.
+- Pins StepFun egress to local port 18794 and checks that the live
+  budget outlet declares no more than 24 total and exactly 3 per run.
+- Permits only OFF/Shadow, bounded read-only native tasks and at most
+  90 seconds per task; it rejects file writes, model-control changes,
+  unexpected Provider ports, wider budgets and Active/Canary.
+- Drops inherited Provider keys from the native subprocess, while
+  allowing a separately supplied 32-byte test-only HMAC evidence key
+  after validating its encoding. It never retrieves a Provider token.
+- Still requires a clean frozen Git SHA, an opted-in existing Step Plan
+  test, exact isolated plugin bytes and a healthy scoped budget proxy.
 
-These checks confirm that the **local setup is prepared**, not that real
-native Provider E2E is authorized, functional or billable within a
-known amount. No extra real StepFun call was attempted.
+This is code-path preparation, NOT an authorization to start a real
+request. The complete eight-case matrix, including missing-file
+failure scenarios and independent per-task provenance, requires
+separately audited runner and orchestration steps before execution.
+The DSH Provider credential remains independently unprovisioned.
+
+
+## Offline regression after shared-dependency fix
+
+The final isolated authentication and native-run extension passed a
+complete Python regression **1051/1051**, DSH Vitest **64/64**,
+TypeScript typecheck PASS and DSH build PASS (2026-10-21).
+
+The dedicated shared-dependency Home still has **no auth.json** and
+Hermes officially reports stepfun: logged out. This proves that
+the CLI bootstrap now succeeds without loading any legacy credentials,
+NOT that a live StepFun task was authorized or run.
