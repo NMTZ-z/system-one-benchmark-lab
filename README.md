@@ -78,6 +78,15 @@ committed before running Laya, but remain synthetic and author-adjudicated:
 The [frozen protocol](docs/PHASE8_3_NEW_HOLDOUT_PROTOCOL.md) explains
 limits and how no Active permissions were added.
 
+### Native real-provider qualification status (Phase 8.3A)
+
+The real StepFun Step Plan + Laya OFF/Shadow validation is **not yet
+completed**. A fresh, credential-empty [Hermes/DSH isolated environment
+and official-auth handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md) is
+available, with both DSH SDK OFF and Shadow initialization verified
+without any Agent task or Provider request. This is a preflight,
+**not real Native E2E, Active permission or evidence of API savings**.
+
 ## Quick start
 
 ### Requirements

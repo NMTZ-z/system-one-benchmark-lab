@@ -168,3 +168,8 @@ tests/test_phase8_3_new_holdout_frozen.py
 docs/PHASE8_3_NATIVE_REAL_SHADOW_PROTOCOL.md
 docs/PHASE8_3_NATIVE_REAL_ATTEMPT_REPORT.md
 tests/test_phase8_3_native_real_budget_preflight.py
+scripts/phase8_3_prepare_clean_home.py
+scripts/phase8_3_sdk_offline_preflight.py
+tests/test_phase8_3_prepare_clean_home.py
+tests/test_phase8_3_sdk_offline_preflight.py
+docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md

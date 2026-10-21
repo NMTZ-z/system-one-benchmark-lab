@@ -203,3 +203,38 @@ to a real-provider acceptance. Latest scoped regression Python
 **1012/1012 PASS**, DSH Vitest **64/64 PASS**, TypeScript
 typecheck/build PASS. PR #9 remains Draft; Active remains
 NOT_AUTHORIZED.
+
+
+## 12. New credential-free profiles and SDK preflight (2026-10-21)
+
+A new OFF-only Hermes test home and independent DSH OFF/Shadow SDK
+configurations have been created without reading or linking any old
+credential. The official DSH SDK completed initialization and shutdown
+in both modes using an explicitly empty environment, zero Agent tasks,
+and zero StepFun main-model requests.
+
+This is offline engineering progress ONLY. A supported fresh Hermes
+interactive login and separately secure DSH credential input are still
+necessary before real Provider E2E is possible. The tool security block
+was not circumvented. Phase 8.3A real Provider validation stays
+BLOCKED, exact native-to-HTTP correlation stays NOT VERIFIED on new
+real traffic, and Active stays NOT AUTHORIZED.
+
+See the official auth handoff PHASE8_3_OFFICIAL_AUTH_HANDOFF.md and
+the amended attempt report PHASE8_3_NATIVE_REAL_ATTEMPT_REPORT.md.
+PR #9 remains Draft.
+
+
+### Credential-free fresh-profile hardening result
+
+Full Phase 8.3 code regression after the new safe isolated-home and DSH
+SDK offline bootstrap work: **Python 1030/1030 PASS**, DSH Vitest
+**64/64 PASS**, TypeScript typecheck/build PASS. The fresh Hermes
+Home contains no credential and the read-only preflight correctly
+returns BLOCKED (MISSING_NEW_PROFILE_LOGIN). The two official DSH
+OFF/Shadow SDK initialization/shutdown paths both pass without a
+credential or any main-model call.
+
+This does not supersede or inflate the 80-case synthetic benchmark,
+does not establish native StepFun outcome and does not grant
+Active rights. See the official auth handoff.

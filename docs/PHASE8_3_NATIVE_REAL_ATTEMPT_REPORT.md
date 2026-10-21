@@ -103,3 +103,48 @@ offline tests; their Mock HTTP servers were loopback-only.
 **Model incremental real-Agent value:** NOT_ESTABLISHED.
 **Actual savings:** NOT_MEASURED.
 **Active readiness:** NOT_AUTHORIZED.
+
+
+## 5. Clean empty profiles and offline SDK initialization (2026-10-21)
+
+Following the previous safety block on legacy credential linkage, we
+created a NEW Hermes OFF-only test profile and two DSH OFF/Shadow SDK
+configurations using scripts/phase8_3_prepare_clean_home.py. Only safe
+source-controlled plugin bytes and explicit loopback test settings were
+written; no legacy/production auth file, key or token was copied or linked.
+
+With zero credential environment variables and no Agent task submitted,
+the official native DSH SDK completed initialize and shutdown in both
+OFF and Shadow modes, with process exit code 0. The repeatable
+scripts/phase8_3_sdk_offline_preflight.py reproduces this no-Provider
+test and outputs only allowlisted status fields.
+
+The Hermes test home remains credential-empty and in OFF mode, so
+real StepFun Provider requests and native Agent task acceptance remain
+BLOCKED. The earlier credential restriction was not bypassed.
+
+See the official operator handoff PHASE8_3_OFFICIAL_AUTH_HANDOFF.md
+for the separate, supported interactive authentication path.
+
+
+## 6. Credential-stage exact check and regression (2026-10-21)
+
+The fresh Hermes OFF Home and DSH OFF/Shadow SDK patches were audited again.
+The strict official auth preflight uses an **allowlisted clean environment**
+that drops inherited STEPFUN/other Provider tokens, route overrides and
+production HOME fallbacks. It returned MISSING_NEW_PROFILE_LOGIN, with
+credential_stage_ready false and live_provider_budget_attested false.
+The new test auth.json still does not exist.
+
+Both DSH SDK modes requalified cleanly with no key in the subprocess
+environment, initialize/shutdown only. No provider call, Session prompt
+or native tool action occurred.
+
+Python 1030/1030 PASS, DSH Vitest 64/64 PASS, TypeScript typecheck and
+build PASS. New symlink, mode, route, inherited-token and byte-identity
+regressions pass.
+
+**Native Real Provider E2E is still BLOCKED.** The only supported next
+step is for the owner to use the official fresh test-home interactive
+auth login described in PHASE8_3_OFFICIAL_AUTH_HANDOFF.md. The prior
+tool safety block has not been bypassed.
