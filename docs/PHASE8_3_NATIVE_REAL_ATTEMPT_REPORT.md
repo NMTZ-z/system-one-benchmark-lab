@@ -353,3 +353,43 @@ without any main StepFun request.
 Full preflight Python 1102/1102 PASS, DSH 64/64 PASS, TS typecheck/build
 PASS. **No H2 real main-provider execution has occurred yet**.
 Read the separately frozen H2 pre-run protocol for acceptance limits.
+
+## 16. Actual StepFun H2 Shadow E2E: scoped native/correlation PASS
+
+The H2 predeclared real Provider execution occurred exactly once
+on clean SHA 0dc626ff86038702f74027b4a988d21f096f72d9.
+Hermes executed a genuine native read_file and the separate
+private-file/native SQLite oracle passed. The isolated Runtime
+used actual Laya/MLX for two Completion model decisions; all
+two originating Agent event/Adapter/HTTP links were independently
+HMAC verified with echoed request IDs (2/2, HTTP 200).
+
+The durable Provider cap was not reset. H1 retained three original
+physical requests, including one unknown outcome; H2 reserved
+physical slots 4-6 and all three reached real StepFun HTTP 200
+with full lifecycle completion. No new unknown H2 outcome.
+H2's own budget-integrity accounting is still PARTIAL on
+logical attribution (three physical vs two native reported
+main-model calls) and absent Provider billing evidence.
+The overall Phase 8.3A budget history stays BLOCKED on H1,
+notwithstanding valid scoped H2 observations.
+
+Test Home was returned to OFF and all isolated test services
+were stopped. H3/H4 and all DSH real tasks remain unrun,
+as do any active policy tests. See the new
+PHASE8_3_REAL_NATIVE_H2_REPORT.md and independently
+adjudicated machine-readable H2 summary.
+
+
+## 17. Post-H2 honest budget scope and regression
+
+The newly independent private-to-public H2 adjudicator verified all
+original native read proof, real local MLX event identities and
+StepFun HTTP ledger outcomes. H2 has no unfinalized physical calls;
+its Provider cost attribution is still PARTIAL. The older H1
+missing terminal record remains unchanged and prohibits promotion
+of the overall Phase 8.3A Provider history to PASS.
+
+Post-H2 1121 Python tests passed, DSH Vitest 64 passed and
+TypeScript typecheck/build passed. No extra StepFun calls or
+production modifications followed the single H2 pilot.

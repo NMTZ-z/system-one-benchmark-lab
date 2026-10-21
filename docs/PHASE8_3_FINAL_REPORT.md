@@ -313,3 +313,50 @@ The amended post-run regression is **Python 1082/1082 PASS**,
 Further paid E2E is stopped pending complete safe reconciliation.
 Original main Agent token and billing savings remain NOT_MEASURED,
 and Active remains NOT_AUTHORIZED.
+
+## 15. True Hermes H2 Shadow StepFun + Laya E2E (2026-10-21)
+
+An independent one-shot real H2 trial, on predeclared frozen source
+0dc626ff86038702f74027b4a988d21f096f72d9, achieved a full
+native read-only task and 2 real Laya/MLX Completion Shadow model
+decisions. Native tool call/result, private file content and final
+Agent answer were independently verified. Exact HMAC causal
+correlation between actual native Hermes, Adapter and Runtime
+HTTP proved **2/2** links.
+
+The same durable physical Provider ledger retained all original
+three H1 requests, including the unfinalized historic one.
+H2 added exactly three new real physical requests, each with
+HTTP 200 and a completed terminal/result lifecycle. Thus H2
+transport lifecycle is **COMPLETE_SCOPED**, while H2 budget
+token/charge provenance remains **PARTIAL** (3 physical vs
+2 logical main-model calls, one unattributed, all Provider billing
+unknown).
+
+Overall Phase 8.3A Provider budget integrity **remains BLOCKED**
+because H1 slot 1 has no terminal record. H3/H4 and D1-D4
+remain NOT RUN. No native Agent task was stopped, retried or
+rerouted by System One Shadow advice, and no realistic billing
+or savings effect was measured.
+
+See the detailed real-H2 report PHASE8_3_REAL_NATIVE_H2_REPORT.md,
+the public aggregate, and the independently verified original
+post-run data. H2 pre-run source is distinct from subsequent
+report-only commits and GitHub main remains unchanged.
+
+
+### Post-H2 independent verification and regression
+
+An independent post-run replay of H2 physical ledger, real native
+tool/hidden-file SQLite evidence, original MLX HTTP records and
+private HMAC join yielded **H2 PASS_SCOPED**, three StepFun HTTP200
+terminal records, zero H2 attempted-unresolved events, two
+verified local model invocations, and exactly 2/2
+native-to-Runtime causal links. The H1 historical physical request
+was never altered.
+
+The H2 usage/billing reconciler returns PARTIAL (one of its three
+physical calls is not attributed to two self-reported logical calls;
+Provider-reported token charges are unknown). H1 remains BLOCKED.
+Post-run Python **1121/1121 PASS**, DSH Vitest **64/64 PASS**,
+TypeScript typecheck/build PASS. No further live Provider requests.

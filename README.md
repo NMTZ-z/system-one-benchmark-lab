@@ -80,6 +80,8 @@ limits and how no Active permissions were added.
 
 ### Native real-provider qualification status (Phase 8.3A)
 
+The subsequent [real Hermes H2 Shadow trial](docs/PHASE8_3_REAL_NATIVE_H2_REPORT.md) verified one native read-only task, 3/3 real StepFun Provider response lifecycles, two local Laya/MLX decisions, and 2/2 exact native-to-HTTP links. H1's missing historical Provider terminal record remains unresolved and Provider usage/cost attribution is partial; Phase 8.3A overall is **still BLOCKED** and Active is not authorized.
+
 The new [real StepFun H1 OFF native read report](docs/PHASE8_3_REAL_NATIVE_H1_REPORT.md) verifies the Agent tool/file outcome but records one unresolved upstream request (3 attempted, 2 HTTP 200), so real-provider acceptance stays **BLOCKED** and no further paid testing was initiated.
 
 The official Hermes isolated login now uses the safe standalone data Home under ~/.hermes/system-one-phase83lab, to reuse existing owner dependencies WITHOUT sharing credentials or configuration. The repository-private legacy Home required a separate PM dependency generation; do not use it for login. See the linked auth handoff.
