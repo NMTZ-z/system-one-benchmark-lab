@@ -135,3 +135,29 @@ def test_credential_registry_base_url_cannot_claim_proxy_readiness(fixture_home,
     result = unit.inspect(official_auth=True)
     assert result["credential_status"] == "READY"
     assert result["credential_stage_ready"] is True
+
+
+
+def test_strict_shared_test_home_shadow_mode_switch_does_not_touch_owner_facts(fixture_home,monkeypatch):
+    home,facts=fixture_home
+    unit.prepare()
+    old=facts.read_bytes()
+    from types import SimpleNamespace
+    monkeypatch.setattr(unit,"auth_state_from_text",lambda stdout,rc:"READY")
+    monkeypatch.setattr(unit.subprocess,"run",lambda *a,**kw:SimpleNamespace(stdout="stepfun: logged in",returncode=0))
+    monkeypatch.setattr(unit,"validate_provider_proxy_route",lambda *a,**kw:None)
+    import json
+    auth=home/"auth.json"
+    auth.write_text(json.dumps({"credential_pool":{"stepfun":[{
+        "source":"manual","auth_type":"api_key","access_token":"SYNTHETIC_NOT_REAL_KEY",
+        "base_url":unit.PROVIDER_ORIGIN
+    }]}}))
+    auth.chmod(0o600)
+    report=unit.set_test_mode("shadow")
+    assert report["production_changed"] is False
+    assert unit.inspect(official_auth=True)["mode"]=="shadow"
+    assert facts.read_bytes()==old
+    assert unit.set_test_mode("off")["mode"]=="off"
+    with pytest.raises(unit.TestHomeError,match="OFF and Shadow"):
+        unit.set_test_mode("active")
+    assert facts.read_bytes()==old

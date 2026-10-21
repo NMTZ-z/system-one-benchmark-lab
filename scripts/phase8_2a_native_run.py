@@ -152,7 +152,14 @@ def native_run(args: argparse.Namespace) -> dict:
     target = path / "output.txt"
     input_file = path / "input.txt"
     if args.scenario == "read_nonce":
-        input_file.write_bytes(READ_NONCE)
+        # Only the NEW 8.3 native test Home receives a fresh per-run
+        # independent secret oracle. Earlier 8.2A fixtures remain unchanged.
+        # Never print it or include it in the native Agent prompt.
+        expected_nonce = (
+            b"P83_HERMES_NATIVE_" + os.urandom(18).hex().encode("ascii")
+            if new_shared_hermes else READ_NONCE
+        )
+        input_file.write_bytes(expected_nonce)
         tool_name = "read_file" if args.platform == "hermes" else "read"
         # The nonce is deliberately NOT in this task prompt or any Gate input.
         prompt = (f"隔离的单步只读任务：请仅通过平台原生 {tool_name} 工具读取绝对路径 "
@@ -250,8 +257,8 @@ def native_run(args: argparse.Namespace) -> dict:
                     continue
             call_ids = {e.get("callId") for e in events if e.get("type") == "tool_call" and e.get("tool") == "read"}
             actual_results = [e for e in events if e.get("type") == "tool_result" and e.get("callId") in call_ids and e.get("status") == "completed"]
-            tool_reads_nonce = any(READ_NONCE.decode() in json.dumps(e.get("result"), ensure_ascii=False) for e in actual_results)
-            final_answer_has_nonce = any(READ_NONCE.decode() in str(e.get("text", "")) for e in events if e.get("type") == "final")
+            tool_reads_nonce = any(expected_nonce.decode() in json.dumps(e.get("result"), ensure_ascii=False) for e in actual_results)
+            final_answer_has_nonce = any(expected_nonce.decode() in str(e.get("text", "")) for e in events if e.get("type") == "final")
             read_proof = {
                 "read_tool_call_count": len(call_ids), "read_success_results": len(actual_results),
                 "native_read_proves_content": tool_reads_nonce,
@@ -260,7 +267,7 @@ def native_run(args: argparse.Namespace) -> dict:
         else:
             # Hermes public CLI summary alone does not provide native tool
             # result text evidence. Shadow hook state is audited separately.
-            read_proof = {"final_answer_matches_nonce": READ_NONCE.decode() in (path / "stdout.private.txt").read_text(errors="replace")}
+            read_proof = {"final_answer_matches_nonce": expected_nonce.decode() in (path / "stdout.private.txt").read_text(errors="replace")}
     after_state = _plugin_counts(args.hermes_home) if args.platform == "hermes" else {}
     model_usage = {}
     usage_path = path / "usage.private.json"
@@ -276,7 +283,7 @@ def native_run(args: argparse.Namespace) -> dict:
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "artifact_exact": target.exists() and target.read_bytes() == CONTENT if args.scenario == "write_single_file" else None,
         "input_sha256": hashlib.sha256(input_file.read_bytes()).hexdigest() if input_file.is_file() else None,
-        "input_unchanged": input_file.is_file() and input_file.read_bytes() == READ_NONCE if args.scenario == "read_nonce" else None,
+        "input_unchanged": input_file.is_file() and input_file.read_bytes() == expected_nonce if args.scenario == "read_nonce" else None,
         "read_proof": read_proof,
         "file_sha256": hashlib.sha256(target.read_bytes()).hexdigest() if target.is_file() else None,
         "provider_calls_counted_at_proxy": provider_after.get("used_run", 0),

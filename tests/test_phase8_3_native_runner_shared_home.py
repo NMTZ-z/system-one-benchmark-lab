@@ -86,3 +86,13 @@ def test_phase8_3_no_direct_model_runs_from_stage_validation(monkeypatch):
     with pytest.raises(ValueError, match="not authenticated"):
         runner._validate_native_hermes_home(TEST_HOME)
     # No network I/O or Agent subprocess was invoked in this test.
+
+
+
+def test_phase8_3_nonce_unique_without_being_put_into_user_prompt():
+    from pathlib import Path
+    text = (ROOT/"scripts/phase8_2a_native_run.py").read_text()
+    assert 'b"P83_HERMES_NATIVE_" + os.urandom(18).hex().encode("ascii")' in text
+    assert "input_file.write_bytes(expected_nonce)" in text
+    assert "input_file.read_bytes() == expected_nonce" in text
+    assert 'f"{input_file} 的完整文件内容' in text

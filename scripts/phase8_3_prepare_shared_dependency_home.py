@@ -207,14 +207,55 @@ def inspect(*, official_auth: bool = True) -> dict:
     }
 
 
+def set_test_mode(mode: str) -> dict:
+    """Atomically select OFF/Shadow only in the ONE fixed test data Home.
+
+    Does not change the primary default Home or the production gateway and
+    never starts a Provider/Runtime. Auth and source integrity are checked.
+    """
+    if mode not in {"off","shadow"}:
+        raise TestHomeError("test Home only supports OFF and Shadow")
+    info=inspect(official_auth=True)
+    if not info["credential_stage_ready"]:
+        raise TestHomeError("test credential and route must already be verified")
+    path=TEST_HOME/"config.yaml"
+    if path.is_symlink() or not path.is_file():
+        raise TestHomeError("unexpected test config path")
+    tmp=TEST_HOME/"config.yaml.phase83.tmp"
+    if tmp.exists() or tmp.is_symlink():
+        raise TestHomeError("refuse unexpected temporary file")
+    old=os.umask(0o077)
+    try:
+        with tmp.open("x",encoding="utf-8") as f:
+            f.write(yaml.safe_dump(safe_config(mode),sort_keys=False))
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.chmod(0o600)
+        tmp.replace(path)
+    finally:
+        os.umask(old)
+    current=inspect(official_auth=True)
+    if current["mode"]!=mode or not current["credential_stage_ready"]:
+        raise TestHomeError("test-only OFF/Shadow mode did not verify")
+    return {
+        "test_home": "~/.hermes/system-one-phase83lab",
+        "mode": mode,
+        "main_provider_requests": 0,
+        "production_changed": False,
+        "active_authority": "NOT_AUTHORIZED",
+    }
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     op = p.add_mutually_exclusive_group(required=True)
     op.add_argument("--prepare", action="store_true")
     op.add_argument("--check", action="store_true")
+    op.add_argument("--set-mode",choices=["off","shadow"])
     args = p.parse_args()
     try:
-        result = prepare() if args.prepare else inspect()
+        result = (prepare() if args.prepare else
+                  set_test_mode(args.set_mode) if args.set_mode else inspect())
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
         if args.check and not result["credential_stage_ready"]:
             raise SystemExit(3)

@@ -184,3 +184,8 @@ scripts/phase8_3_verify_real_h1.py
 tests/test_phase8_3_verify_real_h1.py
 docs/PHASE8_3_REAL_NATIVE_H1_REPORT.md
 results/processed/phase8_3_h1_real_stepfun_partial.json
+scripts/phase8_3_transport_closeout.py
+scripts/phase8_3_real_hermes_h2.py
+tests/test_phase8_3_transport_closeout.py
+tests/test_phase8_3_real_hermes_h2_safety.py
+docs/PHASE8_3_H2_PRERUN_PROTOCOL.md

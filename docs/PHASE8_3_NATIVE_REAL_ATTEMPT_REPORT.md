@@ -316,3 +316,40 @@ unknown Provider outcome was resolved.
 
 See Phase8.3 real H1 report and the processed H1 aggregate for the
 exact separated task/transport evidence boundary.
+
+## 14. H2 separate preregistration and local transport requalification
+
+The H2 Shadow-only preregistered protocol is published as
+PHASE8_3_H2_PRERUN_PROTOCOL.md, frozen before any real H2 request.
+It preserves the original H1 private Provider ledger and all three
+H1 physical reservations, including one unfinalized slot, when
+reserving any new H2 physical traffic. No prior request is refunded.
+
+Seven deterministic local HTTP fault-injection cases now cover
+delayed Provider completion after Agent disconnect, explicit
+unknown upstream outcome, historical ledger tampering, duplicate
+or undeclared run identity and shared physical budget caps.
+Separately, a REAL LOCAL Laya/MLX-only service returned two
+HTTP 200 Completion decisions, with key-based request/response
+identity matching, without a StepFun main Provider request.
+These are engineering preflight evidence, NOT native real-Agent H2.
+
+
+## 15. H2 offline preregistration regression
+
+A new scoped H2 Shadow-only runner and a shared H1/H2 physical
+Provider-ledger reader have been implemented without changing the
+original H1 record. Historical H1 data is checksum-pinned, and each
+new H2 request must remain within the same 24-global / 3-per-run
+reservation ledger. HTTP drain is limited to H2 while the unresolved
+H1 slot remains permanently unknown and Phase 8.3A overall stays
+BLOCKED until that historical limitation is separately adjudicated.
+
+Local-only delayed/disconnected Provider integration and concurrent
+ledger append/read tests passed. The real local Laya/MLX Runtime and
+HMAC observer each returned 2 completed Completion model decisions,
+without any main StepFun request.
+
+Full preflight Python 1102/1102 PASS, DSH 64/64 PASS, TS typecheck/build
+PASS. **No H2 real main-provider execution has occurred yet**.
+Read the separately frozen H2 pre-run protocol for acceptance limits.
