@@ -312,3 +312,69 @@ def test_retry_observer_saturation_drops_instead_of_blocking(monkeypatch):
         assert ctx.state.values["last_retry_escalation_shadow"]["action_reason"]=="retry_capacity_exhausted"
     finally:
         waiting.set()
+
+
+def test_retry_isolated_shadow_evidence_exact_native_failure_identity(monkeypatch):
+    """Retry owns a separate keyed request, but NEVER executes a native retry."""
+    from phase8_2b_native_correlate import ref
+    plugin=load_plugin()
+    fake_key=b"\x44"*32
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE","isolated-shadow-test-v1")
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX",fake_key.hex())
+    seen=[]
+    def fake_retry(_url,payload,_timeout,request_id):
+        seen.append(payload)
+        return {"retry":{
+            "workflow":"retry_escalation_gate",
+            "decision":"ask_user","guarded_decision":"ask_user",
+            "raw_model_decision":None,"decision_source":"rule",
+            "safety_override_reason":"retry_budget_unavailable",
+            "reason":"retry_budget_unavailable","backend":"rule",
+            "latency_ms":1.0,"confidence":1.0,
+            "request_id":request_id,"advisory_only":True,
+        },"error":None}
+    monkeypatch.setattr(plugin,"_safe_retry",fake_retry)
+    ctx=_ctx()
+    plugin.register(ctx)
+    kw=_failed(tool="read_file",session="H4-SYNTHETIC-SESSION",
+               turn="H4-SYNTHETIC-TURN",call="H4-SYNTHETIC-CALL")
+    kw["tool_name"]=kw.pop("function_name")
+    kw["error_type"]="tool_error"
+    ctx.hooks["post_tool_call"](**kw)
+    item=_wait(ctx)[0]
+    sid=kw["session_id"]
+    call=kw["tool_call_id"]
+    assert item["session_ref"]==ref(fake_key,"session",sid)
+    assert item["tool_call_ref"]==ref(fake_key,"tool_call",sid+"\x00"+call)
+    assert item["turn_ref"]==ref(fake_key,"turn",sid+"\x00"+kw["turn_id"])
+    assert item["decision_request_ref"]==ref(fake_key,"decision_request",item["request_id"])
+    assert item["native_stage"]=="tool_result"
+    assert item["response_request_id_matches"] is True
+    assert item["decision"]=="ask_user"
+    assert item["action_status"]=="observed"
+    assert item["action_reason"]=="retry_shadow_advisory_only"
+    assert seen[0]["history"]["retry_budget_available"] is False
+    assert kw["error_message"] not in str(item)
+    assert kw["function_args"]["secret"] not in str(item)
+    assert ctx.hooks["post_tool_call"](**kw) is None
+    assert len(_wait(ctx))==1  # no extra call from the shadow plug-in
+
+
+def test_retry_provenance_opt_in_never_leaks_without_test_key(monkeypatch):
+    plugin=load_plugin()
+    monkeypatch.delenv("LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE",raising=False)
+    monkeypatch.delenv("LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX",raising=False)
+    monkeypatch.setattr(plugin,"_safe_retry",lambda *_:{
+        "retry":None,"error":"missing"}
+    )
+    ctx=_ctx()
+    plugin.register(ctx)
+    failed=_failed(tool="read_file")
+    failed["tool_name"]=failed.pop("function_name")
+    ctx.hooks["post_tool_call"](**failed)
+    record=_wait(ctx)[0]
+    assert "session_ref" not in record
+    assert "turn_ref" not in record
+    assert "tool_call_ref" not in record
+    assert "decision_request_ref" not in record
+    assert "response_request_id_matches" not in record

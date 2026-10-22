@@ -210,3 +210,9 @@ tests/test_phase8_3_h4_failure_oracle.py
 tests/test_phase8_3_h4_offline_preflight.py
 tests/test_phase8_3_dsh_qualification_preflight.py
 tests/test_phase8_3_dsh_native_contract.py
+scripts/phase8_3_real_hermes_h4.py
+scripts/phase8_3_h4_retry_evidence.py
+scripts/phase8_3_refresh_test_plugin.py
+tests/test_phase8_3_real_hermes_h4_safety.py
+tests/test_phase8_3_h4_retry_evidence.py
+docs/PHASE8_3_REAL_H4_PREREGISTRATION.md
