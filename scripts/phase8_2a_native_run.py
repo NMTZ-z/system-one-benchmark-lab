@@ -362,6 +362,20 @@ def native_run(args: argparse.Namespace) -> dict:
     return report
 
 
+def native_cli_exit_code(report: dict) -> int:
+    """A failed underlying Hermes/DSH Agent MUST fail the test CLI process.
+
+    Prior to Phase 8.3 H4 this wrapper wrote process_exit_code=1 to its
+    private JSON but returned Unix exit 0. The parent process mistook that
+    exit 0 for a completed native task. The status is now one-to-one,
+    with no attempt to retry or repair a failed Agent task.
+    """
+    status=report.get("process_exit_code")
+    if report.get("timed_out") is True or type(status) is not int or status!=0:
+        return 3
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--platform", choices=["hermes", "dsh"], required=True)
@@ -391,6 +405,7 @@ def main():
     # Avoid path leaks in public console output; private report has full trace metadata.
     sanitized.pop("file_sha256", None)
     print(json.dumps(sanitized, ensure_ascii=False))
+    raise SystemExit(native_cli_exit_code(result))
 
 if __name__ == "__main__":
     main()

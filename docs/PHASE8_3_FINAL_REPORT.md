@@ -491,3 +491,51 @@ The original 8/24 cumulative Provider attempt budget is unchanged;
 historical H1 slot 1 remains unresolved and actual StepFun credits
 cannot be independently measured. PR #9 remains Draft; Active remains
 NOT_AUTHORIZED. See the dedicated H4/DSH offline qualification report.
+
+## 18. H4 Gateway-native admission block (2026-10-22)
+
+After 1231 pre-run Python tests, 64 DSH Vitest tests and a clean
+289-file public sanitizer, one H4 frozen failed-read attempt
+(sha a32eb078593cb4a9139c9aa181d017b9bb010298) was started.
+The test Home remained the previously isolated Shadow-only
+Hermes Home, main Provider solely StepFun Plan behind the
+24-global/3-case proxy. However the latest Hermes CLI one-shot
+first required the host Gateway. That production-owned multiplexing
+Gateway was already serving default and other existing Profiles,
+while the nonregistered H4 test Home was not served. The native CLI
+therefore refused startup BEFORE a native Agent Session, file-tool
+call, Completion/Retry Shadow observation or physical StepFun
+main-model request.
+
+The isolated H4 original missing-file target was never created.
+No H4 Provider slots were reserved or attempted. The original
+cumulative Provider ledger digest remains
+5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb:
+**8/24 physical attempts, 7 HTTP 200, original H1 1 unknown**.
+The test Home was returned to OFF and test-only services stopped;
+the production Gateway was NOT restarted, stopped, modified or
+forced to serve the test Home.
+
+The original frozen child Hermes process exited with code 1, but
+the native Python wrapper returned shell status 0, a false-success
+risk despite the outer H4 verifier correctly marking the overall
+result PARTIAL_OR_BLOCKED. Later code changed the wrapper to
+propagate a nonzero exit for any underlying Agent failure, timeout
+or unknown status. That correction does NOT retroactively change
+the H4 result. An independent read-only source+private evidence
+verifier confirms the Gateway refusal, no native Session and no
+Provider attempts, with only privacy-safe aggregate output.
+
+The installed official Hermes source still provides an in-process
+run_oneshot entry which directly creates AIAgent without connecting
+to the Gateway. This potential future alternative was verified by
+import/source inspection only and made no Provider calls. It is
+NOT a tested real Agent execution and H4 will not be automatically
+re-run. A future H4B requires a distinct preregistered case,
+clean SHA, original cumulative ledger and separate authorization.
+
+See [H4 Gateway admission incident](PHASE8_3_H4_GATEWAY_ADMISSION_INCIDENT.md).
+H4 Retry/Completion real-native E2E remains NOT RUN; H2/H3
+prior scoped PASS are preserved, DSH native D1–D4 remain NOT RUN
+pending owner-controlled independent credentials. Active remains
+NOT_AUTHORIZED; PR #9 stays Draft and unmerged.

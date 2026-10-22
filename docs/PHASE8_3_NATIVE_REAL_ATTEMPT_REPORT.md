@@ -517,3 +517,38 @@ made zero StepFun model calls, and DSH read-only SDK checks used no
 credential. Actual H4/D1–D4 Provider-backed tasks remain NOT RUN.
 The physical global Provider ledger remains at 8/24 attempts with
 H1's original unknown still unchanged.
+
+## 17. H4 one-shot blocked by host Gateway before Provider (2026-10-22)
+
+The H4 one-shot candidate was frozen as a32eb078593cb4a9139c9aa181d017b9bb010298
+and test Home set to Shadow. It started only isolated localhost
+Laya/MLX and observation/proxy processes; when the native Hermes
+-z CLI started, the current host-wide Gateway was already serving
+other profiles, and did not serve the standalone System One test
+Home. Hermes refused the additional Gateway startup before
+any native Session/file tool or main Provider request.
+
+Original private H4 child evidence records process_exit_code=1,
+an empty stdout/no usage, an unchanged absent-file target,
+zero actual native SQLite sessions and **0** physical H4
+reservations/attempts; the cumulative original Provider digest
+is unchanged from H3, still 8/24 with one H1 unknown.
+The outer test restored OFF and stopped all test-only listeners.
+
+A real safety bug was identified in the native child wrapper,
+which printed the true process_exit_code=1 but itself returned
+Unix exit 0. A later commit now treats any nonzero/missing/timeout
+native child as a failed wrapper. This corrected code was NOT
+the frozen H4 candidate and does not upgrade or overwrite the
+original incomplete H4 evidence.
+
+The installed official Hermes native in-process run_oneshot
+still constructs AIAgent directly, without a Gateway connection
+in that source path. It was inspected ONLY in a clean environment,
+no native task or StepFun request launched. H4 is NOT rerun.
+Any future direct-entry real experiment must be preregistered
+separately, never overwrite this H4 private original.
+
+See PHASE8_3_H4_GATEWAY_ADMISSION_INCIDENT.md and the read-only
+aggregator. Global real H4 E2E is BLOCKED_BEFORE_NATIVE_AGENT,
+not a real Retry Shadow failure result.

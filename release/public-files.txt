@@ -216,3 +216,8 @@ scripts/phase8_3_refresh_test_plugin.py
 tests/test_phase8_3_real_hermes_h4_safety.py
 tests/test_phase8_3_h4_retry_evidence.py
 docs/PHASE8_3_REAL_H4_PREREGISTRATION.md
+docs/PHASE8_3_H4_GATEWAY_ADMISSION_INCIDENT.md
+scripts/phase8_3_verify_h4_gateway_block.py
+scripts/phase8_3_hermes_direct_entry_preflight.py
+tests/test_phase8_3_verify_h4_gateway_block.py
+results/processed/phase8_3_h4_gateway_admission_blocked.json

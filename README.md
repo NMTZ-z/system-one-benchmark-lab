@@ -120,6 +120,19 @@ interactive credential plus a newly frozen bounded native executor.
 The same 8/24 physical original StepFun request ledger and its H1
 unknown outcome are unchanged.
 
+**2026-10-22 H4 admission incident:** The first frozen H4
+failed-read *startup attempt* was refused by the currently running
+host Hermes Gateway **before a native Agent Session, tool call or
+real StepFun request**. H4 consumed **zero new physical requests**;
+the original global request budget remains 8/24. An independent
+[H4 Gateway admission incident report](docs/PHASE8_3_H4_GATEWAY_ADMISSION_INCIDENT.md)
+documents why this is NOT a native Retry/fail-open result, as well
+as a fixed wrapper exit-code propagation bug. Source-only inspection
+found an official in-process Hermes one-shot engine that can avoid
+the Gateway start path, but it has NOT been run against a Provider.
+The H4 attempt is single-shot and will not be overwritten or
+automatically retried; any new trial needs its own frozen evidence.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.
