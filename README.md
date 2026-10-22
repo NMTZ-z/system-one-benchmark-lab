@@ -107,6 +107,19 @@ Phase 8.3A global Provider budget integrity remains **BLOCKED**.
 H4 and DSH D1–D4 real tasks have not run. These are scoped real
 read-only/Shadow proofs only; **Active/Canary is not authorized**.
 
+**2026-10-22 qualification update:** [H4's negative native read-file
+oracle and DSH independent-auth/SDK evidence prerequisites](docs/PHASE8_3_H4_DSH_OFFLINE_QUALIFICATION.md)
+have been tested **OFFLINE ONLY**. The actual Hermes read_file tool
+returned structured not_found/error fields and the installed tool
+observer derived status=error / error_type=tool_error, but no true
+H4 StepFun native Agent Retry/Completion observation was run.
+DSH OFF/Shadow native SDK control-plane initialization and strict
+typed SDK event contracts pass without a credential or main-model
+request. DSH real E2E still needs a separate owner-controlled
+interactive credential plus a newly frozen bounded native executor.
+The same 8/24 physical original StepFun request ledger and its H1
+unknown outcome are unchanged.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

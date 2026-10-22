@@ -201,3 +201,12 @@ docs/PHASE8_3_REAL_NATIVE_H3_REPORT.md
 scripts/phase8_3_verify_real_h3.py
 tests/test_phase8_3_verify_real_h3.py
 results/processed/phase8_3_h3_real_stepfun_runtime_down.json
+docs/PHASE8_3_H4_DSH_OFFLINE_QUALIFICATION.md
+scripts/phase8_3_h4_failure_oracle.py
+scripts/phase8_3_h4_offline_preflight.py
+scripts/phase8_3_dsh_qualification_preflight.py
+scripts/phase8_3_dsh_native_contract.py
+tests/test_phase8_3_h4_failure_oracle.py
+tests/test_phase8_3_h4_offline_preflight.py
+tests/test_phase8_3_dsh_qualification_preflight.py
+tests/test_phase8_3_dsh_native_contract.py

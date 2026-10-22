@@ -476,3 +476,44 @@ duplicated, missing or cross-run evidence.
 Final full regression: Python 1151/1151 PASS, DSH Vitest 64/64
 PASS, TypeScript typecheck and build PASS. H4 and DSH
 D1–D4 real Provider tasks remain NOT RUN.
+
+## 16. H4 failure-tool and DSH native evidence OFFLINE prequalification
+
+After the genuinely executed H3 fail-open task, the next phase
+focused on zero-provider hardening, not paid H4/DSH tests. Hermes'
+installed native read_file returned structured not_found and error
+for a purposely absent ignored private file, without generating
+or modifying the target. Its actual post-tool observer classifier
+returned status=error/error_type=tool_error. An H4-only test
+scenario now records a private original missing-file target before
+the future Agent runs and requires exactly one paired native
+read_file failure, not final-model self-report. Actual Retry Shadow
+observation is NOT YET ESTABLISHED by this unit-level evidence.
+
+The original global 8 StepFun reservations were verified byte-for-byte
+against the H1+H2+H3 published ledger digest. Future H4 is limited
+to append-only slots 9–11 within the old 24-global/3-case cap.
+Nothing was written to H1/H2/H3 historical results.
+
+DSH has a separate strict OFF/Shadow SDK patch and in-memory
+credential-environment contract that explicitly avoids copying
+the new Hermes Home's key. Native DSH session.event tool identities
+and typed isError are validated against synthetic success/failure
+fixtures. Actual DSH secure operator credential input and
+Provider-backed native run remain BLOCKED/NOT RUN.
+
+The distinction between H4 standalone typed tool-failure proof,
+true Agent native failure/advisory proof, independent native-to-HTTP
+correlation, Provider usage attribution and Active readiness is
+documented in PHASE8_3_H4_DSH_OFFLINE_QUALIFICATION.md.
+
+### H4/DSH no-Provider QA completion (2026-10-22)
+
+The H4 read-missing independent negative tool oracle and DSH native
+SDK credential/evidence checks passed the completed full regression:
+Python 1201/1201, DSH Vitest 64/64, TypeScript typecheck and build
+PASS. The Hermes file-tool failure and typed error derivation tests
+made zero StepFun model calls, and DSH read-only SDK checks used no
+credential. Actual H4/D1–D4 Provider-backed tasks remain NOT RUN.
+The physical global Provider ledger remains at 8/24 attempts with
+H1's original unknown still unchanged.

@@ -19,10 +19,12 @@ import time
 
 H1_ORIGINAL_SHA256 = "bded2cecb79bcf22a6cdb39a4186b99fb68e881651d18142de370e3b120133de"
 H2_ORIGINAL_SHA256 = "dbd2be172785d94ded75e264be1534f4f9396a33edf4bb4f555492604b6a7b3f"
+H3_ORIGINAL_SHA256 = "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb"
 H1 = "h1_read_off"
 H2 = "h2_read_shadow"
 H3 = "h3_runtime_down"
-NEW_SUPPORTED_RUNS = frozenset({H2,H3})
+H4 = "h4_missing_read"
+NEW_SUPPORTED_RUNS = frozenset({H2, H3, H4})
 TOTAL_CAP = 24
 PER_CASE_CAP = 3
 KINDS = frozenset({"reserved", "attempted", "responded", "outcome_unknown", "result"})
@@ -63,6 +65,8 @@ def _read(ledger: Path) -> tuple[list[dict], bytes]:
     # give the subsequent run an apparently clean historical budget.
     if len(lines)>22 and hashlib.sha256(b"".join(lines[:22])).hexdigest()!=H2_ORIGINAL_SHA256:
         raise CloseoutBlocked("original H1+H2 ledger prefix has been altered")
+    if len(lines)>30 and hashlib.sha256(b"".join(lines[:30])).hexdigest()!=H3_ORIGINAL_SHA256:
+        raise CloseoutBlocked("original H1+H2+H3 ledger prefix has been altered")
     records = []
     for line in lines:
         row = json.loads(line)
@@ -96,9 +100,9 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
             by[e["run"]][slot].append(e)
     if len(reservations) > TOTAL_CAP or sorted(reservations) != list(range(1, len(reservations)+1)):
         raise CloseoutBlocked("physical reservation count/ordering violated")
-    if set(reservations.values())-({H1,H2,H3}):
+    if set(reservations.values())-({H1,H2,H3,H4}):
         raise CloseoutBlocked("undeclared Provider task observed")
-    if new_run==H3:
+    if new_run in {H3,H4}:
         h2slots={s for s,r in reservations.items() if r==H2}
         if h2slots!={4,5,6}:
             raise CloseoutBlocked("original three H2 Provider slots missing")
@@ -108,6 +112,17 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         if any(e.get("http_status")!=200 for e in rows
                if e.get("run")==H2 and e.get("kind")=="responded"):
             raise CloseoutBlocked("original H2 upstream provider outcomes changed")
+    if new_run==H4:
+        # H4 cannot take H3's two completed physical slots or retroactively
+        # mark the Laya-runtime-down control as a local-MLX run.
+        if {s for s,r in reservations.items() if r==H3}!={7,8}:
+            raise CloseoutBlocked("original two H3 physical slots missing")
+        h3events=Counter(x["kind"] for y in by[H3].values() for x in y)
+        if h3events!={"attempted":2,"responded":2,"result":2}:
+            raise CloseoutBlocked("original H3 Provider terminal history changed")
+        if any(e.get("http_status")!=200 for e in rows
+               if e.get("run")==H3 and e.get("kind")=="responded"):
+            raise CloseoutBlocked("original H3 Provider outcomes changed")
     if set(s for s,r in reservations.items() if r == H1) != {1,2,3}:
         raise CloseoutBlocked("historical physical reservations changed")
     previous = by[H1]
@@ -116,7 +131,8 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         != {"attempted":3,"responded":2,"result":2}):
         raise CloseoutBlocked("original H1 history changed")
     slots = {s:v for s,v in by[new_run].items()}
-    if len(slots)>PER_CASE_CAP or any(s <= (6 if new_run==H3 else 3) for s in slots):
+    first_new_slot = 9 if new_run == H4 else 7 if new_run == H3 else 4
+    if len(slots)>PER_CASE_CAP or any(s < first_new_slot for s in slots):
         raise CloseoutBlocked("new Provider attempt outside authorized physical slots")
     stats = Counter()
     invalid = []
@@ -145,8 +161,12 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         "run_id": new_run,
         "reserved_global": len(reservations),
         "reserved_h1": 3,
-        "reserved_h2": 3 if new_run==H3 else len(
+        "reserved_h2": 3 if new_run in {H3,H4} else len(
             [s for s,r in reservations.items() if r==H2]),
+        "reserved_h3": (
+            2 if new_run == H4 else
+            len([s for s,r in reservations.items() if r==H3])
+        ),
         "reserved_new": len(slots),
         "attempted_new": stats["attempted"],
         "responded_new": stats["responded"],

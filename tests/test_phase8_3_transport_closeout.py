@@ -346,3 +346,56 @@ def test_h3_history_refuses_mutated_H2_prefix(monkeypatch,tmp_path):
     p.write_bytes(b"".join(json.dumps(x,sort_keys=True).encode()+b"\n" for x in records))
     with pytest.raises(c.CloseoutBlocked,match="original H1\\+H2 ledger prefix"):
         c.audited_snapshot(p,new_run=c.H3)
+
+
+def test_h4_append_preserves_original_H1_H2_H3_ledger(tmp_path, monkeypatch):
+    import phase8_3_transport_closeout as c
+    from hashlib import sha256
+    p=tmp_path/"append_only_ledger.jsonl"
+    rows=[]
+    for slot in range(1,9):
+        owner=c.H1 if slot<=3 else c.H2 if slot<=6 else c.H3
+        rows.extend((
+            {"kind":"reserved","run":owner,"slot":slot},
+            {"kind":"attempted","run":owner,"slot":slot},
+        ))
+        if slot!=1:
+            rows.extend((
+                {"kind":"responded","run":owner,"slot":slot,"http_status":200},
+                {"kind":"result","run":owner,"slot":slot,
+                 "http_status":200,"duration_ms":5.0},
+            ))
+    raw=b"".join(json.dumps(row,sort_keys=True).encode()+b"\n" for row in rows)
+    assert len(rows)==30
+    monkeypatch.setattr(c,"H1_ORIGINAL_SHA256",sha256(
+        b"".join(json.dumps(row,sort_keys=True).encode()+b"\n" for row in rows[:10])
+    ).hexdigest())
+    monkeypatch.setattr(c,"H2_ORIGINAL_SHA256",sha256(
+        b"".join(json.dumps(row,sort_keys=True).encode()+b"\n" for row in rows[:22])
+    ).hexdigest())
+    monkeypatch.setattr(c,"H3_ORIGINAL_SHA256",sha256(raw).hexdigest())
+    p.write_bytes(raw)
+    h4=c.audited_snapshot(p,new_run=c.H4)
+    assert h4["reserved_global"]==8
+    assert h4["reserved_h3"]==2
+    assert h4["reserved_new"]==0
+    assert h4["historic_h1_unresolved"]==1
+    ledger=BudgetLedger(p,total_limit=24,per_run_limit=3)
+    for _ in range(3):
+        slot=ledger.reserve(c.H4)
+        assert slot>=9
+        ledger.mark(c.H4,slot,"attempted")
+        ledger.mark(c.H4,slot,"responded",200)
+        ledger.finish(c.H4,slot,200,5.0)
+    assert ledger.reserve(c.H4) is None
+    final=c.audited_snapshot(p,new_run=c.H4)
+    assert final["reserved_global"]==11
+    assert final["reserved_new"]==3
+    assert final["new_run_status"]=="SCOPE_COMPLETE"
+    assert final["historic_h1_unresolved"]==1
+    assert final["overall_phase_8_3a_integrity"]=="BLOCKED_HISTORICAL_UNRESOLVED"
+    assert p.read_bytes().startswith(raw)
+    data=p.read_bytes().replace(b'"http_status": 200',b'"http_status": 201',1)
+    p.write_bytes(data)
+    with pytest.raises(c.CloseoutBlocked,match="original H1 ledger"):
+        c.audited_snapshot(p,new_run=c.H4)

@@ -416,3 +416,78 @@ without altering H2's original acceptance. See the separate
 [H3 real report](PHASE8_3_REAL_NATIVE_H3_REPORT.md),
 [H3 preregistration](PHASE8_3_REAL_H3_PREREGISTRATION.md) and
 privacy-safe H3 machine-readable aggregate.
+
+## 17. H4 failing-native-tool oracle and DSH credential isolation (2026-10-22)
+
+This update is OFFLINE engineering qualification only. No extra
+StepFun main Provider call was made beyond the eight physical
+attempts already recorded in H1/H2/H3 (7 terminal HTTP 200,
+1 original H1 unknown).
+
+The H4-only native runner scenario has been limited to
+read_missing with Hermes, Shadow, the exact h4_missing_read case ID
+and original 24/3 physical request budget. A pre-Agent private
+target manifest records a new randomized ABSENT disposable file;
+the native tool must make one read_file call and return true
+structured not_found/error bytes paired to the tool-call ID.
+Agent final prose by itself is never a negative tool-result oracle.
+Pure synthetic independent SQLite tests reject altered targets,
+fake successes, duplicates, unrelated tools, missing IDs and
+unexpected side effects.
+
+Critically, a zero-Provider direct call to the actually installed
+Hermes read_file and its typed result observer was executed:
+the file stayed absent, the returned JSON carried not_found=true,
+and Hermes' observer classifier derived status=error,
+error_type=tool_error. This establishes a necessary typed failure
+signal for a subsequent Retry Shadow test, but the full Agent
+post_tool_call event and actual Retry advisory remain NOT VERIFIED
+until a real one-shot H4 native task. No active retry was enabled.
+
+The cumulative ledger reader now reserves slots 9 onward for
+H4 and checks SHA-256 of the entire original 30-row H1+H2+H3
+prefix. Its three historical case results remain independently
+reproducible and the H1 missing terminal is not backfilled or
+refunded. No budget reset occurred.
+
+For DeepSeek Harness, the existing pinned native SDK OFF/Shadow
+bootstrap has again passed without model calls or credentials.
+A new separate read-only admission checker verifies the exact
+pinned upstream commit, StepFun single-model loopback patch,
+zero SDK retry, non-Active Gate, securely scoped private HOME
+and unchanged 8-physical-request global ledger. The DSH native
+session.event validator requires one paired read tool call/result,
+matched Session/Turn identity and correctly typed isError for
+D1–D4; synthetic tampering is rejected. This DOES NOT prove
+real DSH model execution, original bytes, keyed HTTP correlation
+or any paid Provider usage.
+
+DSH real E2E is still BLOCKED_PENDING_OWNER_SECURE_INPUT:
+the DSH SDK references STEPFUN_API_KEY only by name, not by
+an embedded token. A future separately authorized, one-shot
+DSH native runner will require an owner-entered process-scoped key,
+hard budget/route attestation and a real independent tool oracle.
+No old Hermes test Home or production credential was read or copied.
+
+Read the distinct [H4/DSH offline qualification and acceptance
+criteria](PHASE8_3_H4_DSH_OFFLINE_QUALIFICATION.md). PR #9 remains
+Draft; overall historical Phase 8.3A real-provider integrity
+BLOCKED, fee/token savings NOT MEASURED, Active NOT_AUTHORIZED.
+
+### Phase 8.3A post-H4/DSH offline regression (2026-10-22)
+
+The no-Provider H4 negative tool/read-failure and DSH SDK native
+evidence design passed full regression **Python 1201/1201 PASS**,
+**DSH 64/64 PASS**, TS typecheck/build PASS. The H4-only read_missing
+scenario and original private manifest are guarded by strict
+platform/ID/mode and an independently absent file oracle; Hermes
+native tool error and typed observer classification were exercised
+without a model call. DSH native SDK OFF/Shadow init remained
+credential-empty and its model/provider patch restricted to localhost
+18794 and zero provider-owned retries. Actual H4/DSH native StepFun
+execution is **NOT RUN** and remains separate from this evidence.
+
+The original 8/24 cumulative Provider attempt budget is unchanged;
+historical H1 slot 1 remains unresolved and actual StepFun credits
+cannot be independently measured. PR #9 remains Draft; Active remains
+NOT_AUTHORIZED. See the dedicated H4/DSH offline qualification report.
