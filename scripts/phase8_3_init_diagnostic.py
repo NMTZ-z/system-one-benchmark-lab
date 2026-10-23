@@ -16,6 +16,7 @@ import time
 import uuid
 
 CASES = ("init", "init_repeat", "empty_stepfun", "request_boundary",
+         "bootstrap_pm_readonly",
          "bootstrap:exit", "provider:exit", "mcp:error", "constructor:exit",
          "tools:exit", "constructor:crash", "constructor:timeout")
 CHILD = Path(__file__).with_name("phase8_3_init_child.py").resolve()
@@ -45,37 +46,27 @@ def quoted(path: Path) -> str:
 
 
 def build_policy(*, owner: Path, readable: list[Path], mutable: Path) -> str:
-    """Boot-compatible OS reads; deny every unrelated user subtree."""
+    """Fixed data allowlist; metadata supports dyld and Python symlinks."""
     allowed = [p.resolve(strict=True) for p in readable] + [mutable.resolve(strict=True)]
-    denied = []
-
-    def restrict(path):
-        if path in allowed:
-            return
-        if any(p.is_relative_to(path) for p in allowed):
-            if path.is_symlink():
-                raise ValueError("symlink in sandbox scope")
-            for entry in path.iterdir():
-                restrict(entry)
-        else:
-            denied.append(f"(deny file-read* (subpath {quoted(path)}))")
-
-    restrict(owner.parent)
-    # No other user data, removable volume or ambient scratch access.
-    for path in (Path("/Volumes"), Path("/private/tmp"), Path("/private/var/folders")):
-        if path.exists():
-            restrict(path)
+    excluded = (owner.parent, Path("/Users"), Path("/Volumes"), Path("/private/tmp"),
+                Path("/tmp"), Path("/private/var/folders"), Path("/var/folders"))
+    system_reads = " ".join(f"(require-not (subpath {quoted(p)}))" for p in excluded)
+    grants = [f"(allow file-read* (subpath {quoted(p)}))" for p in allowed]
     return "\n".join([
         "(version 1)", "(deny default)", "(allow process-exec)",
-        "(allow sysctl-read)", "(allow file-read*)", *denied,
+        "(allow sysctl-read)", "(allow file-read-metadata)",
+        f"(allow file-read* (require-all {system_reads}))", *grants,
         f"(allow file-write* (subpath {quoted(mutable.resolve())}))",
         '(allow file-write* (literal "/dev/null"))', "",
     ])
 
 
 def identity(pid: int) -> dict | None:
-    result = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "uid=,pgid=,lstart="],
-                            capture_output=True, text=True, timeout=3)
+    try:
+        result = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "uid=,pgid=,lstart="],
+                                capture_output=True, text=True, timeout=3)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
     parts = result.stdout.strip().split(maxsplit=2)
     if result.returncode or len(parts) != 3:
         return None
@@ -116,6 +107,51 @@ def environment(mutable: Path) -> dict:
     }
 
 
+def archive_database(home: Path, destination: Path) -> None:
+    """After reaping: SQLite's backup API includes committed WAL frames."""
+    db = home / "hermes/state.db"
+    if db.exists():
+        with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as src:
+            with sqlite3.connect(destination) as dst:
+                src.backup(dst)
+                if dst.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                    raise RuntimeError("archived SQLite integrity failed")
+
+
+def verdict(result: dict) -> str:
+    if not all(result[k] for k in ("isolation_admitted", "restored", "owned_group_stopped",
+                                   "protected_sentinel_unchanged")):
+        return "SAFETY_BLOCKED"
+    case = result["case"]
+    if case in {"init", "init_repeat"}:
+        expected = (result["constructor_returned"] and result["boundaries"] == ["constructor_complete"]
+                    and result["process_exit"] == 0 and not result["timed_out"]
+                    and result["native_session_rows"] == 0)
+    elif case == "request_boundary":
+        expected = (result["constructor_returned"] and result["boundaries"] == ["sdk_request_prepared"]
+                    and result["process_exit"] == 72 and result["native_session_rows"] == 1
+                    and not result["timed_out"])
+    elif case == "empty_stepfun":
+        expected = (not result["constructor_returned"] and not result["boundaries"]
+                    and result["native_session_rows"] in (None, 0)
+                    and any(e["exception"]["type"] == "AuthError" for e in result["stage_exceptions"]))
+    elif case == "bootstrap_pm_readonly":
+        expected = (not result["constructor_returned"] and not result["boundaries"]
+                    and any(e["file"] == "hermes_bootstrap.py" for e in result["exit_origins"])
+                    and any(e["file"] == "hermes_cli/runtime_state.py" and
+                            e["exception"]["type"] == "PermissionError" for e in result["stage_exceptions"]))
+    else:
+        stage, kind = case.split(":")
+        expected = result["fault_injected"] == [stage] and not result["boundaries"]
+        expected &= (result["timed_out"] and result["process_exit"] < 0) if kind == "timeout" else (
+            not result["timed_out"] and result["process_exit"] == (71 if kind == "crash" else 0))
+        if kind == "exit":
+            expected &= result["outcome"].get("exception", {}).get("type") == "SystemExit"
+        if kind == "error":
+            expected &= result["outcome"].get("oneshot_return") == 1
+    return "PASS_EXPECTED_OFFLINE_BEHAVIOR" if expected else "BLOCKED_UNEXPECTED_NATIVE_BEHAVIOR"
+
+
 def verify_case(case_dir: Path) -> dict:
     """Read actual files/SQLite/process state, never trust a child PASS flag."""
     manifest = json.loads((case_dir / "manifest.json").read_text())
@@ -126,7 +162,8 @@ def verify_case(case_dir: Path) -> dict:
     admission = json.loads(admission_file.read_text()) if admission_file.exists() else {}
     events_file = post / "events.jsonl"
     events = [json.loads(x) for x in events_file.read_text().splitlines()] if events_file.exists() else []
-    db = post / "home/hermes/state.db"
+    outcome_file = post / "outcome.json"
+    db = case_dir / "session-snapshot.db"
     sessions = None
     if db.exists():
         # Original child has been reaped; inspect the archived disposable DB.
@@ -138,6 +175,7 @@ def verify_case(case_dir: Path) -> dict:
     stopped = not group_alive(process["pgid"])
     result = {
         "case": manifest["case"], "isolation_admitted": bool(admission) and all(admission.values()),
+        "outcome": json.loads(outcome_file.read_text()) if outcome_file.exists() else {},
         "restored": restored, "owned_group_stopped": stopped,
         "protected_sentinel_unchanged": digest(case_dir / "forbidden") == manifest["sentinel_sha256"],
         "boundaries": boundaries, "native_session_rows": sessions,
@@ -152,6 +190,7 @@ def verify_case(case_dir: Path) -> dict:
         "external_provider_requests": 0 if admission.get("network_denied") else None,
         "evidence_kind": "real_native_initialization_offline_only",
     }
+    result["verdict"] = verdict(result)
     return result
 
 
@@ -163,11 +202,18 @@ def run_case(root: Path, source: Path, python: Path, case: str, timeout: float =
     for suffix in ("home/hermes", "tmp", "cache"):
         (mutable / suffix).mkdir(parents=True, mode=0o700)
     config = {"model": {"default": "diagnostic-model", "provider": "custom",
-                        "base_url": "http://127.0.0.1:1/v1", "context_length": 32768},
+                        "base_url": "http://127.0.0.1:1/v1", "context_length": 131072},
               "mcp_servers": {}, "memory": {"memory_enabled": False, "user_profile_enabled": False},
               "compression": {"enabled": False}}
     (mutable / "home/hermes/config.yaml").write_text(json.dumps(config))
     (mutable / "home/hermes/.env").write_text("")
+    pm_lock = None
+    if case == "bootstrap_pm_readonly":
+        install_key = hashlib.sha256(str(source).encode()).hexdigest()[:16]
+        state = mutable / "home/hermes/installs" / install_key
+        state.mkdir(parents=True)
+        pm_lock = state / ".install.lock"
+        pm_lock.write_text("")
     forbidden = case_dir / "forbidden"
     forbidden.write_text("synthetic-protected-baseline")
     manifest = {"case": case, "baseline": snapshot(mutable), "sentinel_sha256": digest(forbidden)}
@@ -175,6 +221,8 @@ def run_case(root: Path, source: Path, python: Path, case: str, timeout: float =
     shutil.copytree(mutable, case_dir / "before")
     policy = build_policy(owner=Path.home(), readable=[source, CHILD, python.parent.parent,
                           python.resolve().parent.parent], mutable=mutable)
+    if pm_lock is not None:
+        policy += f"(deny file-write* (literal {quoted(pm_lock)}))\n"
     (case_dir / "policy.sb").write_text(policy)
     env = environment(mutable)
     if case == "empty_stepfun":
@@ -206,6 +254,7 @@ def run_case(root: Path, source: Path, python: Path, case: str, timeout: float =
         raise RuntimeError("live group remains; refuse restoration")
     owned.update(exit=proc.returncode, timed_out=timed_out)
     (case_dir / "process.json").write_text(json.dumps(owned, indent=2))
+    archive_database(mutable / "home", case_dir / "session-snapshot.db")
     snapshot(mutable)  # refuse link traversal before archival/restoration
     shutil.copytree(mutable, case_dir / "post")
     shutil.rmtree(mutable)
@@ -246,10 +295,11 @@ def main() -> int:
         result = run_case(root, source, python, case)
         results.append(result)
         print(json.dumps(result), flush=True)
-        if not all(result[k] for k in ("isolation_admitted", "restored", "owned_group_stopped", "protected_sentinel_unchanged")):
+        if result["verdict"] == "SAFETY_BLOCKED":
             break
     (root / "results.json").write_text(json.dumps(results, indent=2))
-    return 0 if len(results) == len(plan["cases"]) and all(r["isolation_admitted"] for r in results) else 3
+    return 0 if len(results) == len(plan["cases"]) and all(
+        r["verdict"] == "PASS_EXPECTED_OFFLINE_BEHAVIOR" for r in results) else 3
 
 
 if __name__ == "__main__":

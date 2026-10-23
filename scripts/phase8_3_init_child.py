@@ -131,7 +131,7 @@ def run(source: Path, mutable: Path, case: str, forbidden: Path) -> int:
             emit("exit_origin", stage or "import_or_dependency", file=relative,
                  function=frame.f_code.co_name, line=frame.f_lineno,
                  exception=exception_record(arg[1], source))
-        elif event == "exception" and isinstance(arg[1], (PermissionError, RuntimeError)):
+        elif event == "exception" and (stage or isinstance(arg[1], (PermissionError, RuntimeError))):
             emit("stage_exception", stage or "import_or_dependency", file=relative,
                  function=frame.f_code.co_name, line=frame.f_lineno,
                  exception=exception_record(arg[1], source))
@@ -154,7 +154,9 @@ def run(source: Path, mutable: Path, case: str, forbidden: Path) -> int:
 
             def stop_sdk(*args, **kwargs):
                 emit("boundary_reached", "sdk_request_prepared")
-                raise StopBeforeRequest(0)
+                # Hermes catches worker BaseExceptions and retries. A bounded
+                # child exit is the only stop here that cannot start another turn.
+                os._exit(72)
 
             Completions.create = stop_sdk
         emit("call", "official_entry")
