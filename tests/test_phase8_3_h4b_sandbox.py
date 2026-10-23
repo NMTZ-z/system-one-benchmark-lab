@@ -47,9 +47,12 @@ def test_build_policy_limits_native_mac_write_and_local_ports(fake_profile):
     assert f'(allow file-write* (subpath "{case}"))' in policy
     assert f'(allow file-write* (subpath "{state.parent}"))' in policy
     assert f'(deny file-write* (literal "{auth}"))' in policy
+    assert '(allow file-write* (literal "/dev/null"))' in policy
     assert f'(allow file-write* (subpath "{home}"))' not in policy
     assert f'(allow file-write* (literal "{home/"state.db"}"))' in policy
     assert 'localhost:18793' in policy and 'localhost:18794' in policy
+    assert 'subpath "/dev"' not in policy  # only the harmless exact null sink
+    assert '(allow file-write* (literal "/dev/null"))' in policy
     assert "api.stepfun.com" not in policy
     assert "(allow network-outbound)" not in policy
     assert "production" not in policy
@@ -80,12 +83,12 @@ print(json.dumps(observed))
              "/usr/bin/python3","-c",program,
              str(case/"allowed.private.txt"),str(auth),
              str(home/"config.yaml"),str(outside),
-             str(state.parent/"plugin-new.private.txt")],
+             str(state.parent/"plugin-new.private.txt"),"/dev/null"],
             capture_output=True,text=True,timeout=15,
         )
         assert result.returncode==0,result.stderr[-250:]
         observed=json.loads(result.stdout)
-        assert observed==[True,False,False,False,True]
+        assert observed==[True,False,False,False,True,True]
         assert auth.read_text()=='{"synthetic_only":true}'
         assert not outside.exists()
     finally:

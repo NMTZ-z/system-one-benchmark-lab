@@ -588,3 +588,53 @@ and the unknown H1 historical slot are unchanged;
 remaining 16 cannot be interpreted as automatic
 authorization. No Active/Canary authority granted.
 See the [H4B reversible preregistration protocol](PHASE8_3_REAL_H4B_REVERSIBLE_PREREGISTRATION.md).
+
+## 20. Original H4B Seatbelt safe-denial and complete rollback (2026-10-23)
+
+Frozen, preregistered real H4B source
+633c914fe9b78b7515cfcfbe4795f5d2dbd3aadf
+started its own isolated MLX, keyed HTTP Observer and
+physical-budget proxy after a durable test-Home SQLite/plugin/
+config recovery snapshot. The official Hermes in-process
+run_oneshot was entered under macOS Seatbelt, but failed
+BEFORE AIAgent construction when it attempted to open
+/dev/null to suppress stdout/stderr, which the prior default
+deny write policy had not permitted.
+
+**Actual H4B native Session/tool and Provider calls: ZERO.**
+This is NOT a failed-read native/Retry result. The original
+absent-file target remained absent; no true Completion or Retry
+HTTP evidence was generated. The original cumulative StepFun
+physical ledger is unchanged at 8/24, seven HTTP 200, one H1
+historical UNKNOWN.
+
+The original orchestrator did not rerun. It terminated its
+own 4 registered process groups, attested PID/UID/PGID/start
+identity, archived postrun private SQLite/plugin state and
+restored the original isolated test Home SQLite logical digest,
+plugin state/source, config and OFF mode. The isolated auth.json
+metadata did not change; the test-only network listeners stopped,
+production Hermes Gateway/other profiles, NAS and GitHub main
+were not modified.
+
+An independent private-evidence-to-public verifier checked
+the original frozen H4B exit 1, /dev/null permission failure,
+zero H4B Session, unchanged original file, 4/4 stopped process
+groups, real Provider tally and successful durable rollback.
+The public aggregate deliberately states
+BLOCKED_BEFORE_NATIVE_AGENT_CONSTRUCTION.
+
+After the original run, a NEW code revision granted only
+macOS /dev/null write access, not arbitrary disk/network
+privileges, and strengthened the offline rehearsal to CALL
+the official run_oneshot preamble with an in-memory synthetic
+Agent stub (no real Agent/Provider or key access). That
+strict zero-network rehearsal PASSED while the original
+test Home SQLite/plugin/config/auth metadata remained unchanged.
+This later fix does NOT retrospectively qualify H4B;
+future H4C would require separate original source/case
+preregistration and explicit admission.
+
+See [H4B true Seatbelt admission incident](PHASE8_3_H4B_SEATBELT_ADMISSION_INCIDENT.md).
+The overall Phase8.3A budget/billing caveat, lack of Active
+authority and Draft PR status are unchanged.

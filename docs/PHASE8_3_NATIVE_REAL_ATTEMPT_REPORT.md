@@ -583,3 +583,37 @@ the original H4 Gateway-block attempt has 0. H4B new
 real Provider-backed native qualification remains subject
 to an exact clean frozen SHA and a separate one-shot run.
 No historical record is retroactively altered or consumed.
+
+## 19. H4B one-shot Seatbelt admission blocked by /dev/null, rollback verified
+
+The first distinct H4B real-native-source experiment was frozen
+at 633c914fe9b78b7515cfcfbe4795f5d2dbd3aadf.
+The enforced macOS sandbox denied the official Hermes
+run_oneshot's open(os.devnull, "w") before creating AIAgent.
+The underlying one-shot returned exit 1, with zero native
+SQLite Session/tool records, zero real StepFun requests,
+zero Completion/Retry Gate HTTP events. This does not
+answer the intended H4B native tool-failure/Retry question.
+
+ALL 4 original H4B-owned process groups were verified
+stopped by owner PID/PGID/start-time metadata. The
+test Home original SQLite/plugin state/source/config
+and OFF mode were restored using the pre-run private
+checkpoint; test auth metadata unchanged. No original
+H4B attempt or recovery proof was overwritten or
+retried, and no user production Gateway/Agent was touched.
+
+A POSTRUN source revision permits only the system /dev/null
+output sink, while still denying all production files,
+all external network and non-H4B tool access.
+A strict all-network-denied offline rehearsal then
+successfully called the real Hermes one-shot preamble
+with synthetic _run_agent replacing the actual model
+call; original test Home read-only digests matched.
+No Provider expenditure occurred.
+
+The original shared StepFun ledger remains 8 physical
+attempts; H1 slot 1 unknown and Phase8.3A global
+integrity remain BLOCKED. H4C (if later considered)
+must be a new pre-registered case, never an
+automatic retry of H4B.

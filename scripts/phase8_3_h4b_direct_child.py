@@ -137,10 +137,36 @@ def main() -> None:
         if error is not None or selected!=[CUSTOM_TOOLSET]:
             raise DirectAgentBlocked("actual in-process one-shot toolset validation failed")
         if args.check_offline:
+            # Do not stop at merely importing run_oneshot: Hermes' entry
+            # writes /dev/null for stdout/stderr redirection BEFORE any
+            # actual AIAgent is constructed. Exercise its genuine preamble
+            # with a synthetic _run_agent stub, NO main model/Provider.
+            import io
+            from contextlib import redirect_stdout
+            import hermes_cli.oneshot as original_oneshot
+            previous=original_oneshot._run_agent
+            def no_model_simulator(*positional,**keywords):
+                return "H4B_OFFLINE_NO_NETWORK",{
+                    "completed":True,"failed":False,
+                }
+            output=io.StringIO()
+            original_oneshot._run_agent=no_model_simulator
+            try:
+                with redirect_stdout(output):
+                    rc=run_oneshot(
+                        "H4B_SYNTHETIC_OFFLINE",
+                        model=MODEL,provider=PROVIDER,
+                        toolsets=[CUSTOM_TOOLSET],usage_file=None,
+                    )
+            finally:
+                original_oneshot._run_agent=previous
+            if rc!=0 or "H4B_OFFLINE_NO_NETWORK" not in output.getvalue():
+                raise DirectAgentBlocked("native one-shot stdout/credential-free preamble failed")
             print(json.dumps({
                 "schema":"local-system-one/phase8_3-h4b-direct-native-child-v1",
                 **guard,
                 "official_hermes_inprocess_engine_imported":callable(run_oneshot),
+                "official_oneshot_preamble_zero_provider_passed":True,
                 "test_Hermes_home":"fixed_isolated_only",
                 "real_Agent_invoked":False,
                 "active_authority":"NOT_AUTHORIZED",

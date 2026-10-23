@@ -236,3 +236,7 @@ tests/test_phase8_3_h4b_adjudicate.py
 scripts/phase8_3_h4b_owned_processes.py
 scripts/phase8_3_h4b_offline_rehearsal.py
 tests/test_phase8_3_h4b_owned_processes.py
+docs/PHASE8_3_H4B_SEATBELT_ADMISSION_INCIDENT.md
+scripts/phase8_3_verify_h4b_seatbelt_block.py
+tests/test_phase8_3_verify_h4b_seatbelt_block.py
+results/processed/phase8_3_h4b_seatbelt_admission_blocked.json

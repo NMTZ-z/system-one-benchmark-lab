@@ -148,6 +148,23 @@ No additional physical Provider requests were made by this
 source preparation; original H1/H2/H3 ledger remains 8/24
 and original H4 remains blocked before the native Agent.
 
+**Real H4B one-shot outcome (2026-10-23):** The frozen reversible
+H4B test started its isolated MLX/observer/budget services and a
+macOS Seatbelt-protected official in-process Hermes one-shot.
+It then **safely FAILED BEFORE constructing AIAgent** because the
+sandbox denied the official one-shot's write to /dev/null for
+stdout/stderr suppression. **Zero additional StepFun Provider
+requests**; the original global tally remains 8/24. All four
+H4B-owned process groups stopped, the isolated test Home
+SQLite/plugin/config was restored to its original OFF state, and
+test auth metadata stayed unchanged. The [independent H4B
+incident/rollback report](docs/PHASE8_3_H4B_SEATBELT_ADMISSION_INCIDENT.md)
+preserves this as an admission BLOCK, not native tool/Retry PASS.
+A later fix allows only /dev/null writes and a zero-network
+synthetic run through the official one-shot preamble passed,
+but **H4B was not rerun**, its private original was not erased,
+and any successor real run needs its own new frozen case.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

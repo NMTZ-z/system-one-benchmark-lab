@@ -93,26 +93,51 @@ def run() -> dict:
         # only the disposable case writable, ALL network denied.
         safe_lines=[]
         allowed_write=f'(allow file-write* (subpath "{case}"))'
+        devnull_write='(allow file-write* (literal "/dev/null"))'
         for line in policy.splitlines():
             line=line.strip()
-            if line.startswith("(allow file-write*") and line!=allowed_write:
+            if line.startswith("(allow file-write*") and line not in {
+                    allowed_write,devnull_write}:
                 continue
             if line.startswith("(allow network-outbound"):
                 continue
             safe_lines.append(line)
         policy="\n".join(safe_lines)+"\n"
-        if policy.count("(allow file-write*")!=1 or "(allow network-outbound" in policy:
+        if (policy.count("(allow file-write*")!=2
+                or devnull_write not in policy
+                or "(allow network-outbound" in policy):
             raise RehearsalBlocked("offline Seatbelt policy is not strictly narrower")
         source_code=r'''
 import json,sys
 from pathlib import Path
 sys.path.insert(0,str(Path.home()/".hermes/hermes-agent"))
+import io
+from contextlib import redirect_stdout
+import hermes_cli.oneshot as official_oneshot
 from hermes_cli.oneshot import run_oneshot,_validate_explicit_toolsets
 from toolsets import create_custom_toolset,resolve_toolset
 create_custom_toolset("phase83-h4b-one-read-file-only",
   "H4B offline one native read-only tool",tools=["read_file"])
 selected,error=_validate_explicit_toolsets(["phase83-h4b-one-read-file-only"])
+# Exercise REAL official run_oneshot preamble and /dev/null redirection,
+# but replace ONLY _run_agent with a synthetic callable that does not
+# construct a main LLM client, open auth.json or send any HTTP request.
+before=official_oneshot._run_agent
+def synthetic_no_llm_agent(*args,**kwargs):
+ return "H4B_OFFLINE_STDIO_ONLY",{"completed":True,"failed":False}
+official_oneshot._run_agent=synthetic_no_llm_agent
+captured=io.StringIO()
+try:
+ with redirect_stdout(captured):
+  code=run_oneshot("SYNTHETIC_NO_PROVIDER",model="step-5-preview",
+         provider="stepfun",
+         toolsets=["phase83-h4b-one-read-file-only"],
+         usage_file=None)
+finally:
+ official_oneshot._run_agent=before
+wrapper_verified=(code==0 and "H4B_OFFLINE_STDIO_ONLY" in captured.getvalue())
 v={
+ "official_oneshot_stdio_preamble_passed_without_main_Agent":wrapper_verified,
  "genuine_Hermes_engine_imported":callable(run_oneshot),
  "only_native_read_file_advertised":resolve_toolset("phase83-h4b-one-read-file-only")==["read_file"],
  "official_toolset_validated":error is None and selected==["phase83-h4b-one-read-file-only"],
@@ -120,7 +145,10 @@ v={
  "real_provider_requests":0,
 }
 print(json.dumps(v,sort_keys=True))
-if not all(v[k] for k in ("genuine_Hermes_engine_imported","only_native_read_file_advertised","official_toolset_validated")):
+if not all(v[k] for k in (
+    "genuine_Hermes_engine_imported","only_native_read_file_advertised",
+    "official_toolset_validated",
+    "official_oneshot_stdio_preamble_passed_without_main_Agent")):
  sys.exit(3)
 '''
         env={
@@ -151,6 +179,7 @@ if not all(v[k] for k in ("genuine_Hermes_engine_imported","only_native_read_fil
             result.get("genuine_Hermes_engine_imported") is not True
             or result.get("only_native_read_file_advertised") is not True
             or result.get("official_toolset_validated") is not True
+            or result.get("official_oneshot_stdio_preamble_passed_without_main_Agent") is not True
             or result.get("real_Agent_task_invoked") is not False
             or result.get("real_provider_requests")!=0
         ):
@@ -159,7 +188,8 @@ if not all(v[k] for k in ("genuine_Hermes_engine_imported","only_native_read_fil
             "status":"PASS_OFFLINE_ENGINE_IMPORT",
             "macos_seatbelt":"ENFORCED",
             "all_network_denied":True,
-            "only_disposable_rehearsal_writable":True,
+            "only_disposable_rehearsal_and_os_devnull_writable":True,
+            "official_oneshot_stdio_preamble_exercised_without_Agent":True,
             "test_home_sqlite_config_plugin_unchanged":True,
             "auth_stat_only_unchanged":True,
             "real_Agent_task_run":False,

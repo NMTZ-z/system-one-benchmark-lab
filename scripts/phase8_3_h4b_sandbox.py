@@ -137,6 +137,7 @@ def build_policy(*, home: Path=TEST_HOME, case_dir: Path,
 (allow file-write* (subpath "{local}"))
 (allow file-write* (subpath "{plugin_local}"))
 {write_rules}
+(allow file-write* (literal "/dev/null"))
 (deny file-write* (literal "{auth}"))
 (allow network-outbound (remote ip "localhost:18793"))
 (allow network-outbound (remote ip "localhost:18794"))
