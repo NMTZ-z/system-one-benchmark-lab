@@ -16,7 +16,9 @@ import sqlite3
 from typing import Any
 
 RUN_ID = "h4_missing_read"
+H4B_RUN_ID = "h4b_missing_read"
 PATTERN = re.compile(r"h4_absent_[a-f0-9]{24}\.txt\Z")
+H4B_PATTERN = re.compile(r"h4b_absent_[a-f0-9]{24}\.txt\Z")
 FAILURE_PREFIX = "File not found:"
 
 
@@ -24,10 +26,18 @@ class NativeH4OracleBlocked(ValueError):
     """Expected missing-file tool failure cannot be independently verified."""
 
 
-def manifest_target(run_dir: Path) -> Path:
-    if run_dir.is_symlink() or not run_dir.is_dir() or run_dir.name != RUN_ID:
-        raise NativeH4OracleBlocked("H4 must be an isolated single-run directory")
-    manifest = run_dir / "h4_missing_target.private.json"
+def manifest_target(
+    run_dir: Path, *, expected_case: str=RUN_ID,
+) -> Path:
+    if expected_case not in {RUN_ID,H4B_RUN_ID}:
+        raise NativeH4OracleBlocked("only frozen H4/H4B cases permitted")
+    if run_dir.is_symlink() or not run_dir.is_dir() or run_dir.name != expected_case:
+        raise NativeH4OracleBlocked("missing-read must be isolated H4 or H4B")
+    manifest_name=(
+        "h4_missing_target.private.json" if expected_case==RUN_ID
+        else "h4b_missing_target.private.json"
+    )
+    manifest = run_dir / manifest_name
     if manifest.is_symlink() or not manifest.is_file():
         raise NativeH4OracleBlocked("missing original private H4 target manifest")
     data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -41,7 +51,7 @@ def manifest_target(run_dir: Path) -> Path:
             or data["was_absent_before_agent"] is not True
             or not target.is_absolute()
             or target.parent != run_dir.absolute()
-            or not PATTERN.fullmatch(target.name)
+            or not (PATTERN if expected_case==RUN_ID else H4B_PATTERN).fullmatch(target.name)
             or data["basename_sha256"] != hashlib.sha256(
                 target.name.encode("utf-8")).hexdigest()):
         raise NativeH4OracleBlocked("negative target is not the preregistered H4 file")
@@ -52,13 +62,15 @@ def manifest_target(run_dir: Path) -> Path:
     return target
 
 
-def check_sqlite_failed_read(db_path: Path, run_dir: Path) -> dict[str, Any]:
+def check_sqlite_failed_read(
+    db_path: Path, run_dir: Path, *, expected_case: str=RUN_ID,
+) -> dict[str, Any]:
     """Validate genuine native tool/error/result identity, no heuristic Agent text.
 
     SQLite database is only opened read-only. No user-supplied Session IDs,
     raw tool results, argument values or original target paths are returned.
     """
-    target = manifest_target(run_dir)
+    target = manifest_target(run_dir,expected_case=expected_case)
     if db_path.is_symlink() or not db_path.is_file():
         raise NativeH4OracleBlocked("native Hermes test SQLite unavailable")
     uri = f"file:{db_path.resolve().as_posix()}?mode=ro"
@@ -119,7 +131,7 @@ def check_sqlite_failed_read(db_path: Path, run_dir: Path) -> dict[str, Any]:
             or bool(parsed.get("content"))):
         raise NativeH4OracleBlocked("native tool did not actually return missing-file failure")
     # Recheck filesystem after reading real native SQLite evidence.
-    manifest_target(run_dir)
+    manifest_target(run_dir,expected_case=expected_case)
     return {
         "native_session_unique": True,
         "tool_calls_exactly_one": True,

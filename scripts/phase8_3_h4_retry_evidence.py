@@ -32,12 +32,14 @@ def verify_retry_exact(
     retry_adapter: list[dict[str, Any]],
     completion_adapter: list[dict[str, Any]],
     http: list[dict[str, Any]],
+    expected_case: str="h4_missing_read",
 ) -> dict[str, Any]:
     if (not isinstance(key,bytes) or len(key)!=32 or
             db_path.is_symlink() or not db_path.is_file()
             or not run_directory.is_dir() or run_directory.is_symlink()
-            or run_directory.name!="h4_missing_read"):
-        raise RetryEvidenceBlocked("not the isolated H4 native source and evidence key")
+            or expected_case not in {"h4_missing_read","h4b_missing_read"}
+            or run_directory.name!=expected_case):
+        raise RetryEvidenceBlocked("not the isolated H4/H4B native source and evidence key")
     if not isinstance(retry_adapter,list) or len(retry_adapter)!=1:
         raise RetryEvidenceBlocked("exactly one H4 Retry observation required")
     if not isinstance(completion_adapter,list) or len(completion_adapter)!=2:

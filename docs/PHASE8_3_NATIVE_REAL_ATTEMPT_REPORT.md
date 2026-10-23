@@ -552,3 +552,34 @@ separately, never overwrite this H4 private original.
 See PHASE8_3_H4_GATEWAY_ADMISSION_INCIDENT.md and the read-only
 aggregator. Global real H4 E2E is BLOCKED_BEFORE_NATIVE_AGENT,
 not a real Retry Shadow failure result.
+
+## 18. H4B reversible direct-native Agent source and zero-provider rehearsal
+
+Following the original H4 Gateway startup refusal, a DISTINCT
+H4B preregistration fixes the native route by choosing Hermes'
+official process-local run_oneshot/AIAgent entry. To meet the
+owner's requirement that local work be reversible, the new
+child runs under a macOS Seatbelt sandbox with only one exact
+read_file tool, one private absent target, no production
+file writes, and only local 18793/18794 network outlets.
+The current test Home must be OFF before a durable SQLite,
+plugin state/source and config snapshot is written. Its
+credential bytes are never backed up by test helpers;
+the source itself is run with a separately user-authorized
+credential bound to the physical-cap proxy.
+
+A disposable stronger-than-real Seatbelt rehearsal imported
+official run_oneshot and the single-read toolset with zero
+network and zero Agent/Provider requests, leaving all
+nonproduction Home state digests intact. Further offline
+tests cover WAL SQLite recovery, temporary plugin-file cleanup,
+process group PID-reuse denial and strict native Retry HMAC
+joining. The real H4B original run directory and recovery
+checkpoint were NOT created during this source preparation.
+
+The original H1/H2/H3 cumulative StepFun ledger still has
+exactly 8 attempts (7 HTTP 200 and original H1 1 UNKNOWN);
+the original H4 Gateway-block attempt has 0. H4B new
+real Provider-backed native qualification remains subject
+to an exact clean frozen SHA and a separate one-shot run.
+No historical record is retroactively altered or consumed.

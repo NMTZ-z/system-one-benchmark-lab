@@ -133,6 +133,21 @@ the Gateway start path, but it has NOT been run against a Provider.
 The H4 attempt is single-shot and will not be overwritten or
 automatically retried; any new trial needs its own frozen evidence.
 
+**2026-10-23 reversible H4B source prepared:** A distinct
+[H4B pre-registered, owner-safe recovery protocol](docs/PHASE8_3_REAL_H4B_REVERSIBLE_PREREGISTRATION.md)
+now replaces the unusable Gateway-backed path with official
+in-process Hermes AIAgent behind macOS Seatbelt. The child can
+call only the EXACT private native read_file target, can write
+only narrowly scoped test-state files, and may connect only to
+the existing bounded loopback Provider/observer ports. A durable
+test-Home SQLite/plugin/config snapshot and exact process-group
+provenance support rollback. A **zero-network sandbox import
+rehearsal** passed with test-state digests unchanged. This is
+PRE-RUN engineering evidence, NOT a real H4B Agent/StepFun PASS.
+No additional physical Provider requests were made by this
+source preparation; original H1/H2/H3 ledger remains 8/24
+and original H4 remains blocked before the native Agent.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

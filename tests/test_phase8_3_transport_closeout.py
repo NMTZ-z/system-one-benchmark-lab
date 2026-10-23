@@ -399,3 +399,50 @@ def test_h4_append_preserves_original_H1_H2_H3_ledger(tmp_path, monkeypatch):
     p.write_bytes(data)
     with pytest.raises(c.CloseoutBlocked,match="original H1 ledger"):
         c.audited_snapshot(p,new_run=c.H4)
+
+
+def test_real_H4B_new_case_only_appends_slots_9_to_11_preserving_original_H4(monkeypatch,tmp_path):
+    """All synthetic: the actual original H4 still has ZERO Provider calls."""
+    import phase8_3_transport_closeout as contract
+    from hashlib import sha256
+    p=tmp_path/"shared_provider.jsonl"
+    rows=[]
+    for slot in range(1,9):
+        run=contract.H1 if slot<=3 else contract.H2 if slot<=6 else contract.H3
+        rows.extend(({"kind":"reserved","run":run,"slot":slot},
+                     {"kind":"attempted","run":run,"slot":slot}))
+        if slot!=1:
+            rows.extend(({"kind":"responded","run":run,"slot":slot,"http_status":200},
+                         {"kind":"result","run":run,"slot":slot,
+                          "http_status":200,"duration_ms":1.0}))
+    assert len(rows)==30
+    fmt=lambda arr:b"".join(json.dumps(x,sort_keys=True).encode()+b"\n" for x in arr)
+    prefix=fmt(rows)
+    monkeypatch.setattr(contract,"H1_ORIGINAL_SHA256",sha256(fmt(rows[:10])).hexdigest())
+    monkeypatch.setattr(contract,"H2_ORIGINAL_SHA256",sha256(fmt(rows[:22])).hexdigest())
+    monkeypatch.setattr(contract,"H3_ORIGINAL_SHA256",sha256(prefix).hexdigest())
+    p.write_bytes(prefix)
+    before=contract.audited_snapshot(p,new_run=contract.H4B)
+    assert before["reserved_global"]==8 and before["reserved_original_h4"]==0
+    assert before["reserved_new"]==0
+    physical=BudgetLedger(p,total_limit=24,per_run_limit=3)
+    for slot in (9,10):
+        actual=physical.reserve(contract.H4B)
+        assert actual==slot
+        physical.mark(contract.H4B,slot,"attempted")
+        physical.mark(contract.H4B,slot,"responded",200)
+        physical.finish(contract.H4B,slot,200,8.0)
+    current=contract.audited_snapshot(p,new_run=contract.H4B)
+    assert current["reserved_global"]==10
+    assert current["reserved_original_h4"]==0
+    assert current["reserved_new"]==2
+    assert current["responded_new"]==2
+    assert current["new_run_status"]=="SCOPE_COMPLETE"
+    assert current["historic_h1_unresolved"]==1
+    assert p.read_bytes().startswith(prefix)
+    # Pretending the already-blocked original H4 had a Provider attempt
+    # is not permitted in the independently preregistered H4B experiment.
+    with p.open("ab") as output:
+        output.write(fmt([{"kind":"reserved","run":contract.H4,"slot":11}]))
+    with pytest.raises(contract.CloseoutBlocked,match="original H4 startup incident"):
+        contract.audited_snapshot(p,new_run=contract.H4B)

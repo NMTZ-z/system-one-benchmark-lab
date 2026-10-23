@@ -539,3 +539,52 @@ H4 Retry/Completion real-native E2E remains NOT RUN; H2/H3
 prior scoped PASS are preserved, DSH native D1–D4 remain NOT RUN
 pending owner-controlled independent credentials. Active remains
 NOT_AUTHORIZED; PR #9 stays Draft and unmerged.
+
+## 19. Reversible H4B in-process native Agent source preregistered (2026-10-23)
+
+With the user's explicit concern about permanent local effects,
+H4B is a distinctly named new native experiment rather than
+retrying/overwriting the old H4 Gateway-block evidence. Its
+preregistered source uses the installed official in-process
+Hermes run_oneshot/AIAgent (not the Gateway-backed CLI -z)
+behind a macOS Seatbelt process sandbox. The OS denies
+writes outside preapproved test SQLite/locks, test plugin
+state and a new disposable H4B folder, and denies network
+outside the localhost 18793/18794 observer/physical cap.
+The child exposes only native read_file with an exact
+preregistered absent-file path; no shell, browser, network
+tool or native auto retry is authorized.
+
+Before any H4B Agent process, a separate 0700 Git-ignored
+recovery directory captures SQLite online backup, test
+plugin state/lock, test config and public plugin source,
+with SHA checks. Original credential contents are not
+copied/exported, and the original test Home is restored
+to its exact OFF logical state when all verified owned
+process groups have stopped. Interrupted runs have a
+stat/UID/PID/PGID/start-time process ledger and explicit
+owner-controlled manual stop/rollback path. An identity
+mismatch refuses cleanup rather than risking the user's
+production Gateway. Private postrun evidence is retained
+separately for a later independent audit.
+
+A disposable actual macOS Seatbelt test blocked fake
+production SSH/Docs/repo reads and disallowed writes;
+a stricter-than-real offline Python import of official
+Hermes run_oneshot+single-read toolset PASSED with
+ALL network denied and the isolated test Home original
+SQLite, config, plugin state and auth metadata unchanged.
+Synthetic WAL database rollback, plugin temp-file cleanup,
+owned-process PID-reuse rejection, typed native H4B missing
+file failure and strict Retry/Completion HMAC correlation
+were regression tested. No StepFun requests were initiated
+by those preparation actions.
+
+A real H4B one-shot is contingent on full clean-source
+regressions and preflight, then separately read-only
+adjudication of the true Agent/Retry/Provider/rollback
+evidence. Original 8/24 physically reserved StepFun calls
+and the unknown H1 historical slot are unchanged;
+remaining 16 cannot be interpreted as automatic
+authorization. No Active/Canary authority granted.
+See the [H4B reversible preregistration protocol](PHASE8_3_REAL_H4B_REVERSIBLE_PREREGISTRATION.md).
