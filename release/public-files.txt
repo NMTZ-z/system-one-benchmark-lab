@@ -240,3 +240,11 @@ docs/PHASE8_3_H4B_SEATBELT_ADMISSION_INCIDENT.md
 scripts/phase8_3_verify_h4b_seatbelt_block.py
 tests/test_phase8_3_verify_h4b_seatbelt_block.py
 results/processed/phase8_3_h4b_seatbelt_admission_blocked.json
+docs/PHASE8_3_REAL_H4C_PREREGISTRATION.md
+scripts/phase8_3_h4c_direct_child.py
+scripts/phase8_3_real_hermes_h4c.py
+scripts/phase8_3_h4c_adjudicate.py
+scripts/phase8_3_h4c_offline_rehearsal.py
+tests/test_phase8_3_h4c_isolation.py
+tests/test_phase8_3_h4c_adjudicate.py
+tests/test_phase8_3_h4c_runner_admission.py

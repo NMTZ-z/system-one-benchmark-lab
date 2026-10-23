@@ -93,3 +93,28 @@ def test_fabricated_success_message_or_wrong_target_fails(fake):
     target.write_text("unexpected success artifact")
     with pytest.raises(NativeH4OracleBlocked):
         manifest_target(folder,expected_case=H4B_RUN_ID)
+
+
+def test_H4C_missing_file_oracle_requires_new_distinct_original(tmp_path):
+    from phase8_3_h4_failure_oracle import (
+        manifest_target, NativeH4OracleBlocked, H4C_RUN_ID,
+    )
+    case=tmp_path/H4C_RUN_ID
+    case.mkdir(mode=0o700)
+    absent=case/("h4c_absent_"+"c"*24+".txt")
+    manifest={
+        "scenario":"read_missing","path":str(absent),
+        "basename_sha256":hashlib.sha256(absent.name.encode()).hexdigest(),
+        "was_absent_before_agent":True,
+    }
+    name=case/"h4c_missing_target.private.json"
+    name.write_text(json.dumps(manifest))
+    name.chmod(0o600)
+    assert manifest_target(case,expected_case=H4C_RUN_ID)==absent
+    assert absent.exists() is False
+    with pytest.raises(NativeH4OracleBlocked):
+        manifest_target(case,expected_case="h4b_missing_read")
+    manifest["path"]=str(tmp_path/"outside.txt")
+    name.write_text(json.dumps(manifest))
+    with pytest.raises(NativeH4OracleBlocked):
+        manifest_target(case,expected_case=H4C_RUN_ID)

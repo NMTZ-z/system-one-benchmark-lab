@@ -17,8 +17,10 @@ from typing import Any
 
 RUN_ID = "h4_missing_read"
 H4B_RUN_ID = "h4b_missing_read"
+H4C_RUN_ID = "h4c_missing_read"
 PATTERN = re.compile(r"h4_absent_[a-f0-9]{24}\.txt\Z")
 H4B_PATTERN = re.compile(r"h4b_absent_[a-f0-9]{24}\.txt\Z")
+H4C_PATTERN = re.compile(r"h4c_absent_[a-f0-9]{24}\.txt\Z")
 FAILURE_PREFIX = "File not found:"
 
 
@@ -29,13 +31,14 @@ class NativeH4OracleBlocked(ValueError):
 def manifest_target(
     run_dir: Path, *, expected_case: str=RUN_ID,
 ) -> Path:
-    if expected_case not in {RUN_ID,H4B_RUN_ID}:
-        raise NativeH4OracleBlocked("only frozen H4/H4B cases permitted")
+    if expected_case not in {RUN_ID,H4B_RUN_ID,H4C_RUN_ID}:
+        raise NativeH4OracleBlocked("only frozen H4/H4B/H4C cases permitted")
     if run_dir.is_symlink() or not run_dir.is_dir() or run_dir.name != expected_case:
         raise NativeH4OracleBlocked("missing-read must be isolated H4 or H4B")
     manifest_name=(
         "h4_missing_target.private.json" if expected_case==RUN_ID
-        else "h4b_missing_target.private.json"
+        else "h4b_missing_target.private.json" if expected_case==H4B_RUN_ID
+        else "h4c_missing_target.private.json"
     )
     manifest = run_dir / manifest_name
     if manifest.is_symlink() or not manifest.is_file():
@@ -51,7 +54,8 @@ def manifest_target(
             or data["was_absent_before_agent"] is not True
             or not target.is_absolute()
             or target.parent != run_dir.absolute()
-            or not (PATTERN if expected_case==RUN_ID else H4B_PATTERN).fullmatch(target.name)
+            or not ({RUN_ID:PATTERN,H4B_RUN_ID:H4B_PATTERN,
+                     H4C_RUN_ID:H4C_PATTERN}[expected_case]).fullmatch(target.name)
             or data["basename_sha256"] != hashlib.sha256(
                 target.name.encode("utf-8")).hexdigest()):
         raise NativeH4OracleBlocked("negative target is not the preregistered H4 file")

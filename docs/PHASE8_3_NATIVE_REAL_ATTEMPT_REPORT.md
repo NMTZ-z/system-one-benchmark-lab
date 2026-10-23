@@ -617,3 +617,17 @@ attempts; H1 slot 1 unknown and Phase8.3A global
 integrity remain BLOCKED. H4C (if later considered)
 must be a new pre-registered case, never an
 automatic retry of H4B.
+
+## 20. Pre-H4C independent case and reversible preparation
+
+A new H4C failure read case was prepared with a distinct
+h4c_missing_read ID and h4c_recovery. H4B historical private
+recovery, Session/Retry observations, typed file target, OS
+Seatbelt logs and production Gateway remain untouched.
+Same native AIAgent model and Laya Shadow scope, but isolated
+ancillary local services' HOME/cache now point only within
+the H4C disposable run folder. The H4C zero-network startup
+rehearsal passed without running a real Agent or StepFun.
+Native tool failure and Retry Shadow still require separate
+real H4C evidence. Original physical Provider ledger is
+unchanged at 8 attempts; no prior UNKNOWN request is rewritten.

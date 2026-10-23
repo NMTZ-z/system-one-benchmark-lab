@@ -638,3 +638,31 @@ preregistration and explicit admission.
 See [H4B true Seatbelt admission incident](PHASE8_3_H4B_SEATBELT_ADMISSION_INCIDENT.md).
 The overall Phase8.3A budget/billing caveat, lack of Active
 authority and Draft PR status are unchanged.
+
+## 21. New H4C source isolation and acceptance preregistration (2026-10-23)
+
+The Phase 8.3A H4C distinct real failed-read task was
+prepared independently of original H4 (Gateway blocked) and
+H4B (Seatbelt /dev/null blocked), with exact new H4C case ID,
+manifest, native SQLite evidence, HMAC/Observer output,
+PID provenance ledger, online SQLite recovery and private
+test files. H4B's original test Home recovery receipts and
+historical raw evidence are not overwritten or reused.
+
+Previously proven macOS Seatbelt and official Hermes in-process
+one-shot source are reused, with nonpublic file read/write
+denials, only read_file to the exact case-owned ABSENT target,
+localhost 18793/18794 egress and owner-specific rollback.
+Ancillary MLX/Observer/Provider services now use H4C-owned
+disposable HOME and caches rather than the user's normal
+home. The original H4B incident and all four stopped processes
+are independently rechecked before H4C admission.
+
+Global physical StepFun remains at 8/24 from H1/H2/H3,
+with H1's single historical outcome UNKNOWN; old H4/H4B
+each made 0 paid Provider attempts. New H4C is bounded to
+three physical slots 9–11, no reset, no Active/canary or
+paid retries. A zero-network case-specific offline Hermes
+one-shot rehearsal PASSED. This phase document reflects
+source preregistration, not an observed real H4C native result.
+Read [H4C preregistration and manual recovery](PHASE8_3_REAL_H4C_PREREGISTRATION.md).

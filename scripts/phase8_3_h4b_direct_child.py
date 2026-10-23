@@ -28,6 +28,7 @@ from typing import Any
 ROOT=Path(__file__).resolve().parents[1]
 PRIVATE=ROOT/"private/phase8_3_native_real"
 CASE_ID="h4b_missing_read"
+TARGET_PREFIX="h4b_absent_"
 CASE_DIR=PRIVATE/"runs"/CASE_ID
 TEST_HOME=Path.home()/".hermes/system-one-phase83lab"
 HERMES_INSTALL=Path.home()/".hermes/hermes-agent"
@@ -37,12 +38,28 @@ MODEL="step-5-preview"
 PROVIDER="stepfun"
 
 
+def configure_for_case(case_id: str) -> None:
+    """Explicitly bind ONLY a new H4C child in its own Python process.
+
+    The default remains original H4B. H4C may not be used as a
+    convenience rerun of H4B's immutable private original.
+    """
+    global CASE_ID, CASE_DIR, TARGET_PREFIX, CUSTOM_TOOLSET
+    if case_id!="h4c_missing_read":
+        raise DirectAgentBlocked("only a new separately named H4C is eligible")
+    CASE_ID=case_id
+    CASE_DIR=PRIVATE/"runs"/case_id
+    TARGET_PREFIX="h4c_absent_"
+    CUSTOM_TOOLSET="phase83-h4c-one-read-file-only"
+
+
 class DirectAgentBlocked(ValueError):
     """H4B official native Agent cannot be safely invoked."""
 
 
 def check_case() -> tuple[Path,str]:
     if (CASE_DIR.is_symlink() or not CASE_DIR.is_dir()
+            or CASE_DIR.name!=CASE_ID
             or CASE_DIR.stat().st_mode & 0o077
             or CASE_DIR.resolve().parent != (PRIVATE/"runs").resolve()):
         raise DirectAgentBlocked("H4B case is not a restricted disposable folder")
@@ -64,8 +81,9 @@ def check_case() -> tuple[Path,str]:
     hmac_key=os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX","")
     if len(hmac_key)!=64 or any(ch not in "0123456789abcdef" for ch in hmac_key):
         raise DirectAgentBlocked("H4B keyed native proof is missing")
-    manifest=CASE_DIR/"h4b_missing_target.private.json"
-    prompt_file=CASE_DIR/"h4b_prompt.private.txt"
+    short=CASE_ID.split("_")[0]
+    manifest=CASE_DIR/f"{short}_missing_target.private.json"
+    prompt_file=CASE_DIR/f"{short}_prompt.private.txt"
     if (manifest.is_symlink() or prompt_file.is_symlink()
             or not manifest.is_file() or not prompt_file.is_file()
             or manifest.stat().st_mode & 0o077
@@ -76,7 +94,7 @@ def check_case() -> tuple[Path,str]:
         raise DirectAgentBlocked("untrusted source manifest contract")
     target=Path(data["path"]) if isinstance(data.get("path"),str) else None
     if (target is None or target.parent!=CASE_DIR
-            or target.name[:11]!="h4b_absent_"
+            or target.name[:len(TARGET_PREFIX)]!=TARGET_PREFIX
             or len(target.name)!=39
             or not target.name.endswith(".txt")
             or data["scenario"]!="read_missing"
@@ -163,7 +181,7 @@ def main() -> None:
             if rc!=0 or "H4B_OFFLINE_NO_NETWORK" not in output.getvalue():
                 raise DirectAgentBlocked("native one-shot stdout/credential-free preamble failed")
             print(json.dumps({
-                "schema":"local-system-one/phase8_3-h4b-direct-native-child-v1",
+                "schema":f"local-system-one/phase8_3-{CASE_ID.split('_')[0]}-direct-native-child-v1",
                 **guard,
                 "official_hermes_inprocess_engine_imported":callable(run_oneshot),
                 "official_oneshot_preamble_zero_provider_passed":True,

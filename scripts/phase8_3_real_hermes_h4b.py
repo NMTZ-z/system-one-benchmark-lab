@@ -47,7 +47,7 @@ from phase8_3_real_hermes_h2 import (
     _spawn, _poll_http, _base_env, _read_jsonl, _read_json,
 )
 from phase8_3_transport_closeout import (
-    H4B, H3_ORIGINAL_SHA256, audited_snapshot, drain_run,
+    H4B, H4C, H3_ORIGINAL_SHA256, audited_snapshot, drain_run,
     CloseoutBlocked,
 )
 from phase8_3_h4b_sandbox import (
@@ -72,6 +72,44 @@ PROVIDER_LEDGER=PRIVATE/"provider_real_ledger.private.jsonl"
 EXPECTED_BEFORE="5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb"
 
 
+def configure_for_case(case_id: str) -> None:
+    """Bind only a separate H4C run; do not mutate original H4B on disk.
+
+    Explicitly scopes all disposable paths AND the SQLite recovery
+    and owned PID ledger to h4c_recovery, never h4b_recovery.
+    """
+    global RUN_ID, CASE_DIR, BACKUP
+    if case_id!=H4C:
+        raise H4BBlocked("only independent H4C is eligible here")
+    import phase8_3_h4b_transaction as tx
+    import phase8_3_h4b_owned_processes as owned
+    tx.bind_case(case_id)
+    owned.bind_case(case_id)
+    RUN_ID=case_id
+    CASE_DIR=PRIVATE/"runs"/case_id
+    BACKUP=tx.BACKUP
+
+
+def _short_case() -> str:
+    return RUN_ID.split("_")[0]
+
+
+def _private_name(suffix: str) -> Path:
+    return PRIVATE/f"{_short_case()}_{suffix}"
+
+
+def _verified_report() -> Path:
+    return PRIVATE/"runs"/f"{_short_case()}_verified.private.json"
+
+
+def _logfile(kind: str) -> Path:
+    return PRIVATE/f"logs/{_short_case()}_{kind}.private.log"
+
+
+def _child_source() -> Path:
+    return ROOT/f"scripts/phase8_3_{_short_case()}_direct_child.py"
+
+
 class H4BBlocked(ValueError):
     """Real H4B pre-run safety or completion gate not met."""
 
@@ -91,7 +129,7 @@ def _preflight(sha: str) -> dict:
     _private_directory(PRIVATE/"runs")
     _private_directory(PRIVATE/"logs")
     if subprocess.run(["git","check-ignore","-q",
-            "private/phase8_3_native_real/runs/h4b_missing_read"],
+            f"private/phase8_3_native_real/runs/{RUN_ID}"],
             cwd=ROOT,check=False).returncode!=0:
         raise H4BBlocked("sensitive H4B data is not covered by Git ignore")
     if source_audit(apply=False)["new_isolated_plugin_matches_frozen_commit"] is not True:
@@ -105,10 +143,25 @@ def _preflight(sha: str) -> dict:
         raise H4BBlocked("unexpected test Home policy/title/canary configuration")
     if not (MODEL_PATH/"rl_agent_config.json").is_file() or MODEL_PATH.is_symlink():
         raise H4BBlocked("pinned local Laya/MLX model unavailable")
+    if RUN_ID==H4C:
+        # A later trial is forbidden while original H4B local rollback is
+        # uncertain. Independently verify its actual frozen private incident,
+        # including all 4 owned groups stopped, unchanged test SQLite/auth.
+        from phase8_3_verify_h4b_seatbelt_block import verify as verify_h4b
+        historic=verify_h4b()
+        if (
+            historic.get("H4B_scoped_verdict")!="BLOCKED_BEFORE_NATIVE_AGENT_CONSTRUCTION"
+            or historic.get("original_test_sqlite_logically_restored") is not True
+            or historic.get("owned_child_process_groups_stopped")!=4
+            or historic.get("model_provider_physical_attempts")!=0
+            or historic.get("isolated_auth_file_metadata_unchanged") is not True
+        ):
+            raise H4BBlocked("original H4B baseline/rollback not independently verified")
     previous=audited_snapshot(PROVIDER_LEDGER,new_run=RUN_ID)
     if (previous.get("reserved_global")!=8
             or previous.get("reserved_new")!=0
             or previous.get("reserved_original_h4")!=0
+            or (RUN_ID==H4C and previous.get("reserved_original_h4b")!=0)
             or previous.get("historic_h1_unresolved")!=1
             or previous.get("ledger_digest_sha256")!=EXPECTED_BEFORE):
         raise H4BBlocked("exact original 24 physical Provider ledger history changed")
@@ -117,14 +170,12 @@ def _preflight(sha: str) -> dict:
             or hashlib.sha256(historical.read_bytes()).hexdigest()!=EXPECTED_BEFORE):
         raise H4BBlocked("independent historical H1/H2/H3 snapshot no longer matches")
     _must_not_exist([
-        BACKUP,
-        CASE_DIR,PRIVATE/"runs/h4b_verified.private.json",
-        PRIVATE/"logs/h4b_runtime.private.log",
-        PRIVATE/"logs/h4b_observer.private.log",
-        PRIVATE/"logs/h4b_provider.private.log",
-        PRIVATE/"logs/h4b_agent.private.log",
-        PRIVATE/"h4b_http.private.jsonl",
-        PRIVATE/"h4b_correlation_key.private.bin",
+        BACKUP, CASE_DIR,
+        _verified_report(),
+        _logfile("runtime"),_logfile("observer"),
+        _logfile("provider"),_logfile("agent"),
+        _private_name("http.private.jsonl"),
+        _private_name("correlation_key.private.bin"),
     ])
     for port in (RUNTIME_PORT,OBSERVER_PORT,PROVIDER_PORT):
         _check_port_available(port)
@@ -147,14 +198,14 @@ def _create_private_case() -> dict:
     oldmask=os.umask(0o077)
     try:
         CASE_DIR.mkdir(mode=0o700)
-        target=CASE_DIR/("h4b_absent_"+secrets.token_hex(12)+".txt")
+        target=CASE_DIR/(_short_case()+"_absent_"+secrets.token_hex(12)+".txt")
         assert not target.exists() and not target.is_symlink()
         case={
             "scenario":"read_missing","path":str(target),
             "basename_sha256":hashlib.sha256(target.name.encode()).hexdigest(),
             "was_absent_before_agent":True,
         }
-        private_manifest=CASE_DIR/"h4b_missing_target.private.json"
+        private_manifest=CASE_DIR/f"{_short_case()}_missing_target.private.json"
         with private_manifest.open("x",encoding="utf-8") as f:
             json.dump(case,f,sort_keys=True)
             f.flush()
@@ -167,7 +218,7 @@ def _create_private_case() -> dict:
             "严格禁止 shell、网络、浏览器、其他文件操作、改写路径、创建文件、"
             "虚构文件内容或自行重试。"
         )
-        prompt_file=CASE_DIR/"h4b_prompt.private.txt"
+        prompt_file=CASE_DIR/f"{_short_case()}_prompt.private.txt"
         with prompt_file.open("x",encoding="utf-8") as f:
             f.write(prompt)
             f.flush()
@@ -175,6 +226,11 @@ def _create_private_case() -> dict:
         prompt_file.chmod(0o600)
         scratch=CASE_DIR/"tmp"
         scratch.mkdir(mode=0o700)
+        if RUN_ID==H4C:
+            service_home=CASE_DIR/"service_home"
+            service_home.mkdir(mode=0o700)
+            (service_home/"cache").mkdir(mode=0o700)
+            (service_home/"huggingface").mkdir(mode=0o700)
     finally:
         os.umask(oldmask)
     return {
@@ -208,13 +264,29 @@ def _stop_owned_group(proc: subprocess.Popen) -> None:
 def _services(keyfile: Path) -> list[subprocess.Popen]:
     procs=[]
     env=_base_env()
+    if RUN_ID==H4C:
+        # Ancillary MLX/Observer/Proxy children must not use the owner's
+        # HOME caches/config. Their model path is already pinned absolute.
+        # Only the actual sandboxed official Hermes native child inherits
+        # the user's HOME to locate its fixed test-only HERMES_HOME.
+        service_home=CASE_DIR/"service_home"
+        for folder in (service_home,CASE_DIR/"tmp"):
+            if folder.is_symlink() or not folder.is_dir() or folder.stat().st_mode&0o077:
+                raise H4BBlocked("H4C service scratch not private/ready")
+        env.update({
+            "HOME":str(service_home),
+            "TMPDIR":str(CASE_DIR/"tmp"),
+            "XDG_CACHE_HOME":str(service_home/"cache"),
+            "HF_HOME":str(service_home/"huggingface"),
+            "PYTHONDONTWRITEBYTECODE":"1",
+        })
     py=sys.executable
     try:
         runtime=_spawn([
             py,"-m","local_system_one",
             "--source",str(MODEL_PATH),
             "--host","127.0.0.1","--port",str(RUNTIME_PORT),
-        ],PRIVATE/"logs/h4b_runtime.private.log",env=env)
+        ],_logfile("runtime"),env=env)
         procs.append(runtime)
         record_spawn(runtime,"mlx")
         health=_poll_http(
@@ -225,9 +297,9 @@ def _services(keyfile: Path) -> list[subprocess.Popen]:
             py,str(ROOT/"scripts/phase8_2a_shadow_proxy.py"),
             "--port",str(OBSERVER_PORT),
             "--destination",f"http://127.0.0.1:{RUNTIME_PORT}",
-            "--evidence",str(PRIVATE/"h4b_http.private.jsonl"),
+            "--evidence",str(_private_name("http.private.jsonl")),
             "--run-id",RUN_ID,"--private-key-file",str(keyfile),
-        ],PRIVATE/"logs/h4b_observer.private.log",env=env)
+        ],_logfile("observer"),env=env)
         procs.append(observer)
         record_spawn(observer,"observer")
         import socket
@@ -248,7 +320,7 @@ def _services(keyfile: Path) -> list[subprocess.Popen]:
             "--total-cap",str(PHYSICAL_GLOBAL_MAX),
             "--per-run-cap",str(PER_CASE_MAX),
             "--execute-real-provider",
-        ],PRIVATE/"logs/h4b_provider.private.log",env=env)
+        ],_logfile("provider"),env=env)
         procs.append(provider)
         record_spawn(provider,"provider")
         budget=_poll_http(
@@ -274,11 +346,11 @@ def _sandbox_offline_child_guard() -> dict:
     policy=build_policy(home=TEST_HOME,case_dir=CASE_DIR)
     cmd=sandbox_command(
         policy=policy,interpreter=HERMES_PYTHON,
-        entry=ROOT/"scripts/phase8_3_h4b_direct_child.py",
+        entry=_child_source(),
         args=["--check-offline"],
     )
     env=_base_env()
-    key=PRIVATE/"h4b_correlation_key.private.bin"
+    key=_private_name("correlation_key.private.bin")
     if key.is_symlink() or not key.is_file() or key.stat().st_mode & 0o077:
         raise H4BBlocked("private HMAC reference file not safe")
     env.update({
@@ -320,7 +392,7 @@ def _native_child() -> tuple[int,bool]:
     policy=build_policy(home=TEST_HOME,case_dir=CASE_DIR)
     command=sandbox_command(
         policy=policy,interpreter=HERMES_PYTHON,
-        entry=ROOT/"scripts/phase8_3_h4b_direct_child.py",
+        entry=_child_source(),
         args=["--run-native"],
     )
     env=_base_env()
@@ -329,7 +401,7 @@ def _native_child() -> tuple[int,bool]:
         "HERMES_DISABLE_LAZY_INSTALLS":"1",
         "LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE":"isolated-shadow-test-v1",
         "LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX":(
-            PRIVATE/"h4b_correlation_key.private.bin").read_bytes().hex(),
+            _private_name("correlation_key.private.bin")).read_bytes().hex(),
         "TMPDIR":str(CASE_DIR/"tmp"),
         "PYTHONDONTWRITEBYTECODE":"1",
     })
@@ -339,7 +411,7 @@ def _native_child() -> tuple[int,bool]:
         "ANTHROPIC_API_KEY","HTTPS_PROXY","HTTP_PROXY","ALL_PROXY",
     )):
         raise H4BBlocked("unwanted provider credential in bounded native child")
-    log=PRIVATE/"logs/h4b_agent.private.log"
+    log=_logfile("agent")
     if log.exists() or log.is_symlink():
         raise H4BBlocked("H4B native Agent already has a log")
     with log.open("x",encoding="utf-8") as f:
@@ -392,7 +464,7 @@ def run(frozen_sha: str) -> dict:
     restore=None
     try:
         _create_private_case()
-        keyfile=PRIVATE/"h4b_correlation_key.private.bin"
+        keyfile=_private_name("correlation_key.private.bin")
         with keyfile.open("xb") as f:
             f.write(secrets.token_bytes(32))
             f.flush()
@@ -414,7 +486,7 @@ def run(frozen_sha: str) -> dict:
         # Let ONLY already launched local observer callbacks close out.
         until=time.monotonic()+7
         while time.monotonic()<until:
-            if len(_read_jsonl(PRIVATE/"h4b_http.private.jsonl"))>=3:
+            if len(_read_jsonl(_private_name("http.private.jsonl")))>=3:
                 break
             time.sleep(.15)
     except BaseException as exc:
@@ -427,8 +499,8 @@ def run(frozen_sha: str) -> dict:
         process_provenance_ok=False
         provenance_error=None
         try:
-            from phase8_3_h4b_owned_processes import LEDGER as PID_LEDGER
-            if PID_LEDGER.is_file() and not PID_LEDGER.is_symlink():
+            import phase8_3_h4b_owned_processes as owner
+            if owner.LEDGER.is_file() and not owner.LEDGER.is_symlink():
                 process_provenance_ok=inspect_owned()["all_stopped"] is True
             elif not started:
                 # Setup failed before a successfully recorded service;
@@ -453,7 +525,7 @@ def run(frozen_sha: str) -> dict:
         os.umask(oldmask)
 
     report={
-        "schema":"local-system-one/phase8_3-h4b-gateway-independent-native-v1",
+        "schema":f"local-system-one/phase8_3-{_short_case()}-gateway-independent-native-v1",
         "run_id":RUN_ID,
         "candidate_source_sha":frozen_sha,
         "main_model":"stepfun/step-5-preview",
@@ -464,7 +536,7 @@ def run(frozen_sha: str) -> dict:
         "native_child_exit_code":rc,
         "native_child_timed_out":timed_out,
         "private_original_file_still_missing":(
-            not any(CASE_DIR.glob("h4b_absent_*.txt"))
+            not any(CASE_DIR.glob(f"{_short_case()}_absent_*.txt"))
         ) if CASE_DIR.is_dir() else None,
         "physical_provider":_safe_provider_snapshot(),
         "local_rollback":{
@@ -480,13 +552,13 @@ def run(frozen_sha: str) -> dict:
         "error_class":error_class,
         "real_native_tool_proof":"PENDING_POSTRUN_INDEPENDENT_ADJUDICATION",
         "real_retry_advisory_proof":"PENDING_POSTRUN_INDEPENDENT_ADJUDICATION",
-        "h4b_acceptance":"NOT_YET_ADJUDICATED",
+        f"{_short_case()}_acceptance":"NOT_YET_ADJUDICATED",
         "phase8_3a_global":"BLOCKED_HISTORICAL_H1_UNRESOLVED",
         "model_billing_spend":"UNKNOWN",
         "active_authority":"NOT_AUTHORIZED",
         "retries_or_new_agent_tasks_started_automatically":0,
     }
-    evidence=PRIVATE/"runs/h4b_verified.private.json"
+    evidence=_verified_report()
     if evidence.exists() or evidence.is_symlink():
         raise H4BBlocked("original H4B one-shot report already exists")
     evidence.write_text(json.dumps(report,sort_keys=True,indent=2)+"\n",
@@ -506,7 +578,7 @@ def main():
         if opts.check_offline:
             prev=_preflight(opts.frozen_sha)
             print(json.dumps({
-                "status":"H4B_SAFE_TO_PREPARE_ROLLBACK",
+                "status":f"{_short_case().upper()}_SAFE_TO_PREPARE_ROLLBACK",
                 "frozen_sha":opts.frozen_sha,
                 "current_physical_requests":prev["reserved_global"],
                 "unresolved_h1":prev["historic_h1_unresolved"],

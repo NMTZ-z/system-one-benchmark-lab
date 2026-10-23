@@ -165,6 +165,19 @@ synthetic run through the official one-shot preamble passed,
 but **H4B was not rerun**, its private original was not erased,
 and any successor real run needs its own new frozen case.
 
+**2026-10-23 Phase 8.3A H4C new-case preregistration:** The next
+[reversible H4C native-failure experiment](docs/PHASE8_3_REAL_H4C_PREREGISTRATION.md)
+now has a DIFFERENT run ID, original target manifest, recovery
+snapshot, owned PID ledger and HMAC/HTTP paths from both blocked
+H4 and H4B. Its test-only MLX/observer/budget helper processes use
+an H4C-owned disposable HOME/cache. Original H4B rollback was
+independently confirmed, and all H4C source/test Home/physical
+budget prerequisites are fail-closed. A local all-network-denied
+Hermes one-shot startup rehearsal passed without creating
+the H4C original run. This is H4C PRE-RUN preparation only;
+real missing-file and Retry Shadow proof must come from the
+separate one-shot actual Provider-backed experiment.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

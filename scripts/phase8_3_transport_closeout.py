@@ -25,7 +25,8 @@ H2 = "h2_read_shadow"
 H3 = "h3_runtime_down"
 H4 = "h4_missing_read"
 H4B = "h4b_missing_read"
-NEW_SUPPORTED_RUNS = frozenset({H2, H3, H4, H4B})
+H4C = "h4c_missing_read"
+NEW_SUPPORTED_RUNS = frozenset({H2, H3, H4, H4B, H4C})
 TOTAL_CAP = 24
 PER_CASE_CAP = 3
 KINDS = frozenset({"reserved", "attempted", "responded", "outcome_unknown", "result"})
@@ -101,7 +102,7 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
             by[e["run"]][slot].append(e)
     if len(reservations) > TOTAL_CAP or sorted(reservations) != list(range(1, len(reservations)+1)):
         raise CloseoutBlocked("physical reservation count/ordering violated")
-    if set(reservations.values())-({H1,H2,H3,H4,H4B}):
+    if set(reservations.values())-({H1,H2,H3,H4,H4B,H4C}):
         raise CloseoutBlocked("undeclared Provider task observed")
     if new_run in {H3,H4}:
         h2slots={s for s,r in reservations.items() if r==H2}
@@ -113,7 +114,7 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         if any(e.get("http_status")!=200 for e in rows
                if e.get("run")==H2 and e.get("kind")=="responded"):
             raise CloseoutBlocked("original H2 upstream provider outcomes changed")
-    if new_run in {H4,H4B}:
+    if new_run in {H4,H4B,H4C}:
         # H4/H4B cannot take H3's completed slots or retroactively
         # mark the Laya-runtime-down control as a local-MLX run.
         if {s for s,r in reservations.items() if r==H3}!={7,8}:
@@ -131,10 +132,12 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         or Counter(x["kind"] for es in previous.values() for x in es)
         != {"attempted":3,"responded":2,"result":2}):
         raise CloseoutBlocked("original H1 history changed")
-    if new_run==H4B and any(run==H4 for run in reservations.values()):
+    if new_run in {H4B,H4C} and any(run==H4 for run in reservations.values()):
         raise CloseoutBlocked("original H4 startup incident must have zero physical requests")
+    if new_run==H4C and any(run==H4B for run in reservations.values()):
+        raise CloseoutBlocked("original H4B sandbox incident must have zero physical requests")
     slots = {s:v for s,v in by[new_run].items()}
-    first_new_slot = 9 if new_run in {H4,H4B} else 7 if new_run == H3 else 4
+    first_new_slot = 9 if new_run in {H4,H4B,H4C} else 7 if new_run == H3 else 4
     if len(slots)>PER_CASE_CAP or any(s < first_new_slot for s in slots):
         raise CloseoutBlocked("new Provider attempt outside authorized physical slots")
     stats = Counter()
@@ -164,15 +167,19 @@ def audited_snapshot(ledger: Path, *, new_run: str = "h2_read_shadow") -> dict:
         "run_id": new_run,
         "reserved_global": len(reservations),
         "reserved_h1": 3,
-        "reserved_h2": 3 if new_run in {H3,H4,H4B} else len(
+        "reserved_h2": 3 if new_run in {H3,H4,H4B,H4C} else len(
             [s for s,r in reservations.items() if r==H2]),
         "reserved_h3": (
-            2 if new_run in {H4,H4B} else
+            2 if new_run in {H4,H4B,H4C} else
             len([s for s,r in reservations.items() if r==H3])
         ),
         "reserved_original_h4": (
             len([s for s,r in reservations.items() if r==H4])
-            if new_run==H4B else 0
+            if new_run in {H4B,H4C} else 0
+        ),
+        "reserved_original_h4b": (
+            len([s for s,r in reservations.items() if r==H4B])
+            if new_run==H4C else 0
         ),
         "reserved_new": len(slots),
         "attempted_new": stats["attempted"],

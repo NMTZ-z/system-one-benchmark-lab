@@ -33,6 +33,9 @@ from phase8_3_prepare_shared_dependency_home import (
 )
 from phase8_3_real_hermes_h2 import PRIVATE
 
+H4B_CASE="h4b_missing_read"
+H4C_CASE="h4c_missing_read"
+CASE_ID=H4B_CASE
 BACKUP=PRIVATE/"h4b_recovery"
 DB=TEST_HOME/"state.db"
 PLUGIN_ROOT=TEST_HOME/"plugin-data"
@@ -55,6 +58,28 @@ PORTS=(18782,18793,18794)
 
 class RollbackBlocked(ValueError):
     """A test-only reversible state cannot be safely snapshotted/restored."""
+
+
+def bind_case(case_id: str) -> None:
+    """Select a distinct, *case-scoped* snapshot without moving user data.
+
+    The module defaults to the frozen H4B path for backward compatibility.
+    H4C must explicitly select its own brand-new recovery directory in a
+    separate Python process. No previous H4B recovery can be overwritten.
+    """
+    global CASE_ID, BACKUP, MANIFEST, PRE_DB, POST_DB
+    global PRE_STATE, POST_STATE, PRE_PLUGIN_LOCK, FINAL_REPORT
+    if case_id not in {H4B_CASE,H4C_CASE}:
+        raise RollbackBlocked("unapproved rollback case")
+    CASE_ID=case_id
+    BACKUP=PRIVATE/("h4b_recovery" if case_id==H4B_CASE else "h4c_recovery")
+    MANIFEST=BACKUP/"manifest.private.json"
+    PRE_DB=BACKUP/"state_before.private.db"
+    POST_DB=BACKUP/"state_after.private.db"
+    PRE_STATE=BACKUP/"plugin_before.private.json"
+    POST_STATE=BACKUP/"plugin_after.private.json"
+    PRE_PLUGIN_LOCK=BACKUP/"plugin_lock_before.private.bin"
+    FINAL_REPORT=BACKUP/"rollback_status.private.json"
 
 
 def _private(path: Path, *, directory: bool) -> None:
@@ -227,7 +252,7 @@ def prepare() -> dict[str,Any]:
         manifest={
             "schema":"local-system-one/phase8_3-h4b-test-home-rollback-v1",
             "fixed_home":"~/.hermes/system-one-phase83lab",
-            "case_id":"h4b_missing_read",
+            "case_id":CASE_ID,
             "original_test_mode":"off",
             "plugin_state_relative":str(state.relative_to(TEST_HOME)),
             "config_sha256":_fingerprint(CONFIG.read_bytes()),
@@ -264,7 +289,7 @@ def inspect() -> dict[str,Any]:
     _private(MANIFEST,directory=False)
     report=json.loads(MANIFEST.read_text())
     if (report.get("fixed_home")!="~/.hermes/system-one-phase83lab"
-            or report.get("case_id")!="h4b_missing_read"
+            or report.get("case_id")!=CASE_ID
             or report.get("plugin_state_relative")!=str(state.relative_to(TEST_HOME))
             or report.get("credentials_copied") is not False
             or report.get("original_test_mode")!="off"):
@@ -402,8 +427,10 @@ def main():
     op.add_argument("--prepare",action="store_true")
     op.add_argument("--check",action="store_true")
     op.add_argument("--restore",action="store_true")
+    cli.add_argument("--case",choices=[H4B_CASE,H4C_CASE],default=H4B_CASE)
     options=cli.parse_args()
     try:
+        bind_case(options.case)
         result=prepare() if options.prepare else restore() if options.restore else inspect()
         print(json.dumps(result,sort_keys=True,indent=2))
     except (RollbackBlocked,ValueError,TypeError,KeyError,OSError,sqlite3.Error):

@@ -208,3 +208,52 @@ def test_online_sqlite_wal_state_after_new_native_turn_recovers_logically(fake_t
     with sqlite3.connect(recovery.POST_DB) as conn:
         assert conn.execute("SELECT text FROM messages ORDER BY id").fetchall()==[
             ("original-thread",),("H4B-new-thread",)]
+
+
+def test_H4C_new_recovery_is_separate_and_original_H4B_evidence_immutable(fake_test_home):
+    import hashlib
+    home,private,plugin,state,config,auth,db=fake_test_home
+    recovery.prepare()  # old H4B frozen baseline
+    h4b_old=recovery.BACKUP
+    old={str(p.relative_to(h4b_old)):hashlib.sha256(p.read_bytes()).hexdigest()
+         for p in h4b_old.iterdir() if p.is_file()}
+    recovery.bind_case("h4c_missing_read")
+    try:
+        assert recovery.CASE_ID=="h4c_missing_read"
+        assert recovery.BACKUP==private/"h4c_recovery"
+        result=recovery.prepare()
+        assert result["status"]=="DURABLE_RECOVERY_READY"
+        assert (recovery.BACKUP/"manifest.private.json").is_file()
+        assert json.loads(recovery.MANIFEST.read_text())["case_id"]=="h4c_missing_read"
+        with sqlite3.connect(db) as c:
+            c.execute("INSERT INTO native VALUES (?)",("H4C ONLY",))
+        state.write_text('{"events":[1,2,3]}')
+        restored=recovery.restore()
+        assert restored["status"]=="TEST_HOME_STATE_RESTORED"
+        assert sqlite3.connect(db).execute(
+            "SELECT value FROM native").fetchall()==[("pre-H4B",)]
+        assert state.read_text()=='{"events":[1,2]}'
+        assert {str(p.relative_to(h4b_old)):hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in h4b_old.iterdir() if p.is_file()}==old
+        assert recovery.inspect()["original_sqlite_digest_matches_before"]
+    finally:
+        recovery.bind_case("h4b_missing_read")
+
+
+def test_H4C_rollback_rejects_wrong_case_or_reusing_H4B_manifest(fake_test_home):
+    home,private,plugin,state,config,auth,db=fake_test_home
+    recovery.prepare()
+    original_snapshot=recovery.MANIFEST.read_bytes()
+    recovery.bind_case("h4c_missing_read")
+    try:
+        with pytest.raises(recovery.RollbackBlocked,match="checkpoint"):
+            recovery.inspect()
+        recovery.prepare()
+        payload=json.loads(recovery.MANIFEST.read_text())
+        payload["case_id"]="h4b_missing_read"
+        recovery.MANIFEST.write_text(json.dumps(payload))
+        with pytest.raises(recovery.RollbackBlocked,match="safe original Home"):
+            recovery.inspect()
+        assert (private/"h4b_recovery/manifest.private.json").read_bytes()==original_snapshot
+    finally:
+        recovery.bind_case("h4b_missing_read")

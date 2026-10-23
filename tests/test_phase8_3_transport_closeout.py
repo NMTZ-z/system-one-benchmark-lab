@@ -446,3 +446,52 @@ def test_real_H4B_new_case_only_appends_slots_9_to_11_preserving_original_H4(mon
         output.write(fmt([{"kind":"reserved","run":contract.H4,"slot":11}]))
     with pytest.raises(contract.CloseoutBlocked,match="original H4 startup incident"):
         contract.audited_snapshot(p,new_run=contract.H4B)
+
+
+def test_H4C_original_H4B_no_requests_and_append_only_future_budget(monkeypatch,tmp_path):
+    import phase8_3_transport_closeout as c
+    from hashlib import sha256
+    p=tmp_path/"real_original_plus_test.jsonl"
+    records=[]
+    for slot in range(1,9):
+        run=c.H1 if slot<=3 else c.H2 if slot<=6 else c.H3
+        records.extend([
+            {"kind":"reserved","run":run,"slot":slot},
+            {"kind":"attempted","run":run,"slot":slot},
+        ])
+        if slot!=1:
+            records.extend([
+                {"kind":"responded","run":run,"slot":slot,"http_status":200},
+                {"kind":"result","run":run,"slot":slot,"http_status":200,
+                 "duration_ms":5},
+            ])
+    fmt=lambda items:b"".join(json.dumps(row,sort_keys=True).encode()+b"\n"
+                            for row in items)
+    original=fmt(records)
+    monkeypatch.setattr(c,"H1_ORIGINAL_SHA256",sha256(fmt(records[:10])).hexdigest())
+    monkeypatch.setattr(c,"H2_ORIGINAL_SHA256",sha256(fmt(records[:22])).hexdigest())
+    monkeypatch.setattr(c,"H3_ORIGINAL_SHA256",sha256(original).hexdigest())
+    p.write_bytes(original)
+    report=c.audited_snapshot(p,new_run=c.H4C)
+    assert report["reserved_global"]==8
+    assert report["reserved_original_h4"]==0
+    assert report["reserved_original_h4b"]==0
+    assert report["reserved_new"]==0
+    budget=BudgetLedger(p,total_limit=24,per_run_limit=3)
+    for expected in (9,10):
+        slot=budget.reserve(c.H4C)
+        assert slot==expected
+        budget.mark(c.H4C,slot,"attempted")
+        budget.mark(c.H4C,slot,"responded",200)
+        budget.finish(c.H4C,slot,200,9)
+    fresh=c.audited_snapshot(p,new_run=c.H4C)
+    assert fresh["reserved_global"]==10
+    assert fresh["reserved_new"]==2
+    assert fresh["reserved_original_h4b"]==0
+    assert fresh["historic_h1_unresolved"]==1
+    assert fresh["new_run_status"]=="SCOPE_COMPLETE"
+    assert p.read_bytes().startswith(original)
+    with p.open("ab") as output:
+        output.write(fmt([{"kind":"reserved","run":c.H4B,"slot":11}]))
+    with pytest.raises(c.CloseoutBlocked,match="original H4B sandbox incident"):
+        c.audited_snapshot(p,new_run=c.H4C)

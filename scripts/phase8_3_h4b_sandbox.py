@@ -47,7 +47,7 @@ def build_policy(*, home: Path=TEST_HOME, case_dir: Path,
     fixed=_safe_scope(home,needs_existing=True)
     if fixed!=TEST_HOME or fixed.parent!=Path.home()/".hermes":
         raise SandboxUnavailable("sandbox can only use original dedicated test Home")
-    if (case_dir.name!="h4b_missing_read" or
+    if (case_dir.name not in {"h4b_missing_read","h4c_missing_read"} or
             case_dir.parent != PRIVATE/"runs" or
             not case_dir.is_dir() or case_dir.is_symlink() or
             case_dir.stat().st_mode & 0o077):

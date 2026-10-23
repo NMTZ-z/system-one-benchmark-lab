@@ -26,6 +26,20 @@ from phase8_3_h4b_transaction import BACKUP
 LEDGER=BACKUP/"owned_process_groups.private.jsonl"
 ROLES=frozenset({"mlx","observer","provider","native"})
 EXPECTED_MAX=4
+H4B_CASE="h4b_missing_read"
+H4C_CASE="h4c_missing_read"
+CASE_ID=H4B_CASE
+
+
+def bind_case(case_id: str) -> None:
+    """Explicit safe per-case process provenance; never rewrite H4B."""
+    global BACKUP, LEDGER, CASE_ID
+    if case_id not in {H4B_CASE,H4C_CASE}:
+        raise OwnedProcessBlocked("unsupported process owner case")
+    CASE_ID=case_id
+    BACKUP=Path(__file__).resolve().parents[1]/"private/phase8_3_native_real"/(
+        "h4b_recovery" if case_id==H4B_CASE else "h4c_recovery")
+    LEDGER=BACKUP/"owned_process_groups.private.jsonl"
 
 
 class OwnedProcessBlocked(ValueError):
@@ -185,8 +199,10 @@ def main():
     x=p.add_mutually_exclusive_group(required=True)
     x.add_argument("--status",action="store_true")
     x.add_argument("--stop-verified",action="store_true")
+    p.add_argument("--case",choices=[H4B_CASE,H4C_CASE],default=H4B_CASE)
     a=p.parse_args()
     try:
+        bind_case(a.case)
         report=inspect_owned() if a.status else stop_verified()
         print(json.dumps(report,sort_keys=True,indent=2))
         if not report["all_stopped"] and a.stop_verified:

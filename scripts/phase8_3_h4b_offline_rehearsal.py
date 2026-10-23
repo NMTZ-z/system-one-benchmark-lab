@@ -68,8 +68,10 @@ def _baseline() -> dict:
     }
 
 
-def run() -> dict:
-    base=PRIVATE/("h4b_offline_boot_"+secrets.token_hex(5))
+def run(*, case_id: str="h4b_missing_read") -> dict:
+    if case_id not in {"h4b_missing_read","h4c_missing_read"}:
+        raise RehearsalBlocked("only H4B or new H4C safe offline case permitted")
+    base=PRIVATE/(case_id.split("_")[0]+"_offline_boot_"+secrets.token_hex(5))
     if base.exists() or base.is_symlink():
         raise RehearsalBlocked("disposable nonproduction rehearsal folder unexpectedly exists")
     baseline=_baseline()
@@ -79,7 +81,7 @@ def run() -> dict:
     try:
         runs=base/"runs"
         runs.mkdir(mode=0o700)
-        case=runs/"h4b_missing_read"
+        case=runs/case_id
         case.mkdir(mode=0o700)
         (case/"tmp").mkdir(mode=0o700)
         import phase8_3_h4b_sandbox as sandbox
@@ -160,6 +162,9 @@ if not all(v[k] for k in (
             "TMPDIR":str(case/"tmp"),
             "NO_PROXY":"127.0.0.1,localhost",
         }
+        source_code=source_code.replace(
+            "phase83-h4b-one-read-file-only",
+            f"phase83-{case_id.split('_')[0]}-one-read-file-only")
         native=subprocess.run(
             [str(SANDBOX_EXE),"-p",policy,str(HERMES_PYTHON),
              "-c",source_code],
@@ -196,6 +201,8 @@ if not all(v[k] for k in (
             "real_StepFun_requests":0,
             "production_gateway_touched":False,
             "original_H4B_case_created":False,
+            "original_H4C_case_created":False,
+            "candidate_case":case_id,
             "active_authority":"NOT_AUTHORIZED",
         }
     finally:
@@ -207,11 +214,13 @@ if not all(v[k] for k in (
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run-offline",action="store_true")
+    p.add_argument("--case",choices=["h4b_missing_read","h4c_missing_read"],
+                   default="h4b_missing_read")
     args=p.parse_args()
     if not args.run_offline:
         p.error("H4B offline import rehearsal only; no real Agent/Provider mode")
     try:
-        print(json.dumps(run(),sort_keys=True,indent=2))
+        print(json.dumps(run(case_id=args.case),sort_keys=True,indent=2))
     except (RehearsalBlocked,OSError,ValueError,TypeError,
             subprocess.SubprocessError):
         print(json.dumps({

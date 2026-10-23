@@ -117,3 +117,38 @@ def test_local_runtime_toolset_and_exact_target_guard(fake_case):
         else:
             registry.__dict__.pop("dispatch",None)
         TOOLSETS.pop(child.CUSTOM_TOOLSET,None)
+
+
+def test_H4C_case_binding_rejects_H4B_target_and_reads_new_manifest(fake_case,monkeypatch):
+    original=(
+        child.CASE_ID,child.CASE_DIR,child.TARGET_PREFIX,child.CUSTOM_TOOLSET)
+    profile,oldcase,oldtarget,_,_=fake_case
+    h4c=oldcase.parent/"h4c_missing_read"
+    h4c.mkdir(mode=0o700)
+    target=h4c/("h4c_absent_"+"b"*24+".txt")
+    manifest={
+        "scenario":"read_missing","path":str(target),
+        "basename_sha256":hashlib.sha256(target.name.encode()).hexdigest(),
+        "was_absent_before_agent":True,
+    }
+    p=h4c/"h4c_missing_target.private.json"
+    p.write_text(json.dumps(manifest))
+    p.chmod(0o600)
+    prompt=h4c/"h4c_prompt.private.txt"
+    prompt.write_text(f"Only read_file {target}; report a missing file.")
+    prompt.chmod(0o600)
+    try:
+        child.configure_for_case("h4c_missing_read")
+        assert child.CASE_DIR==h4c
+        assert child.CUSTOM_TOOLSET=="phase83-h4c-one-read-file-only"
+        monkeypatch.chdir(h4c)
+        chosen,_=child.check_case()
+        assert chosen==target and not chosen.exists()
+        with pytest.raises(child.DirectAgentBlocked):
+            child.configure_for_case("h4b_missing_read")
+        p.write_text(json.dumps({**manifest,"path":str(oldtarget)}))
+        with pytest.raises(child.DirectAgentBlocked):
+            child.check_case()
+        assert oldtarget.name.startswith("h4b_absent_")
+    finally:
+        child.CASE_ID,child.CASE_DIR,child.TARGET_PREFIX,child.CUSTOM_TOOLSET=original

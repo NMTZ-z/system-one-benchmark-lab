@@ -45,6 +45,25 @@ class AdjudicationBlocked(ValueError):
     pass
 
 
+def configure_for_case(case_id: str) -> None:
+    """One H4C independent verifier process; NEVER read H4B postrun by default."""
+    global RUN_ID, CASE_DIR, POST_DB, PRE_STATE, POST_STATE
+    global FINAL_REPORT, HMAC_FILE, OBSERVER, PUBLIC
+    if case_id!="h4c_missing_read":
+        raise AdjudicationBlocked("only the new H4C private evidence scope is accepted")
+    import phase8_3_h4b_transaction as tx
+    tx.bind_case(case_id)
+    RUN_ID=case_id
+    CASE_DIR=PRIVATE/"runs"/case_id
+    POST_DB=tx.POST_DB
+    PRE_STATE=tx.PRE_STATE
+    POST_STATE=tx.POST_STATE
+    FINAL_REPORT=tx.FINAL_REPORT
+    HMAC_FILE=PRIVATE/"h4c_correlation_key.private.bin"
+    OBSERVER=PRIVATE/"h4c_http.private.jsonl"
+    PUBLIC=ROOT/"results/processed/phase8_3_h4c_real_native_adjudicated.json"
+
+
 def _read_json(path: Path) -> dict:
     if path.is_symlink() or not path.is_file():
         raise AdjudicationBlocked("H4B original private document missing")
@@ -116,7 +135,7 @@ def _completion_join(completion: list[dict], http: list[dict],key: bytes) -> dic
 def adjudicate(*, frozen_sha: str) -> dict:
     if not re.fullmatch(r"[0-9a-f]{40}",frozen_sha):
         raise AdjudicationBlocked("explicit frozen real H4B candidate source required")
-    original=_read_json(PRIVATE/"runs/h4b_verified.private.json")
+    original=_read_json(PRIVATE/"runs"/f"{RUN_ID.split('_')[0]}_verified.private.json")
     if (original.get("candidate_source_sha")!=frozen_sha
             or original.get("run_id")!=RUN_ID
             or original.get("agent_platform")!="official_hermes_inprocess_AIAgent"):
@@ -135,6 +154,8 @@ def adjudicate(*, frozen_sha: str) -> dict:
             or history.get("reserved_h2")!=3
             or history.get("reserved_h3")!=2
             or history.get("reserved_original_h4")!=0
+            or (RUN_ID=="h4c_missing_read"
+                and history.get("reserved_original_h4b")!=0)
             or history.get("historic_h1_unresolved")!=1
             or not 8<=history.get("reserved_global",0)<=11
             or not 0<=history.get("attempted_new",0)<=3
@@ -221,7 +242,7 @@ def adjudicate(*, frozen_sha: str) -> dict:
         and negative_pass and physical_pass and completion_pass and retry_pass
     )
     return {
-        "schema":"local-system-one/phase8_3-h4b-native-readfailure-adjudicated-v1",
+        "schema":f"local-system-one/phase8_3-{RUN_ID.split('_')[0]}-native-readfailure-adjudicated-v1",
         "original_run_source_sha":frozen_sha,
         "is_original_H4_gateway_attempt":False,
         "native_engine":"installed_official_Hermes_AIAgent_inprocess",
@@ -240,9 +261,12 @@ def adjudicate(*, frozen_sha: str) -> dict:
             "no_native_retry_or_active_action_observed_from_advisor") is True,
         "retry_verdict":"PASS" if retry_pass else "NOT_VERIFIED",
         "global_provider_reservations":history["reserved_global"],
-        "H4B_physical_attempts":history["attempted_new"],
-        "H4B_physical_responded":history["responded_new"],
-        "H4B_physical_unknown":history["unknown_new"],
+        "physical_attempts_for_current_case":history["attempted_new"],
+        "H4B_physical_attempts":history["attempted_new"] if RUN_ID=="h4b_missing_read" else 0,
+        "physical_provider_responded_for_current_case":history["responded_new"],
+        "physical_provider_unknown_for_current_case":history["unknown_new"],
+        "H4B_physical_responded":history["responded_new"] if RUN_ID=="h4b_missing_read" else 0,
+        "H4B_physical_unknown":history["unknown_new"] if RUN_ID=="h4b_missing_read" else 0,
         "H1_original_unresolved":history["historic_h1_unresolved"],
         "provider_ledger_sha256":history["ledger_digest_sha256"],
         "physical_budget_verdict":"PASS" if physical_pass else "NOT_VERIFIED",
@@ -252,7 +276,7 @@ def adjudicate(*, frozen_sha: str) -> dict:
         "read_or_backed_up_provider_key":False,
         "actual_subscription_credit_debit":"UNKNOWN",
         "agent_level_savings":"NOT_MEASURED",
-        "H4B_scoped_verdict":"PASS_SCOPED" if scoped else "PARTIAL_OR_BLOCKED",
+        f"{RUN_ID.split('_')[0].upper()}_scoped_verdict":"PASS_SCOPED" if scoped else "PARTIAL_OR_BLOCKED",
         "phase8_3a_global":"BLOCKED_HISTORICAL_H1_UNRESOLVED",
         "original_H4_unchanged":True,
         "native_active_authority":"NOT_AUTHORIZED",
@@ -273,7 +297,7 @@ def main():
             PUBLIC.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",
                               encoding="utf-8")
         print(json.dumps(result,sort_keys=True,indent=2))
-        if result["H4B_scoped_verdict"]!="PASS_SCOPED":
+        if result[f"{RUN_ID.split('_')[0].upper()}_scoped_verdict"]!="PASS_SCOPED":
             raise SystemExit(3)
     except (AdjudicationBlocked,OSError,ValueError,TypeError,
             KeyError,sqlite3.Error,CloseoutBlocked):
