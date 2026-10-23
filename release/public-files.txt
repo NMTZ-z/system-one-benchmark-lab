@@ -248,3 +248,7 @@ scripts/phase8_3_h4c_offline_rehearsal.py
 tests/test_phase8_3_h4c_isolation.py
 tests/test_phase8_3_h4c_adjudicate.py
 tests/test_phase8_3_h4c_runner_admission.py
+docs/PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md
+scripts/phase8_3_verify_h4c_preactive_block.py
+tests/test_phase8_3_verify_h4c_preactive_block.py
+results/processed/phase8_3_h4c_preactive_native_blocked.json

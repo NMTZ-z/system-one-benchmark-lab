@@ -631,3 +631,32 @@ rehearsal passed without running a real Agent or StepFun.
 Native tool failure and Retry Shadow still require separate
 real H4C evidence. Original physical Provider ledger is
 unchanged at 8 attempts; no prior UNKNOWN request is rewritten.
+
+## 21. Original H4C native startup blocked, full rollback verified
+
+H4C was a separate one-shot native case, not a replay of H4B.
+After 1338 Python / 64 DSH prereg tests and source
+SHA 8776de71a88821dffd84bfd4976927fd0cfe9c3a
+was frozen, its true Hermes in-process run_one_shot
+returned SystemExit(1) inside _run_agent before a
+native SQLite Session or actual read_file call was
+persisted. Exact initiating subsystem UNKNOWN because
+the official one-shot suppresses traceback internally.
+No local Completion/Retry observations were recorded
+and the StepFun physical budget proxy recorded ZERO
+new H4C requests.
+
+All four new test-only process groups stopped and
+H4C-only online SQLite snapshot restored original
+test Home state/config/plugin and OFF. Test credential
+metadata unchanged, H4B original rollback and production
+Gateway not modified. Cumulative Provider ledger still
+8/24 physical attempts, 7 HTTP 200 and one original
+H1 UNKNOWN. No paid retries, no Active or Canary.
+
+H4C independent incident and read-only evidence at
+PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md and the processed
+machine-readable output. New real H4D MUST NOT be
+authorized until true official _run_agent initialization
+has been tested with a sandboxed ZERO-NETWORK local
+provider in a separate disposable rollback environment.

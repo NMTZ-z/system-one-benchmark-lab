@@ -178,6 +178,24 @@ the H4C original run. This is H4C PRE-RUN preparation only;
 real missing-file and Retry Shadow proof must come from the
 separate one-shot actual Provider-backed experiment.
 
+**2026-10-23 H4C real one-shot admission:** The distinct H4C
+source was frozen at 8776de7 with independent run, recovery,
+sandbox and bounded provider paths. The genuine Hermes
+in-process child exited SystemExit(1) before recording a
+native SQLite Session or tool call, with NO new StepFun
+physical request. The actual underlying initialization
+cause is NOT established because Hermes suppressed
+stderr inside run_oneshot. All four H4C-owned test
+processes were verified stopped; isolated test Home
+SQLite/plugin/config were fully restored to OFF and
+auth metadata was unchanged. The original
+[H4C incident report](docs/PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md)
+and [read-only verifier](scripts/phase8_3_verify_h4c_preactive_block.py)
+separate this blocked startup from actual failed-read/Retry
+acceptance. No H4C paid rerun or automatic H4D is authorized.
+Next engineering work is a fully local, zero-network
+initialization-stage diagnosis before another paid test.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

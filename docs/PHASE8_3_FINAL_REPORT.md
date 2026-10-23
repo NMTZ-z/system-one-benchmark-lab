@@ -666,3 +666,47 @@ paid retries. A zero-network case-specific offline Hermes
 one-shot rehearsal PASSED. This phase document reflects
 source preregistration, not an observed real H4C native result.
 Read [H4C preregistration and manual recovery](PHASE8_3_REAL_H4C_PREREGISTRATION.md).
+
+## 22. H4C real native startup blocked before persistent Session (2026-10-23)
+
+The H4C NEW independent case on clean frozen SHA
+8776de71a88821dffd84bfd4976927fd0cfe9c3a
+passed 1338/1338 prereg Python regression, DSH 64/64,
+TS typecheck/build, and a 321-file publish-ready sanitizer.
+It passed the strict local-only OFF gate, exact original
+H4B recovery verification, fresh H4C rollback scope and
+official Hermes one-shot preamble under all-network-denied
+Seatbelt with a synthetic no-model stub.
+
+Exactly ONE genuine new H4C official in-process Hermes
+one-shot was then started with dedicated isolated Laya,
+HMAC Observer and physical StepFun capped local services.
+The child returned 1 before any native SQLite Session or
+read_file tool. The official usage evidence records
+failed=true and failure SystemExit(1); the underlying
+source cannot be established because official one-shot
+suppressed stderr during _run_agent. No Completion/Retry
+HTTP events and NO H4C StepFun physical requests occurred.
+
+The original test Home OFF/SQLite/plugin/config/source
+was restored using the new h4c_recovery. Auth stat-only
+metadata unchanged; all four H4C-owned process groups
+verified NOT_RUNNING. Original H4B separate backup and
+H1-H3 private evidence were unaffected. Cumulative
+StepFun physical ledger SHA was unchanged at 8/24:
+seven recorded HTTP 200, original H1 one UNKNOWN.
+No new Provider charge was observed through the proxy,
+no production Gateway, NAS main, GitHub main or user
+profile was modified. H4C was NOT retried.
+
+An independent post-run H4C verifier and privacy-safe
+machine-readable incident were created; real H4C failure
+tool and Retry E2E remain NOT RUN. The next work should
+instrument the entire real Hermes _run_agent initialization
+under a separate zero-network simulated local Provider
+and disposable rollback scope BEFORE contemplating a
+new paid experiment. Do not weaken Seatbelt on speculation.
+
+Read the [H4C blocked native startup incident](PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md).
+Draft PR #9 remains unmerged, Active/Canary NOT AUTHORIZED,
+global Phase8.3A Provider integrity historical BLOCKED.
