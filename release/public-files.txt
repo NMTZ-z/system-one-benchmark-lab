@@ -252,3 +252,9 @@ docs/PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md
 scripts/phase8_3_verify_h4c_preactive_block.py
 tests/test_phase8_3_verify_h4c_preactive_block.py
 results/processed/phase8_3_h4c_preactive_native_blocked.json
+scripts/phase8_3_init_child.py
+scripts/phase8_3_init_diagnostic.py
+tests/test_phase8_3_init_diagnostic.py
+docs/PHASE8_3_INIT_DIAGNOSTIC_PROTOCOL.md
+docs/PHASE8_3_INIT_DIAGNOSTIC_REPORT.md
+results/processed/phase8_3_init_diagnostic.json

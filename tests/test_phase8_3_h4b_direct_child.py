@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 import hashlib
 import json
+import os
 import sys
 
 import pytest
@@ -91,12 +92,15 @@ def test_future_child_cannot_start_if_setup_drifted(fake_case,monkeypatch,mutati
         child.check_case()
 
 
-def test_local_runtime_toolset_and_exact_target_guard(fake_case):
+def test_local_runtime_toolset_and_exact_target_guard(fake_case,monkeypatch):
     _,_,target,_,_=fake_case
     # The installed Hermes ToolRegistry is modified only in THIS Python
     # test process; never production Agent source or settings.
-    import sys
-    sys.path.insert(0,str(child.HERMES_INSTALL))
+    if source := os.environ.get("HERMES_TEST_SOURCE"):
+        monkeypatch.setattr(child,"HERMES_INSTALL",Path(source))
+    if not child.HERMES_INSTALL.is_dir():
+        pytest.skip("Provide an exported Hermes source using HERMES_TEST_SOURCE")
+    monkeypatch.syspath_prepend(str(child.HERMES_INSTALL))
     from tools.registry import registry
     from toolsets import TOOLSETS,resolve_toolset
     old=registry.__dict__.get("dispatch",None)

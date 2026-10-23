@@ -26,6 +26,18 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def validate_source(path: Path) -> Path:
+    if path.is_symlink():
+        raise ValueError("use a source export, not a linked live checkout")
+    root = path.resolve(strict=True)
+    # A live checkout can load project .env before Agent construction.
+    for name in (".git", ".env", "auth.json", "state.db", ".venv"):
+        entry = root / name
+        if entry.exists() or entry.is_symlink():
+            raise ValueError("source must be a credential-free Git archive")
+    return root
+
+
 def snapshot(root: Path) -> dict:
     result = {}
     for path in sorted(root.rglob("*")):
@@ -134,9 +146,14 @@ def verdict(result: dict) -> str:
     elif case == "empty_stepfun":
         expected = (not result["constructor_returned"] and not result["boundaries"]
                     and result["native_session_rows"] in (None, 0)
+                    and not result["timed_out"] and result["process_exit"] == 0
+                    and result["outcome"].get("oneshot_return") == 1
                     and any(e["exception"]["type"] == "AuthError" for e in result["stage_exceptions"]))
     elif case == "bootstrap_pm_readonly":
         expected = (not result["constructor_returned"] and not result["boundaries"]
+                    and not result["timed_out"] and result["process_exit"] == 0
+                    and result["outcome"].get("exception", {}).get("type") == "SystemExit"
+                    and result["outcome"].get("exception", {}).get("exit_code") == 1
                     and any(e["file"] == "hermes_bootstrap.py" for e in result["exit_origins"])
                     and any(e["file"] == "hermes_cli/runtime_state.py" and
                             e["exception"]["type"] == "PermissionError" for e in result["stage_exceptions"]))
@@ -273,11 +290,12 @@ def main() -> int:
     parser.add_argument("--verify", type=Path)
     args = parser.parse_args()
     if args.verify:
-        print(json.dumps(verify_case(args.verify), indent=2))
-        return 0
+        result = verify_case(args.verify)
+        print(json.dumps(result, indent=2))
+        return 0 if result["verdict"] == "PASS_EXPECTED_OFFLINE_BEHAVIOR" else 3
     if sys.platform != "darwin" or not all((args.source, args.python, args.output)):
         parser.error("macOS, source snapshot, official Python and a fresh output path required")
-    source = args.source.resolve(strict=True)
+    source = validate_source(args.source)
     python = args.python.absolute()
     if args.output.exists() or args.output.is_symlink():
         parser.error("experiment output must not already exist")

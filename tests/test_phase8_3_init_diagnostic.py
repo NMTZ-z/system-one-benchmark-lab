@@ -12,6 +12,33 @@ import phase8_3_init_child as child
 import phase8_3_init_diagnostic as diag
 
 
+@pytest.mark.parametrize("name", [".git", ".env", "auth.json", "state.db", ".venv"])
+def test_live_source_or_auth_artifact_rejected_before_read(tmp_path, name):
+    # Even a dangling link must fail without reading its target.
+    (tmp_path / name).symlink_to(tmp_path / "absent-sensitive-file")
+    with pytest.raises(ValueError, match="credential-free"):
+        diag.validate_source(tmp_path)
+
+
+def test_source_export_accepted_but_root_link_rejected(tmp_path):
+    source = tmp_path / "export"
+    source.mkdir()
+    assert diag.validate_source(source) == source
+    link = tmp_path / "linked-export"
+    link.symlink_to(source, target_is_directory=True)
+    with pytest.raises(ValueError, match="linked live"):
+        diag.validate_source(link)
+
+
+@pytest.mark.parametrize("verdict,code", [("PASS_EXPECTED_OFFLINE_BEHAVIOR", 0),
+                                         ("SAFETY_BLOCKED", 3),
+                                         ("BLOCKED_UNEXPECTED_NATIVE_BEHAVIOR", 3)])
+def test_independent_verify_cli_fails_closed(monkeypatch, tmp_path, verdict, code):
+    monkeypatch.setattr(sys, "argv", ["diagnostic", "--verify", str(tmp_path)])
+    monkeypatch.setattr(diag, "verify_case", lambda path: {"verdict": verdict})
+    assert diag.main() == code
+
+
 def test_environment_never_inherits_credentials(monkeypatch, tmp_path):
     monkeypatch.setenv("STEPFUN_API_KEY", "sensitive-never-copy")
     monkeypatch.setenv("HTTPS_PROXY", "sensitive-never-copy")
@@ -107,6 +134,24 @@ def test_unreached_fault_is_not_pass():
     result = valid_result()
     result.update(case="constructor:crash", constructor_returned=False,
                   boundaries=[], process_exit=71, fault_injected=[])
+    assert diag.verdict(result) == "BLOCKED_UNEXPECTED_NATIVE_BEHAVIOR"
+
+
+@pytest.mark.parametrize("case", ["empty_stepfun", "bootstrap_pm_readonly"])
+@pytest.mark.parametrize("bad_end", ["timeout", "wrong_outcome"])
+def test_expected_error_followed_by_bad_cleanup_is_not_pass(case, bad_end):
+    result = valid_result()
+    result.update(case=case, constructor_returned=False, boundaries=[],
+                  process_exit=0, native_session_rows=0,
+                  outcome={"oneshot_return": 1, "exception": {"type": "SystemExit", "exit_code": 1}},
+                  exit_origins=[{"file": "hermes_bootstrap.py"}],
+                  stage_exceptions=[{"file": "hermes_cli/runtime_state.py", "exception": {"type": "PermissionError"}},
+                                    {"exception": {"type": "AuthError"}}])
+    assert diag.verdict(result) == "PASS_EXPECTED_OFFLINE_BEHAVIOR"
+    if bad_end == "timeout":
+        result.update(timed_out=True, process_exit=-15)
+    else:
+        result["outcome"] = {}
     assert diag.verdict(result) == "BLOCKED_UNEXPECTED_NATIVE_BEHAVIOR"
 
 

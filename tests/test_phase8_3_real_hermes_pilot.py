@@ -25,17 +25,22 @@ def test_invalid_git_candidate_never_enters_provider_gate(monkeypatch):
         pilot.preflight("0"*40)
 
 
-def test_missing_new_test_authorization_denied_before_proxy(monkeypatch):
+def test_missing_new_test_authorization_denied_before_proxy(monkeypatch,tmp_path):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(pilot,"PRIVATE",tmp_path)
     sha=pilot._git("rev-parse","HEAD")
     original_git = pilot._git
     monkeypatch.setattr(pilot, "_git",
         lambda *args: "" if args[:1] == ("status",) else original_git(*args))
     monkeypatch.setattr(pilot,"inspect",lambda official_auth:{"credential_stage_ready":False,"mode":"off"})
+    monkeypatch.setattr(pilot,"inspect_route",lambda:{"route_status":"PINNED_PROXY"})
     with pytest.raises(pilot.PilotBlocked, match="credential or proxy"):
         pilot.preflight(sha)
 
 
-def test_preflight_never_allows_shadow_as_off(monkeypatch):
+def test_preflight_never_allows_shadow_as_off(monkeypatch,tmp_path):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(pilot,"PRIVATE",tmp_path)
     sha=pilot._git("rev-parse","HEAD")
     original_git = pilot._git
     monkeypatch.setattr(pilot, "_git",

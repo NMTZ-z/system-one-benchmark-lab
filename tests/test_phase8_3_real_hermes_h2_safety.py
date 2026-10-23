@@ -36,7 +36,10 @@ def test_bogus_frozen_commit_cannot_launch_any_real_task():
         h2._check_setup("0"*40)
 
 
-def test_unverified_H2_shadow_mode_cannot_launch(monkeypatch):
+def test_unverified_H2_shadow_mode_cannot_launch(monkeypatch,tmp_path):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(h2,"PRIVATE",tmp_path)
+    monkeypatch.setattr("phase8_3_real_hermes_pilot.PRIVATE",tmp_path)
     sha=h2._git("rev-parse","HEAD")
     prev=h2._git
     monkeypatch.setattr(h2,"_git",lambda *args: "" if args[:1]==("status",) else prev(*args))

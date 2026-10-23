@@ -1,0 +1,275 @@
+{
+  "schema": "local-system-one/phase8_3-native-init-diagnostic-v1",
+  "evidence_kind": "REAL_HERMES_INITIALIZATION_WITH_SYNTHETIC_CONFIG_NO_PROVIDER",
+  "executed_local_dates": [
+    "2026-10-23",
+    "2026-10-24"
+  ],
+  "project_baseline": "3057ab231b955a99529fb63c45e41e5a4746b607",
+  "experiment_source_commit": "161a09b352c5ab806d16f93fd935fa597f185227",
+  "hermes_version": "v0.22.4",
+  "hermes_commit": "4d04303818b61bf3aa09278af48356315515965b",
+  "hermes_git_archive_sha256": "80b083e924d72e6e2203c977992dc521b7ad2040593d0cf53ac52dac0c457b09",
+  "source_digests": {
+    "hermes_bootstrap.py": "f242036b2d35b92283b9a7e97c7059e537607fc4b02026f657a6d00cb4683f69",
+    "run_agent.py": "33c7195fc6efa9122f1a6700d416fd283f9634712189af3fd72feb01bcea054f",
+    "hermes_cli/oneshot.py": "ebd2bc6a320f24fa94249dab37a0776f4d32c92bb7ac3f6c7193f14eefecfdc9",
+    "agent/agent_init.py": "1e29225039534583ef0f3e7ae0d7a02b091e03792f8170c880ba83fff9c977cd"
+  },
+  "execution_runner_sha256": "c8bb0cd4606479bdec59eef61b9042ecff1b7317e38ba786b8fd1b13388e342d",
+  "execution_child_sha256": "e9a16e27bc4313c46160cc43cb2e734057aa38223531c95c44e8a087bfd4cb24",
+  "independent_verifier_sha256": "f6d4d61c04f74fba2ca3e6841858a5ccc3f5c326c312f53c8701acccc90dea7e",
+  "original_h4c_source": "8776de71a88821dffd84bfd4976927fd0cfe9c3a",
+  "original_h4c_upstream_hermes_source_binding": "NOT_RECORDED_IN_AVAILABLE_ORIGINAL_RESULT",
+  "cases": [
+    {
+      "case": "init",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [
+        "constructor_complete"
+      ],
+      "native_session_rows": 0,
+      "constructor_returned": true,
+      "fault_injected": [],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "init_repeat",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [
+        "constructor_complete"
+      ],
+      "native_session_rows": 0,
+      "constructor_returned": true,
+      "fault_injected": [],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "empty_stepfun",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "request_boundary",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [
+        "sdk_request_prepared"
+      ],
+      "native_session_rows": 1,
+      "constructor_returned": true,
+      "fault_injected": [],
+      "process_exit": 72,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "bootstrap_pm_readonly",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": null,
+      "constructor_returned": false,
+      "fault_injected": [],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "bootstrap:exit",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": null,
+      "constructor_returned": false,
+      "fault_injected": [
+        "bootstrap"
+      ],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "provider:exit",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [
+        "provider"
+      ],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "mcp:error",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [
+        "mcp"
+      ],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "constructor:exit",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [
+        "constructor"
+      ],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "tools:exit",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [
+        "tools"
+      ],
+      "process_exit": 0,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "constructor:crash",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [
+        "constructor"
+      ],
+      "process_exit": 71,
+      "timed_out": false,
+      "external_provider_requests": 0
+    },
+    {
+      "case": "constructor:timeout",
+      "verdict": "PASS_EXPECTED_OFFLINE_BEHAVIOR",
+      "isolation_admitted": true,
+      "restored": true,
+      "owned_group_stopped": true,
+      "protected_sentinel_unchanged": true,
+      "boundaries": [],
+      "native_session_rows": 0,
+      "constructor_returned": false,
+      "fault_injected": [
+        "constructor"
+      ],
+      "process_exit": -15,
+      "timed_out": true,
+      "external_provider_requests": 0
+    }
+  ],
+  "total_cases": 12,
+  "exact_case_verdicts_passed": 12,
+  "new_physical_provider_requests": 0,
+  "historic_physical_attempts": 8,
+  "global_cap": 24,
+  "historic_h1_unknown": 1,
+  "original_ledger_sha256_unchanged": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+  "confirmed_reproduction": {
+    "case": "bootstrap_pm_readonly",
+    "failure_chain": [
+      "runtime_state.runtime_lock:PermissionError(EPERM)",
+      "activate_dependencies",
+      "hermes_bootstrap:SystemExit(1)",
+      "oneshot._run_agent import before config/database/constructor"
+    ],
+    "new_native_session_rows": 0,
+    "historical_causality": "COMPATIBLE_REPRODUCTION_NOT_UNIQUE_RETROSPECTIVE_PROOF"
+  },
+  "native_tool_execution": "NOT_RUN",
+  "real_provider_e2e": "NOT_RUN",
+  "retry_shadow_acceptance": "NOT_RUN",
+  "active_canary": "NOT_AUTHORIZED",
+  "h4d_real_test": "NO_GO",
+  "native_child_policy": "OS enforced deny-all network and writes outside disposable scratch; fixed user-data read allowlist",
+  "production_gateway_mutated": false,
+  "real_credentials_accessed": false,
+  "regression": {
+    "python": {
+      "passed": 1388,
+      "skipped": 1,
+      "total": 1389,
+      "main_sandbox_passed": 1384,
+      "own_seatbelt_checks_passed": 2,
+      "supervisor_identity_checks_passed": 2,
+      "skip_reason": "original private ledger deliberately not mounted; unchanged original digest separately checked"
+    },
+    "dsh_vitest_passed": 64,
+    "typescript_typecheck": "PASS",
+    "typescript_build": "PASS",
+    "focused_diagnostic_tests": 31
+  },
+  "validation_log_sha256": {
+    "regression-003/python.log": "effc9733378bda11b48e150ae0f433f5269e71319135784578e568c88f3d005f",
+    "regression-002/kernel.log": "78419627264031e09b8d27d312febff809c752c4503708de329ca11ad2b11318",
+    "process-tests-001.log": "f4c61c0ac8f55c6c9a2d6c593731bf5f8c4a6c5bebbe514284fd4f899818f9e0",
+    "regression-002/dsh-test.log": "1e7ae9895310e8a5a2f2672bcd4075f21e9428b6ff748c34b3fcbef113f8b7b7",
+    "regression-002/dsh-types.log": "d464afc6835ff2d3fcd96119f5a5440f3f8a195049a560919ebf37bd90cd4db8",
+    "regression-002/dsh-build.log": "9a373b660b4fae66062eb58825472c15a5a345b447e346c5e012acd8424fb2b0"
+  }
+}

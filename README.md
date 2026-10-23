@@ -196,6 +196,21 @@ acceptance. No H4C paid rerun or automatic H4D is authorized.
 Next engineering work is a fully local, zero-network
 initialization-stage diagnosis before another paid test.
 
+**2026-10-24 native initialization diagnostic:** The
+[zero-network diagnostic](docs/PHASE8_3_INIT_DIAGNOSTIC_REPORT.md)
+now executes real official Hermes `run_oneshot` / `_run_agent` /
+`AIAgent` in disposable Homes, with **12/12** exact offline case verdicts
+and independent restoration checks. Constructor-only runs produce no
+Session; the first-SDK-boundary run creates one native SQLite Session and
+stops before any transport request. An OS-denied synthetic PM dependency
+lock reproduces `PermissionError → SystemExit(1)` during import, before
+Agent construction. This is a verified compatible mechanism, **not unique
+retrospective proof of H4C's cause**. New real Provider calls **0**;
+historical budget still **8/24**, H1 UNKNOWN retained. H4D **NO-GO**;
+real missing-file/Retry Shadow acceptance and Active remain unauthorized.
+See the [protocol](docs/PHASE8_3_INIT_DIAGNOSTIC_PROTOCOL.md) and
+[public aggregate](results/processed/phase8_3_init_diagnostic.json).
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.
