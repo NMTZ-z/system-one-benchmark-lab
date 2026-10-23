@@ -120,6 +120,27 @@ def _must_not_exist(paths: list[Path]) -> None:
             raise H4BBlocked("original H4B is not a fresh one-shot experiment")
 
 
+def _verify_h4b_history_in_its_own_scoped_context() -> dict:
+    """Read the frozen H4B rollback proof without H4C path confusion.
+
+    No file writes or credentials: transaction/PID modules are scoped
+    temporarily to H4B only while the H4B private verifier executes.
+    ALL global paths revert to H4C even if verification raises.
+    """
+    import phase8_3_h4b_transaction as tx
+    import phase8_3_h4b_owned_processes as own
+    if tx.CASE_ID!=H4C or own.CASE_ID!=H4C:
+        raise H4BBlocked("H4C scoped rollback provenance not initialized")
+    tx.bind_case(H4B)
+    own.bind_case(H4B)
+    try:
+        from phase8_3_verify_h4b_seatbelt_block import verify
+        return verify()
+    finally:
+        tx.bind_case(H4C)
+        own.bind_case(H4C)
+
+
 def _preflight(sha: str) -> dict:
     if not isinstance(sha,str) or len(sha)!=40 or (
         sha!=_git("rev-parse","HEAD") or _git("status","--porcelain=v1")
@@ -147,8 +168,11 @@ def _preflight(sha: str) -> dict:
         # A later trial is forbidden while original H4B local rollback is
         # uncertain. Independently verify its actual frozen private incident,
         # including all 4 owned groups stopped, unchanged test SQLite/auth.
-        from phase8_3_verify_h4b_seatbelt_block import verify as verify_h4b
-        historic=verify_h4b()
+        # Both tx and PID provenance modules are explicitly rebound to H4B
+        # *only for this read-only audit*, then ALWAYS restored to H4C
+        # before any H4C checkpoint, port allocation or Provider service.
+        # No historical backup file is copied or written in either scope.
+        historic=_verify_h4b_history_in_its_own_scoped_context()
         if (
             historic.get("H4B_scoped_verdict")!="BLOCKED_BEFORE_NATIVE_AGENT_CONSTRUCTION"
             or historic.get("original_test_sqlite_logically_restored") is not True

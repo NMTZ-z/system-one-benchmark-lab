@@ -60,7 +60,7 @@ def test_h4c_wrapper_binds_new_run_before_calling_shared_engine():
 
 def test_H4C_native_source_requires_historical_H4B_recovery_before_spend():
     source=(ROOT/"scripts/phase8_3_real_hermes_h4b.py").read_text()
-    assert "verify_h4b()" in source
+    assert "_verify_h4b_history_in_its_own_scoped_context()" in source
     assert "original H4B baseline/rollback not independently verified" in source
     assert 'previous.get("reserved_original_h4b")!=0' in source
     assert 'previous.get("reserved_global")!=8' in source
@@ -76,3 +76,33 @@ def test_H4C_direct_child_exact_missing_file_only():
     assert 'args.get("path")!=str(target)' in script
     assert 'read_file' in script
     assert 'run_oneshot(' in script
+
+
+def test_scoped_historical_H4B_read_does_not_leave_H4C_transaction_switched(monkeypatch):
+    import sys
+    import types
+    import phase8_3_h4b_transaction as tx
+    import phase8_3_h4b_owned_processes as own
+    previous=(tx.CASE_ID,own.CASE_ID)
+    try:
+        tx.bind_case("h4c_missing_read")
+        own.bind_case("h4c_missing_read")
+        def fake_historical_read():
+            assert tx.CASE_ID=="h4b_missing_read"
+            assert own.CASE_ID=="h4b_missing_read"
+            assert tx.BACKUP.name=="h4b_recovery"
+            assert own.BACKUP.name=="h4b_recovery"
+            return {"H4B_scoped_verdict":"BLOCKED_BEFORE_NATIVE_AGENT_CONSTRUCTION"}
+        stub=types.ModuleType("phase8_3_verify_h4b_seatbelt_block")
+        stub.verify=fake_historical_read
+        monkeypatch.setitem(sys.modules,"phase8_3_verify_h4b_seatbelt_block",stub)
+        result=shared._verify_h4b_history_in_its_own_scoped_context()
+        assert result["H4B_scoped_verdict"]=="BLOCKED_BEFORE_NATIVE_AGENT_CONSTRUCTION"
+        assert tx.CASE_ID==own.CASE_ID=="h4c_missing_read"
+        stub.verify=lambda:(_ for _ in ()).throw(ValueError("synthetic history failure"))
+        with pytest.raises(ValueError,match="synthetic"):
+            shared._verify_h4b_history_in_its_own_scoped_context()
+        assert tx.CASE_ID==own.CASE_ID=="h4c_missing_read"
+    finally:
+        tx.bind_case(previous[0])
+        own.bind_case(previous[1])

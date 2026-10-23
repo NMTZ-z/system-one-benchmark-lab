@@ -177,3 +177,27 @@ Only when the test ports are free, inspect and restore:
 
 These commands never target original H4B backups. Raw logs and
 snapshot data remain Git-ignored and owned by the operator.
+
+## 7. Prerequest case-scope protection discovered in zero-cost gate
+
+The initial frozen H4C candidate passed its test suite but the
+subsequent clean-source OFFLINE gate correctly BLOCKED BEFORE
+H4C was created or any Provider request was made. Its reason
+was a read-only historical H4B verification scope error:
+the separate H4C process had already selected h4c_recovery,
+causing the H4B historical verifier to see the new, not-yet-existing
+H4C recovery folder.
+
+A new, reviewed H4C-only helper temporarily binds the original
+test rollback and owned-process verification modules to their
+EXISTING h4b_recovery during that read-only audit, then ALWAYS
+rebinds both to h4c_recovery, including on exception. Synthetic
+tests verify both successful historical reads and thrown errors
+restore the H4C scope. It does not copy, move, edit, delete
+or reinitialize the original H4B historical data.
+
+The old blocked H4C source is not authorized to launch a real
+Provider task. Only the subsequent clean Git commit containing
+this protection and a full revalidated offline preflight may
+qualify for one controlled H4C native test. No StepFun physical
+slots were consumed by the failed preflight.

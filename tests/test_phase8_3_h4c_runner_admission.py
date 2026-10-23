@@ -37,7 +37,7 @@ def test_H4C_source_keeps_same_strict_limits_and_owned_process_groups():
     assert 'owned_child_process' not in source or 'owned' in source
     assert 'RUN_ID==H4C' in source
     assert '"reserved_original_h4b"' in source
-    assert 'verify_h4b()' in source
+    assert '_verify_h4b_history_in_its_own_scoped_context()' in source
 
 
 def test_H4C_offline_wrapper_has_no_bypass_of_one_shot_optin():
