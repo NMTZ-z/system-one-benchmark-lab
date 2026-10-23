@@ -47,3 +47,18 @@ def test_real_budget_proxy_cli_refuses_writing_outside_private(tmp_path):
     assert done.returncode != 0
     assert "ledger must be inside" in done.stderr
     assert not target.exists()
+
+
+@pytest.mark.parametrize("report,expected",[
+    ({"process_exit_code":0,"timed_out":False},0),
+    ({"process_exit_code":1,"timed_out":False},3),
+    ({"process_exit_code":2,"timed_out":False},3),
+    ({"process_exit_code":None,"timed_out":False},3),
+    ({"process_exit_code":0,"timed_out":True},3),
+    ({"process_exit_code":False,"timed_out":False},3),
+    ({"process_exit_code":"0","timed_out":False},3),
+    ({},3),
+])
+def test_native_cli_never_masks_underlying_agent_failure(report,expected):
+    from phase8_2a_native_run import native_cli_exit_code
+    assert native_cli_exit_code(report)==expected

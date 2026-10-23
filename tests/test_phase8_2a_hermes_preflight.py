@@ -68,12 +68,15 @@ def test_frozen_8_2a_operational_source_provenance_and_later_change_boundary():
         "git", "diff", "--name-only", PHASE8_2A_MERGED_SOURCE, "HEAD",
         "--", HERMES_PLUGIN_PATH, RUNTIME_PATH,
     ], cwd=ROOT, text=True).splitlines()
-    # The current phase may add offline, model-independent evidence utilities
-    # and isolated Hermes observation, not replace existing Gate/Runtime code.
+    # Later phases may add explicitly reviewed, model-independent OFFLINE
+    # evidence and opportunity utilities, plus isolated Hermes observation.
+    # Runtime execution / Gate code remains outside this narrow allowlist.
     expected = {
         f"{HERMES_PLUGIN_PATH}/__init__.py",
         f"{RUNTIME_PATH}/budget_observability.py",
         f"{RUNTIME_PATH}/evidence_integrity.py",
+        # Phase 8.3 pure Shadow-only Opportunity classifier (no Gate wiring).
+        f"{RUNTIME_PATH}/decision_opportunity.py",
     }
     assert set(changed).issubset(expected), changed
 

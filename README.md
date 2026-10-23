@@ -51,6 +51,172 @@ This distinction matters: the project deliberately separates **technical capabil
 
 **Experimental model providers:** [Model Backend Pilot v1](docs/MODEL_BACKEND_PILOT.md) adds an offline-first, research-only Laya/Jev comparison interface. Default production use remains Laya-only; Jev remote calls and Active Gate execution are not enabled.
 
+## Phase 8.3 — Where is a small model actually useful?
+
+The experimental [Decision Opportunity Contract](docs/PHASE8_3_OPPORTUNITY_CONTRACT.md)
+classifies observed decision points as `rule_only`, `typed_model_candidate`,
+`native_agent`, or `unsupported`, without changing production Gate behavior.
+
+The [paired evaluation protocol](docs/PHASE8_3_EVALUATION_PROTOCOL.md) separates
+native Agent outcomes, Rule-only answers, and Rules + Laya suggestions. Its first
+[bounded offline report](docs/PHASE8_3_FINAL_REPORT.md) covers 210 *previously
+published* synthetic or public-reconstructed cases with 109 local MLX model calls.
+In this limited replay, Retry benefits from Laya on historical synthetic cases.
+A follow-on audit identified unequal pre-model Completion rules in the initial
+comparison; see the rules-matched controls in the final report before interpreting
+Completion accuracy. **These are not fresh blind results, real Agent savings,
+Active authorization, or new StepFun E2E.**
+
+### New preregistered synthetic holdout (Phase 8.3)
+
+A separate [80-case pre-model frozen pilot](docs/PHASE8_3_NEW_HOLDOUT_REPORT.md)
+uses the same safe B0/C0 hard rules. Completion was 75% vs 75% on 40
+author-created cases, and Retry was 90% vs 100% on 40 distinct simulated
+failure cases. Actual Laya MLX calls were 29. The data and labeling were
+committed before running Laya, but remain synthetic and author-adjudicated:
+**this does not prove real-Agent gains, production safety or API savings**.
+The [frozen protocol](docs/PHASE8_3_NEW_HOLDOUT_PROTOCOL.md) explains
+limits and how no Active permissions were added.
+
+### Native real-provider qualification status (Phase 8.3A)
+
+The [H1/H2/H3 real StepFun native experiment reports](docs/PHASE8_3_REAL_NATIVE_H3_REPORT.md)
+now document genuine Hermes read-only tasks on the existing StepFun
+Step Plan subscription, not simulated Agent runs:
+
+- [H1 OFF](docs/PHASE8_3_REAL_NATIVE_H1_REPORT.md): native tool and
+  independent file proof PASS, but only 2 of 3 attempted physical
+  Provider requests reached a recorded terminal result.
+- [H2 healthy Shadow](docs/PHASE8_3_REAL_NATIVE_H2_REPORT.md):
+  actual Laya/MLX inference twice, exact 2/2 native-to-HTTP HMAC links,
+  all three new physical Provider attempts finalized.
+- [H3 Runtime-down Shadow](docs/PHASE8_3_REAL_NATIVE_H3_REPORT.md):
+  real native file task PASS while the decision Runtime was unavailable;
+  two independently correlated HTTP 503 and failed_open events; both
+  new physical StepFun requests finalized. Automatic model-backed
+  title upgrades were disabled **only in the isolated test Home**.
+  Physical request count fell to 2 vs two Agent-reported main calls.
+  This supports, but does not uniquely prove, the title-LLM attribution
+  for extra physical requests in H1/H2.
+
+**Global: 8/24 physical StepFun requests reserved, 7 HTTP 200 terminal
+responses, and 1 H1 historical request still unresolved.** Physical
+request billing/credit usage and Agent-level savings are NOT MEASURED.
+The original H1 missing response was not retroactively filled;
+Phase 8.3A global Provider budget integrity remains **BLOCKED**.
+H4 and DSH D1–D4 real tasks have not run. These are scoped real
+read-only/Shadow proofs only; **Active/Canary is not authorized**.
+
+**2026-10-22 qualification update:** [H4's negative native read-file
+oracle and DSH independent-auth/SDK evidence prerequisites](docs/PHASE8_3_H4_DSH_OFFLINE_QUALIFICATION.md)
+have been tested **OFFLINE ONLY**. The actual Hermes read_file tool
+returned structured not_found/error fields and the installed tool
+observer derived status=error / error_type=tool_error, but no true
+H4 StepFun native Agent Retry/Completion observation was run.
+DSH OFF/Shadow native SDK control-plane initialization and strict
+typed SDK event contracts pass without a credential or main-model
+request. DSH real E2E still needs a separate owner-controlled
+interactive credential plus a newly frozen bounded native executor.
+The same 8/24 physical original StepFun request ledger and its H1
+unknown outcome are unchanged.
+
+**2026-10-22 H4 admission incident:** The first frozen H4
+failed-read *startup attempt* was refused by the currently running
+host Hermes Gateway **before a native Agent Session, tool call or
+real StepFun request**. H4 consumed **zero new physical requests**;
+the original global request budget remains 8/24. An independent
+[H4 Gateway admission incident report](docs/PHASE8_3_H4_GATEWAY_ADMISSION_INCIDENT.md)
+documents why this is NOT a native Retry/fail-open result, as well
+as a fixed wrapper exit-code propagation bug. Source-only inspection
+found an official in-process Hermes one-shot engine that can avoid
+the Gateway start path, but it has NOT been run against a Provider.
+The H4 attempt is single-shot and will not be overwritten or
+automatically retried; any new trial needs its own frozen evidence.
+
+**2026-10-23 reversible H4B source prepared:** A distinct
+[H4B pre-registered, owner-safe recovery protocol](docs/PHASE8_3_REAL_H4B_REVERSIBLE_PREREGISTRATION.md)
+now replaces the unusable Gateway-backed path with official
+in-process Hermes AIAgent behind macOS Seatbelt. The child can
+call only the EXACT private native read_file target, can write
+only narrowly scoped test-state files, and may connect only to
+the existing bounded loopback Provider/observer ports. A durable
+test-Home SQLite/plugin/config snapshot and exact process-group
+provenance support rollback. A **zero-network sandbox import
+rehearsal** passed with test-state digests unchanged. This is
+PRE-RUN engineering evidence, NOT a real H4B Agent/StepFun PASS.
+No additional physical Provider requests were made by this
+source preparation; original H1/H2/H3 ledger remains 8/24
+and original H4 remains blocked before the native Agent.
+
+**Real H4B one-shot outcome (2026-10-23):** The frozen reversible
+H4B test started its isolated MLX/observer/budget services and a
+macOS Seatbelt-protected official in-process Hermes one-shot.
+It then **safely FAILED BEFORE constructing AIAgent** because the
+sandbox denied the official one-shot's write to /dev/null for
+stdout/stderr suppression. **Zero additional StepFun Provider
+requests**; the original global tally remains 8/24. All four
+H4B-owned process groups stopped, the isolated test Home
+SQLite/plugin/config was restored to its original OFF state, and
+test auth metadata stayed unchanged. The [independent H4B
+incident/rollback report](docs/PHASE8_3_H4B_SEATBELT_ADMISSION_INCIDENT.md)
+preserves this as an admission BLOCK, not native tool/Retry PASS.
+A later fix allows only /dev/null writes and a zero-network
+synthetic run through the official one-shot preamble passed,
+but **H4B was not rerun**, its private original was not erased,
+and any successor real run needs its own new frozen case.
+
+**2026-10-23 Phase 8.3A H4C new-case preregistration:** The next
+[reversible H4C native-failure experiment](docs/PHASE8_3_REAL_H4C_PREREGISTRATION.md)
+now has a DIFFERENT run ID, original target manifest, recovery
+snapshot, owned PID ledger and HMAC/HTTP paths from both blocked
+H4 and H4B. Its test-only MLX/observer/budget helper processes use
+an H4C-owned disposable HOME/cache. Original H4B rollback was
+independently confirmed, and all H4C source/test Home/physical
+budget prerequisites are fail-closed. A local all-network-denied
+Hermes one-shot startup rehearsal passed without creating
+the H4C original run. This is H4C PRE-RUN preparation only;
+real missing-file and Retry Shadow proof must come from the
+separate one-shot actual Provider-backed experiment.
+
+**2026-10-23 H4C real one-shot admission:** The distinct H4C
+source was frozen at 8776de7 with independent run, recovery,
+sandbox and bounded provider paths. The genuine Hermes
+in-process child exited SystemExit(1) before recording a
+native SQLite Session or tool call, with NO new StepFun
+physical request. The actual underlying initialization
+cause is NOT established because Hermes suppressed
+stderr inside run_oneshot. All four H4C-owned test
+processes were verified stopped; isolated test Home
+SQLite/plugin/config were fully restored to OFF and
+auth metadata was unchanged. The original
+[H4C incident report](docs/PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md)
+and [read-only verifier](scripts/phase8_3_verify_h4c_preactive_block.py)
+separate this blocked startup from actual failed-read/Retry
+acceptance. No H4C paid rerun or automatic H4D is authorized.
+Next engineering work is a fully local, zero-network
+initialization-stage diagnosis before another paid test.
+
+**2026-10-24 native initialization diagnostic:** The
+[zero-network diagnostic](docs/PHASE8_3_INIT_DIAGNOSTIC_REPORT.md)
+now executes real official Hermes `run_oneshot` / `_run_agent` /
+`AIAgent` in disposable Homes, with **12/12** exact offline case verdicts
+and independent restoration checks. Constructor-only runs produce no
+Session; the first-SDK-boundary run creates one native SQLite Session and
+stops before any transport request. An OS-denied synthetic PM dependency
+lock reproduces `PermissionError → SystemExit(1)` during import, before
+Agent construction. This is a verified compatible mechanism, **not unique
+retrospective proof of H4C's cause**. New real Provider calls **0**;
+historical budget still **8/24**, H1 UNKNOWN retained. H4D **NO-GO**;
+real missing-file/Retry Shadow acceptance and Active remain unauthorized.
+See the [protocol](docs/PHASE8_3_INIT_DIAGNOSTIC_PROTOCOL.md) and
+[public aggregate](results/processed/phase8_3_init_diagnostic.json).
+
+The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
+documents the owner-created standalone Hermes test Home, supported
+nonproduction StepFun authentication and strict bounded proxy route.
+Raw native messages, credentials, original hidden files and keyed
+correlation values are not part of the public repository.
+
 ## Quick start
 
 ### Requirements

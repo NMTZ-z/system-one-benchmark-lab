@@ -1,0 +1,50 @@
+{
+  "active_authority": "NOT_AUTHORIZED",
+  "all_other_native_tasks_in_this_round": "NOT_EXECUTED",
+  "h2_local_laya": {
+    "completion_HTTP_200": 2,
+    "exact_causal_correlation": "PASS_SCOPED",
+    "mlx_model_decision_observed": 2,
+    "runtime_models_used": [
+      "mlx"
+    ],
+    "strict_native_adapter_http_joined": 2
+  },
+  "h2_native": {
+    "agent_final_matches_independent_file": true,
+    "native_exit_code": 0,
+    "observed_native_elapsed_seconds": 29.581,
+    "task_outcome": "PASS_SCOPED",
+    "tool_result_identity_verified": true,
+    "tool_result_matches_independent_file": true
+  },
+  "h2_physical_provider": {
+    "global_physical_attempts_total": 6,
+    "h2_actual_subscription_credit_debit": "UNKNOWN",
+    "h2_attempted_unresolved": 0,
+    "h2_budget_integrity": "PARTIAL_USAGE_ATTRIBUTION",
+    "h2_physical_attempts": 3,
+    "h2_physically_unattributed": 1,
+    "h2_private_ledger_sha256": "dbd2be172785d94ded75e264be1534f4f9396a33edf4bb4f555492604b6a7b3f",
+    "h2_provider_responses_HTTP_200": 3,
+    "h2_provider_token_usage_source": "UNKNOWN",
+    "historical_h1_budget_integrity": "BLOCKED",
+    "historical_h1_unresolved": 1,
+    "immutable_original_h1_ledger_prefix_sha256": "bded2cecb79bcf22a6cdb39a4186b99fb68e881651d18142de370e3b120133de",
+    "original_h1_physical_attempts": 3
+  },
+  "h2_scoped_qualification": "PASS_SCOPED",
+  "hermes_self_reported_input_tokens": 7258,
+  "hermes_self_reported_main_calls": 2,
+  "hermes_self_reported_output_tokens": 509,
+  "local_model": "laya-typed-decisions-421m/mlx",
+  "main_model": "stepfun/step-5-preview",
+  "native_mode": "shadow",
+  "original_native_execution_sha": "0dc626ff86038702f74027b4a988d21f096f72d9",
+  "phase8_3a_overall": "BLOCKED_HISTORICAL_H1_REQUEST",
+  "platform": "hermes",
+  "provider_total_request_authorization": "CAPPED_24_NOT_RENEWED",
+  "real_agent_time_saved": "NOT_MEASURED",
+  "real_agent_tokens_saved": "NOT_MEASURED",
+  "schema": "local-system-one/phase8_3-real-h2-adjudicated-v1"
+}
