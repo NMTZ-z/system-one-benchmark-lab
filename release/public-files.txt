@@ -266,3 +266,5 @@ docs/PHASE8_3_OFFLINE_NATIVE_REHEARSAL_REPORT.md
 results/processed/phase8_3_offline_native_rehearsal.json
 
 docs/PHASE8_3_STOCK_SHELL_QUALIFICATION.md
+docs/PHASE8_3_STOCK_SHELL_QUALIFICATION_REPORT.md
+results/processed/phase8_3_stock_shell_qualification.json

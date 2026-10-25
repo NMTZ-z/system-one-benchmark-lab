@@ -710,3 +710,43 @@ new paid experiment. Do not weaken Seatbelt on speculation.
 Read the [H4C blocked native startup incident](PHASE8_3_H4C_NATIVE_BOOT_INCIDENT.md).
 Draft PR #9 remains unmerged, Active/Canary NOT AUTHORIZED,
 global Phase8.3A Provider integrity historical BLOCKED.
+
+
+## 2026-10-26 independent stock-shell qualification and steps 1–3 closeout
+
+The existing Phase 8.3 work was resumed from GitHub Draft PR #9 at
+`840ea824d23c2bd980e44035556efc4ad48194f4` using a **new isolated
+worktree**. GitHub main remains `062d52e753e7e00d91a536dc81e9d85b8819cb12`,
+NAS Forgejo main remains `afa2512cc66400d111c28cb5fe00e9f83fdba49a`,
+and the former Phase 8.3 worktree and all original H1–H4C evidence were left
+unchanged. An existing NAS-main untracked `uv.lock` was preserved.
+
+A new `off_stock_shell` case tests the previously unverified original
+Hermes shell transport, without the prior Python directory-listing bridge.
+It retains genuine Hermes Agent/`read_file`/SQLite behavior, tests actual
+Bash initialization and native file-error construction, and uses a strictly
+synthetic two-response main Provider. Its OS sandbox permits bounded
+native shell creation in this new OFF-only experiment but denies external
+network and production file access. Original preregistered source commit:
+`da998de1601155f7f2bc47185768dea612b0642a`. Frozen execution and a
+second independent read-only verifier both returned **PASS_SCOPED**: three
+native Bash spawns, five restricted ancillary upstream process probes,
+one authenticated missing-file tool result, zero external Provider requests,
+zero Shadow observations, fully restored disposable Home/process state.
+No original OFF/Shadow/MLX/503 experiment was rerun or relabelled.
+
+Full fresh Python regression: **1429 PASS / 2 SKIP**, plus five separately
+executed kernel/owned-process tests **5/5 PASS**. The optional native registry
+integration skip was separately recovered using the exported upstream
+source and passed; original private Provider-ledger fixture intentionally
+remains SKIP. DSH **64/64 PASS**, TypeScript typecheck and build PASS.
+See the [dedicated stock-shell report](PHASE8_3_STOCK_SHELL_QUALIFICATION_REPORT.md),
+[preregistration](PHASE8_3_STOCK_SHELL_QUALIFICATION.md), and
+[privacy-safe aggregate](../results/processed/phase8_3_stock_shell_qualification.json).
+
+The original historic Provider ledger SHA remained unchanged; **8/24**, one
+H1 UNKNOWN. **Real H4D/DSH Native Provider E2E NOT RUN; real Laya value
+NOT_ESTABLISHED; actual savings NOT_MEASURED; Active NOT_AUTHORIZED.** The
+new proof closes only the isolated stock-shell dependency gap. It provides
+no permission for paid requests, Active decisions, automatic merging or
+production deployment.

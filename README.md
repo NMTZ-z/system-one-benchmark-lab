@@ -241,6 +241,18 @@ nonproduction StepFun authentication and strict bounded proxy route.
 Raw native messages, credentials, original hidden files and keyed
 correlation values are not part of the public repository.
 
+
+**2026-10-26 stock-shell qualification:** [A separate OFF-only native
+Hermes experiment](docs/PHASE8_3_STOCK_SHELL_QUALIFICATION_REPORT.md) now
+passes with the **unmodified upstream Bash and file-tool shell transport**,
+including actual native `read_file` error, SQLite and restored sandboxed
+processes. It records three native Bash starts and zero real Provider
+requests; the main Provider is still synthetic. Python 1429 PASS / 2
+optional SKIP, five additional kernel tests PASS, DSH 64 PASS and
+TypeScript build/typecheck PASS. [Public aggregate](results/processed/phase8_3_stock_shell_qualification.json).
+This is **not** real H4D/DSH StepFun E2E or evidence of Laya savings;
+original H1 UNKNOWN and Active NOT_AUTHORIZED remain unchanged.
+
 ## Quick start
 
 ### Requirements
