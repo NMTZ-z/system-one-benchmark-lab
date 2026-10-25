@@ -86,6 +86,30 @@ def test_stop_refuses_mismatched_process_identity(monkeypatch):
         diag.stop_owned(proc, {"pid": 123456, "uid": os.getuid(), "pgid": 123456})
 
 
+@pytest.mark.parametrize("error", [OSError, KeyboardInterrupt])
+def test_initial_receipt_failure_stops_owned_child_before_go(tmp_path, monkeypatch, error):
+    sent, stopped = [], []
+    proc = SimpleNamespace(pid=123456, stdin=SimpleNamespace(write=sent.append, close=lambda: None))
+    owned = {"pid": proc.pid, "uid": os.getuid(), "pgid": proc.pid, "start": "synthetic"}
+    monkeypatch.setattr(diag.subprocess, "Popen", lambda *a, **kw: proc)
+    monkeypatch.setattr(diag, "identity", lambda pid: owned)
+    monkeypatch.setattr(diag, "stop_owned", lambda child, identity: stopped.append((child, identity)))
+    write_text = Path.write_text
+    def fail_receipt(path, *args, **kwargs):
+        if path.name == "process.json":
+            raise error("synthetic receipt failure")
+        return write_text(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "write_text", fail_receipt)
+    source = tmp_path / "source"
+    source.mkdir()
+    with pytest.raises(error, match="synthetic receipt failure"):
+        diag.run_case(tmp_path, source, Path(sys.executable), "init")
+    assert sent == []
+    assert stopped == [(proc, owned)]
+    manifest = json.loads((tmp_path / "init/manifest.json").read_text())
+    assert diag.snapshot(tmp_path / "init/mutable") == manifest["baseline"]
+
+
 def test_policy_has_no_network_or_fork_permission(tmp_path):
     owner = tmp_path / "users/owner"
     owner.mkdir(parents=True)

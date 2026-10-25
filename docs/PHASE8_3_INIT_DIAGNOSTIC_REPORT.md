@@ -215,3 +215,52 @@ python scripts/phase8_3_init_diagnostic.py --verify /path/to/experiment/init
 The commands require macOS Seatbelt. A failed capability/admission check
 must remain a block. They grant no real Provider, Active/Canary, production
 deployment or main-branch merge authority.
+
+## 2026-10-25 original Work-scope closeout
+
+All eight deliverables in the original Work handoff are complete in their
+specified **offline engineering scope**. Real H4D execution was explicitly
+outside that handoff's completion conditions.
+
+| Original deliverable | Delivered evidence |
+|---|---|
+| Real AIAgent stage graph and dependency analysis | Stage graph and import/PM/Provider/Session boundaries above; frozen upstream source |
+| Zero-real-Provider diagnostic tool | `scripts/phase8_3_init_diagnostic.py` and `phase8_3_init_child.py` |
+| Stage/type evidence | Actual stage events, exception types and source-relative frames; no secret values |
+| Initialization/crash/timeout injection | Twelve preserved cases with exact expected verdicts |
+| Independent rollback and safety verification | Actual SQLite snapshots, restored bytes/modes, protected sentinels and stopped owned groups |
+| Repair proven integration defects | Disposable dependency namespace, safe first-request stop, terminal-verdict checks and admission-receipt cleanup |
+| Regression and existing Draft PR update | 1424 Python passes / 1 optional skip; DSH 64/64, typecheck/build; same Draft PR #9 |
+| Explicit real-H4D decision | NO-GO; minimum verified failure boundary and remaining real-environment gaps stated |
+
+Closeout found one remaining cleanup gap in the initialization runner:
+the initial `process.json` write was outside its cleanup `try`. A disk error
+or interruption at that point could leave an owned child waiting for GO.
+The write now runs inside the existing protected block. The same identity
+checks and `stop_owned` implementation apply; no process permission was
+expanded. Two regression cases first failed, then passed for `OSError` and
+`KeyboardInterrupt`; both assert no GO, cleanup of the recorded owner and
+unchanged scratch baseline. The combined diagnostic/rehearsal suite is now
+**67/67**. A bounded independent code review found no blocker in this fix.
+
+Fresh full regression: **1424 PASS, 1 SKIP** (1420 in the isolated main
+suite, two kernel and two owned-process checks separately); DSH **64/64**,
+TypeScript typecheck/build PASS. The optional historical private-ledger
+fixture remains deliberately unmounted; its digest was verified directly.
+
+A new read-only verifier, in a separate process, reread all twelve original
+diagnostic cases and all four rehearsal cases with the final verification
+code. Actual SQLite, events, HTTP/HMAC correlation, restored trees, process
+absence, frozen source/model hashes and old test-log hashes all passed.
+The original case results are unchanged. **No native matrix was rerun, no
+new model inference occurred, and no real Provider request was made.**
+The public aggregate includes the new closeout receipt separately from the
+original execution counts and hashes.
+
+This completion does not establish H4C's unique historical cause. Its
+original upstream source/hidden exception were not captured; the verified
+PM-lock reproduction is the minimum compatible failure boundary requested
+by the handoff. It also does not establish stock shell transport, real H4D
+E2E, model value or savings. The next distinct phase should qualify the
+unmodified file-tool shell dependencies offline before considering a
+separately specified real-Provider case.

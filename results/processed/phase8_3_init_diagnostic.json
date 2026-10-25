@@ -271,5 +271,41 @@
     "regression-002/dsh-test.log": "1e7ae9895310e8a5a2f2672bcd4075f21e9428b6ff748c34b3fcbef113f8b7b7",
     "regression-002/dsh-types.log": "d464afc6835ff2d3fcd96119f5a5440f3f8a195049a560919ebf37bd90cd4db8",
     "regression-002/dsh-build.log": "9a373b660b4fae66062eb58825472c15a5a345b447e346c5e012acd8424fb2b0"
+  },
+  "closeout_verification": {
+    "date": "2026-10-25",
+    "kind": "READ_ONLY_REVALIDATION_OF_PRESERVED_MATRICES",
+    "initialization_cases_revalidated": 12,
+    "offline_rehearsal_cases_revalidated": 4,
+    "original_matrix_results_unchanged": true,
+    "source_and_model_hashes_verified": true,
+    "historical_test_log_hashes_verified": true,
+    "independent_restoration_and_process_checks": "PASS",
+    "historical_provider_ledger_sha256": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+    "new_real_provider_requests": 0,
+    "new_native_matrix_runs": 0,
+    "new_model_inferences": 0,
+    "closeout_fix": "initial process receipt is now inside owned-child cleanup try",
+    "focused_tests_passed": 67,
+    "python_passed": 1424,
+    "python_skipped": 1,
+    "dsh_tests_passed": 64,
+    "typescript_typecheck": "PASS",
+    "typescript_build": "PASS",
+    "verification_source_sha256": {
+      "scripts/phase8_3_init_diagnostic.py": "0f26cc27910c692225ae4c9f785fea2d8cb99754127295f8ea909d2089cad44b",
+      "scripts/phase8_3_native_rehearsal.py": "b2402b3d9a3af8fbcbfe4f37b81b4bb1bfa30ac64702b6eff2abe570ef8e705e"
+    },
+    "validation_logs_sha256": {
+      "closeout-regression/python.log": "85e6130324dbe65a49401a225b7888457811a8841565a2fdca13939fb29d5e9f",
+      "closeout-regression/kernel.log": "fa665775964cf05a4b8c9ca6f3bb541d55819b03a8e9277e22b2aa4799804700",
+      "closeout-process-tests.log": "449f48faab28952069f2e297454c2a3b0f42069bcbc27c7b2b56439fc80297ed",
+      "closeout-regression/dsh-test.log": "4c919d3a53e10d0c3e07a0dd671637daf46482650d1d58d1983576bcc6c64031",
+      "closeout-regression/dsh-types.log": "d464afc6835ff2d3fcd96119f5a5440f3f8a195049a560919ebf37bd90cd4db8",
+      "closeout-regression/dsh-build.log": "9a373b660b4fae66062eb58825472c15a5a345b447e346c5e012acd8424fb2b0"
+    },
+    "h4c_historical_unique_cause": "NOT_ESTABLISHED; VERIFIED_COMPATIBLE_MINIMUM_FAILURE_BOUNDARY",
+    "original_window_deliverables": "8_OF_8_OFFLINE_SCOPE_COMPLETE",
+    "h4d_real_execution": "NO-GO"
   }
 }

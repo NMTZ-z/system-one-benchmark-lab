@@ -225,6 +225,16 @@ shell or real Provider E2E.** All 7 owned process groups stopped and four
 case restorations were independently verified. New StepFun requests **0**,
 historic **8/24** and H1 UNKNOWN preserved; real H4D remains **NO-GO**.
 
+**2026-10-25 original Work-scope closeout:** All eight original offline
+deliverables are complete; see the [closeout table](docs/PHASE8_3_INIT_DIAGNOSTIC_REPORT.md#2026-10-25-original-work-scope-closeout).
+The initialization runner now cleans up its owned child if the initial
+process-receipt write fails before GO. Two regression cases reproduced the
+gap before the fix. Fresh Python **1424 PASS / 1 SKIP**, DSH **64/64** and
+typecheck/build PASS. The preserved 12-case initialization and four-case
+rehearsal evidence, restoration and source/model hashes were independently
+revalidated; no native matrix, model inference or real Provider request was
+rerun. Real H4D remains **NO-GO** and is outside this completed offline scope.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

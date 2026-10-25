@@ -256,9 +256,9 @@ def run_case(root: Path, source: Path, python: Path, case: str, timeout: float =
             proc.stdin.close()
             proc.wait(timeout=3)
             raise RuntimeError("child ownership unavailable; native entry not admitted")
-        (case_dir / "process.json").write_text(json.dumps(owned))
         timed_out = False
         try:
+            (case_dir / "process.json").write_text(json.dumps(owned))
             proc.stdin.write(b"GO\n")
             proc.stdin.close()
             proc.wait(timeout=timeout)
