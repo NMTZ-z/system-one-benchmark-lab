@@ -211,6 +211,20 @@ real missing-file/Retry Shadow acceptance and Active remain unauthorized.
 See the [protocol](docs/PHASE8_3_INIT_DIAGNOSTIC_PROTOCOL.md) and
 [public aggregate](results/processed/phase8_3_init_diagnostic.json).
 
+**2026-10-24 offline native/Shadow rehearsal:** The
+[four-case rehearsal](docs/PHASE8_3_OFFLINE_NATIVE_REHEARSAL_REPORT.md)
+now verifies a real native `read_file` missing-file error, actual SQLite and
+official plugin hooks under OFF, fixture Shadow, local Laya Shadow and
+503 fail-open. Healthy Shadow records join **two Completion + one Retry**
+observations to the same native evidence. Local Laya completed **two task
+predictions plus one separately counted warmup**; Retry remained rule-only
+because its budget is unverified. Main Provider responses are synthetic,
+and two shell-based filename suggestions use a strictly bounded real
+directory-enumeration bridge. **Dependency-isolated PASS_SCOPED, not stock
+shell or real Provider E2E.** All 7 owned process groups stopped and four
+case restorations were independently verified. New StepFun requests **0**,
+historic **8/24** and H1 UNKNOWN preserved; real H4D remains **NO-GO**.
+
 The [official isolated test-home handoff](docs/PHASE8_3_OFFICIAL_AUTH_HANDOFF.md)
 documents the owner-created standalone Hermes test Home, supported
 nonproduction StepFun authentication and strict bounded proxy route.

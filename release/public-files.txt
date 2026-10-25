@@ -258,3 +258,9 @@ tests/test_phase8_3_init_diagnostic.py
 docs/PHASE8_3_INIT_DIAGNOSTIC_PROTOCOL.md
 docs/PHASE8_3_INIT_DIAGNOSTIC_REPORT.md
 results/processed/phase8_3_init_diagnostic.json
+scripts/phase8_3_rehearsal_child.py
+scripts/phase8_3_native_rehearsal.py
+tests/test_phase8_3_native_rehearsal.py
+docs/PHASE8_3_OFFLINE_NATIVE_REHEARSAL_PROTOCOL.md
+docs/PHASE8_3_OFFLINE_NATIVE_REHEARSAL_REPORT.md
+results/processed/phase8_3_offline_native_rehearsal.json
