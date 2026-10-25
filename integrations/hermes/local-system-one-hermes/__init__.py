@@ -982,6 +982,12 @@ def register(ctx):
                 )
                 _retry_record(event)
                 return None
+            # Strictly test-only keyed Retry tool/decision provenance. The
+            # privacy-safe HMAC refs cannot be reconstructed from timestamps
+            # or a tool's error prose. This does NOT authorize a retry.
+            if effective_mode == "shadow":
+                event.update(_private_evidence_refs(
+                    kwargs, event["request_id"], "tool_result"))
             with retry_lock:
                 identity = (session, turn)
                 seen = retry_seen.get(identity)
@@ -1014,6 +1020,10 @@ def register(ctx):
                     )
                     recommendation = result.get("retry")
                     if isinstance(recommendation, dict):
+                        if "decision_request_ref" in event:
+                            event["response_request_id_matches"] = (
+                                recommendation.get("request_id") == event["request_id"]
+                            )
                         event.update({
                             "decision": recommendation["guarded_decision"],
                             "raw_model_decision": recommendation.get("raw_model_decision"),
