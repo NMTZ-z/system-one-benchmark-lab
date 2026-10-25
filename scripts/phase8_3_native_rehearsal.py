@@ -25,6 +25,28 @@ ROOT = Path(__file__).resolve().parents[1]
 CHILD = Path(__file__).with_name("phase8_3_rehearsal_child.py")
 PLUGIN = ROOT / "integrations/hermes/local-system-one-hermes"
 CASES = ("off", "shadow_fixture", "shadow_mlx", "shadow_503")
+STOCK_CASE = "off_stock_shell"  # separately opt-in; never change the four-case default
+
+STOCK_SOURCE_SHA256 = {
+    "hermes_bootstrap.py": "f242036b2d35b92283b9a7e97c7059e537607fc4b02026f657a6d00cb4683f69",
+    "run_agent.py": "33c7195fc6efa9122f1a6700d416fd283f9634712189af3fd72feb01bcea054f",
+    "hermes_cli/oneshot.py": "ebd2bc6a320f24fa94249dab37a0776f4d32c92bb7ac3f6c7193f14eefecfdc9",
+    "tools/file_operations.py": "2867e7207852e36e19635e74a1510063f839dd86221ad990da913977def81dd2",
+    "tools/environments/local.py": "c7d62298ed20596c2591ef54b6f245fa57dc2e943b800c5854cc0c572fd35d5e",
+    "hermes_platform/__init__.py": "698ba6987eb24da01e63c336607529af9cd38f8694c58f7b96e484b22cbdf5a6",
+}
+
+
+def validate_stock_source(source: Path) -> None:
+    """Refuse an altered/missing/symlinked upstream Hermes stock-shell source."""
+    for name, expected in STOCK_SOURCE_SHA256.items():
+        path = source / name
+        if (path.is_symlink() or not path.is_file()
+                or not path.resolve().is_relative_to(source)
+                or diag.digest(path) != expected):
+            raise ValueError("stock shell requires pinned upstream Hermes source")
+
+
 MODEL_REVISION = "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2"
 MODEL_WEIGHTS_SHA256 = "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e"
 HISTORIES = ("completion_loop_probe_history", "completion_shadow_history", "retry_escalation_shadow_history")
@@ -36,6 +58,29 @@ def read_json(path: Path) -> dict:
 
 def rows(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines()] if path.is_file() else []
+
+
+def attest_stock_shell(events: list[dict]) -> tuple[bool, int, int]:
+    """Independently reject a bridged, incomplete or unsafe stock Bash trace.
+
+    Network-denial audit events are expected. Only the separate OFF stock
+    shell case may spawn Bash and upstream's bounded environment probes.
+    Neither runtime nor plugin production controls are changed here.
+    """
+    bash = [e for e in events if e.get("event") == "stock_shell_spawn"]
+    support = [e for e in events if e.get("event") == "stock_support_spawn"]
+    okay = (
+        len(bash) >= 3
+        and all(e.get("executable") == "bash" and type(e.get("login")) is bool for e in bash)
+        and any(e.get("login") is True for e in bash)
+        and sum(e.get("login") is False for e in bash) >= 2
+        and len(support) <= 6
+        and all(e.get("program") in {"python3", "uname", "file"} for e in support)
+        and not any(e.get("event") in {"dependency_isolated", "directory_listing"} for e in events)
+        and not any(e.get("event") == "side_effect_denied" and
+                    e.get("operation") == "unexpected_shell" for e in events)
+    )
+    return bool(okay), len(bash), len(support)
 
 
 def model_files(model: Path) -> list[Path]:
@@ -273,7 +318,13 @@ def verify(case: Path) -> dict:
     states = list((post / "home/hermes/plugin-data").glob("*/state.json"))
     state = read_json(states[0]) if len(states) == 1 else {}
     settings = state.get("status", {})
-    expected_mode = "off" if manifest["case"] == "off" else "shadow"
+    expected_mode = "off" if manifest["case"] in {"off", STOCK_CASE} else "shadow"
+    if manifest["case"] == STOCK_CASE:
+        qualified, count, support_count = attest_stock_shell(events)
+        result["native_stock_bash_spawn_count"] = count
+        result["native_stock_support_spawn_count"] = support_count
+        if not qualified:
+            checks.append("stock_shell_not_original_or_not_proven")
     if settings.get("mode") != expected_mode or settings.get("canary_acknowledged") is not False:
         checks.append("actual_plugin_mode_unverified")
     history = [row for name in HISTORIES for row in state.get(name, [])]
@@ -363,7 +414,7 @@ def run_case(root: Path, source: Path, python: Path, model_python: Path, model: 
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    mode = "off" if name == "off" else "shadow"
+    mode = "off" if name in {"off", STOCK_CASE} else "shadow"
     key = os.urandom(32).hex()
     settings = dict(mode=mode, service_url=f"http://127.0.0.1:{port}", timeout_ms=5000,
                     search_gate_enabled=False, model_tier_gate_enabled=False, notification_gate_enabled=False,
@@ -417,10 +468,18 @@ def run_case(root: Path, source: Path, python: Path, model_python: Path, model: 
         policy = diag.build_policy(owner=Path.home(), readable=readable, mutable=mutable)
         if mode == "shadow":
             policy += f'(allow network-outbound (remote ip "localhost:{port}"))\n'
+        if name == STOCK_CASE:
+            # Only this new, all-network-denied OFF case may fork Bash.
+            # Existing no-subprocess native/rehearsal policies are unchanged.
+            policy += '(allow process-fork)\n'
         env = diag.environment(mutable)
         env.update(LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE="isolated-shadow-test-v1", LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX=key,
                    HERMES_NATIVE_FILE_READ="1", TERMINAL_ENV="local", TERMINAL_CWD=str(cwd))
-        proc, identity = start_owned([str(python), "-I", "-B", str(CHILD), str(source), str(mutable), str(forbidden), str(port), mode],
+        native_command = [str(python), "-I", "-B", str(CHILD), str(source),
+                          str(mutable), str(forbidden), str(port), mode]
+        if name == STOCK_CASE:
+            native_command.append("--stock-shell")
+        proc, identity = start_owned(native_command,
                                     env=env, cwd=cwd, policy=policy, case=case, role="native")
         admit_owned(owned, case, "native", proc, identity)
         proc.wait(timeout=60)
@@ -451,32 +510,40 @@ def main() -> int:
     parser.add_argument("--model-python", type=Path)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--case", choices=CASES, action="append")
+    parser.add_argument("--case", choices=(*CASES, STOCK_CASE), action="append")
     parser.add_argument("--verify", type=Path)
     args = parser.parse_args()
     if args.verify:
         result = verify(args.verify)
         print(json.dumps(result, indent=2))
         return 0 if result["verdict"] == "PASS_OFFLINE_NATIVE_REHEARSAL" else 3
-    if sys.platform != "darwin" or not all((args.source, args.python, args.model_python, args.model, args.output)):
-        parser.error("explicit isolated source, interpreters, model and fresh output required")
+    requested = args.case or list(CASES)
+    stock_only = requested == [STOCK_CASE]
+    if (sys.platform != "darwin" or not all((args.source, args.python, args.output))
+            or (not stock_only and not all((args.model_python, args.model)))):
+        parser.error("explicit isolated source, interpreter, output, and model when needed")
     source = diag.validate_source(args.source)
-    model = args.model.absolute()
-    frozen_model = {str(p.relative_to(model)): diag.digest(p) for p in model_files(model)}
-    if frozen_model.get("model.safetensors") != MODEL_WEIGHTS_SHA256:
-        parser.error("local model weights differ from the pinned SHA-256")
+    if stock_only:
+        validate_stock_source(source)
+        # The OFF-only native shell test never opens any decision model.
+        model_python, model, frozen_model = args.python, Path("."), {}
+    else:
+        model_python, model = args.model_python, args.model.absolute()
+        frozen_model = {str(p.relative_to(model)): diag.digest(p) for p in model_files(model)}
+        if frozen_model.get("model.safetensors") != MODEL_WEIGHTS_SHA256:
+            parser.error("local model weights differ from the pinned SHA-256")
     if args.output.exists() or args.output.is_symlink():
         parser.error("never overwrite an experiment")
     args.output.mkdir(mode=0o700)
     root = args.output.resolve()
-    plan = {"cases": args.case or list(CASES), "main_provider_requests_authorized": 0,
+    plan = {"cases": requested, "main_provider_requests_authorized": 0,
             "model_revision": MODEL_REVISION, "model_sha256": frozen_model,
             "source_hashes": {p: diag.digest(source / p) for p in ("hermes_bootstrap.py", "run_agent.py", "hermes_cli/oneshot.py", "agent/tool_executor.py")},
             "harness_hashes": {p.name: diag.digest(p) for p in (Path(__file__), CHILD, Path(diag.__file__), PLUGIN / "__init__.py", PLUGIN / "plugin.yaml")}}
     (root / "preregistration.json").write_text(json.dumps(plan, indent=2))
     results = []
     for case in plan["cases"]:
-        result = run_case(root, source, args.python.absolute(), args.model_python.absolute(), model, case)
+        result = run_case(root, source, args.python.absolute(), model_python.absolute(), model, case)
         results.append(result)
         print(json.dumps(result), flush=True)
         (root / "results.json").write_text(json.dumps(results, indent=2))

@@ -241,3 +241,70 @@ def test_shared_cache_alias_only_grants_exact_hash_shaped_blob(tmp_path):
     link = model / "model.safetensors"
     link.symlink_to(blob)
     assert rehearsal.model_files(model) == [link]
+
+
+# Stock Bash is a fifth, explicitly opt-in OFF-only observation. These are
+# schema-verifier regressions, never claims of live Agent/Provider execution.
+def test_stock_shell_case_stays_out_of_default_native_matrix():
+    from phase8_3_native_rehearsal import CASES, STOCK_CASE
+    assert CASES == ("off", "shadow_fixture", "shadow_mlx", "shadow_503")
+    assert STOCK_CASE not in CASES
+
+
+def _stock_events():
+    return [
+        {"event": "stock_shell_spawn", "executable": "bash", "login": True},
+        {"event": "stock_shell_spawn", "executable": "bash", "login": False},
+        {"event": "stock_shell_spawn", "executable": "bash", "login": False},
+        {"event": "stock_support_spawn", "program": "python3"},
+        {"event": "stock_support_spawn", "program": "uname"},
+        {"event": "stock_support_spawn", "program": "file"},
+        {"event": "side_effect_denied", "operation": "socket.getaddrinfo"},
+    ]
+
+
+def test_stock_shell_attestation_accepts_only_real_unbridged_bash():
+    from phase8_3_native_rehearsal import attest_stock_shell
+    assert attest_stock_shell(_stock_events()) == (True, 3, 3)
+
+
+@pytest.mark.parametrize("mutation", [
+    "no_login", "one_bash", "wrong_executable", "unknown_support",
+    "bridge", "extra_directory_bridge", "unexpected_shell_denial", "invalid_login_type",
+])
+def test_stock_shell_attestation_blocks_counterexamples(mutation):
+    from phase8_3_native_rehearsal import attest_stock_shell
+    events = _stock_events()
+    if mutation == "no_login":
+        events[0]["login"] = False
+    elif mutation == "one_bash":
+        del events[1:3]
+    elif mutation == "wrong_executable":
+        events[1]["executable"] = "python3"
+    elif mutation == "unknown_support":
+        events[3]["program"] = "curl"
+    elif mutation == "bridge":
+        events.append({"event": "dependency_isolated"})
+    elif mutation == "extra_directory_bridge":
+        events.append({"event": "directory_listing"})
+    elif mutation == "unexpected_shell_denial":
+        events.append({"event": "side_effect_denied", "operation": "unexpected_shell"})
+    elif mutation == "invalid_login_type":
+        events[0]["login"] = "true"
+    assert attest_stock_shell(events)[0] is False
+
+
+def test_stock_shell_requires_exact_frozen_official_code(tmp_path):
+    from phase8_3_native_rehearsal import STOCK_SOURCE_SHA256, validate_stock_source
+    from unittest.mock import patch
+    # The real six-file manifest is public but no live Hermes checkout is used.
+    for name in STOCK_SOURCE_SHA256:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("synthetic wrong source")
+    with pytest.raises(ValueError, match="pinned upstream Hermes source"):
+        validate_stock_source(tmp_path)
+    (tmp_path / "hermes_bootstrap.py").unlink()
+    (tmp_path / "hermes_bootstrap.py").symlink_to(tmp_path / "tools/file_operations.py")
+    with pytest.raises(ValueError, match="pinned upstream Hermes source"):
+        validate_stock_source(tmp_path)

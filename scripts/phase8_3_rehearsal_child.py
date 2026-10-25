@@ -105,7 +105,7 @@ def directory_listing(command: str, parent: Path, escaped_parent: str) -> str:
     return "".join(name + "\n" for name in names)
 
 
-def run(source: Path, mutable: Path, forbidden: Path, port: int, mode: str) -> int:
+def run(source: Path, mutable: Path, forbidden: Path, port: int, mode: str, *, stock_shell: bool = False) -> int:
     if sys.stdin.readline().strip() != "GO":
         return 3
     checks = probe(mutable, forbidden)
@@ -129,6 +129,28 @@ def run(source: Path, mutable: Path, forbidden: Path, port: int, mode: str) -> i
         if event == "socket.getaddrinfo" and args[:2] == ("127.0.0.1", port):
             return
         if event == "socket.connect" and args[1] == ("127.0.0.1", port):
+            return
+        if event == "subprocess.Popen" and stock_shell:
+            # Separate OFF-only qualification: genuine upstream Bash transport.
+            # No executor/payload patch; OS Seatbelt still denies all external
+            # network and writes outside the newly disposable scratch tree.
+            executable, argv, cwd, _env = args
+            actual_cwd = Path(cwd if isinstance(cwd, str) else os.getcwd())
+            program = Path(executable).name if isinstance(executable, str) else "invalid"
+            if (not isinstance(argv, (list, tuple)) or not argv or argv[0] != executable
+                    or not actual_cwd.resolve().is_relative_to(mutable.resolve())):
+                emit("side_effect_denied", operation="unexpected_shell", cause="invalid_argv_or_cwd")
+                raise PermissionError(errno.EPERM, "unapproved offline subprocess")
+            if executable == "/bin/bash":
+                emit("stock_shell_spawn", executable="bash", login="-l" in argv)
+                return
+            # Hermes' upstream harmless environment probes. Test PATH is
+            # /usr/bin:/bin only; all writes/network remain kernel-denied.
+            if program in {"python3", "uname", "file"}:
+                emit("stock_support_spawn", program=program)
+                return
+            emit("side_effect_denied", operation="unexpected_shell", cause="unapproved_program", program=program)
+            raise PermissionError(errno.EPERM, "unapproved offline subprocess")
             return
         if event in {"socket.connect", "socket.getaddrinfo", "socket.sendto", "socket.bind",
                      "subprocess.Popen", "os.system", "os.exec", "os.fork", "os.posix_spawn"}:
@@ -173,10 +195,12 @@ def run(source: Path, mutable: Path, forbidden: Path, port: int, mode: str) -> i
             emit("directory_listing", actual_filesystem=True)
             return ExecuteResult(stdout=listing, exit_code=0)
 
-        # Native stat/read/error construction stays upstream. Only its two
-        # shell-based filename suggestions use equivalent read-only directory I/O.
-        LocalEnvironment.init_session = no_shell_snapshot
-        ShellFileOperations._exec = readonly_listing
+        # Stock case leaves both upstream methods unchanged, genuinely
+        # executing the Bash session snapshot and native ls/head shell path.
+        # The original four frozen cases retain their prior no-fork bridge.
+        if not stock_shell:
+            LocalEnvironment.init_session = no_shell_snapshot
+            ShellFileOperations._exec = readonly_listing
         from hermes_cli import lifecycle
         invoke_hook = lifecycle.invoke_hook
 
@@ -222,4 +246,7 @@ def run(source: Path, mutable: Path, forbidden: Path, port: int, mode: str) -> i
 
 
 if __name__ == "__main__":
-    raise SystemExit(run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), int(sys.argv[4]), sys.argv[5]))
+    if len(sys.argv) > 6 and sys.argv[6:] != ["--stock-shell"]:
+        raise SystemExit("unsupported stock-shell qualifier")
+    raise SystemExit(run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
+                         int(sys.argv[4]), sys.argv[5], stock_shell=len(sys.argv) == 7))
