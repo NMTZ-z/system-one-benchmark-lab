@@ -283,3 +283,16 @@ tests/test_phase8_3_real_value_intake.py
 docs/PHASE8_3_H4D_ADMISSION_REAL_INTAKE_REPORT.md
 results/processed/phase8_3_h4d_offline_readiness.json
 results/processed/phase8_3_real_evidence_feasibility.json
+scripts/phase8_3_real_hermes_h4d.py
+scripts/phase8_3_h4d_direct_child.py
+scripts/phase8_3_h4d_adjudicate.py
+tests/test_phase8_3_h4d_once_safety.py
+docs/PHASE8_3_REAL_H4D_ONCE_PREREGISTRATION.md
+docs/PHASE8_3_REAL_H4D_PRESPEND_CORRECTION.md
+docs/PHASE8_3_REAL_H4D_SECOND_PRESPEND_CORRECTION.md
+
+tests/test_phase8_3_h4d_auth.py
+docs/PHASE8_3_H4D_AUTH_COMPATIBILITY_REPORT.md
+results/processed/phase8_3_h4d_auth_compatibility.json
+docs/PHASE8_3_H4E_ONESHOT_PROPOSAL.md
+results/processed/phase8_3_h4d_auth_validation.log

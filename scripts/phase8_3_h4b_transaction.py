@@ -35,6 +35,7 @@ from phase8_3_real_hermes_h2 import PRIVATE
 
 H4B_CASE="h4b_missing_read"
 H4C_CASE="h4c_missing_read"
+H4D_CASE="h4d_missing_read"
 CASE_ID=H4B_CASE
 BACKUP=PRIVATE/"h4b_recovery"
 DB=TEST_HOME/"state.db"
@@ -69,10 +70,10 @@ def bind_case(case_id: str) -> None:
     """
     global CASE_ID, BACKUP, MANIFEST, PRE_DB, POST_DB
     global PRE_STATE, POST_STATE, PRE_PLUGIN_LOCK, FINAL_REPORT
-    if case_id not in {H4B_CASE,H4C_CASE}:
+    if case_id not in {H4B_CASE,H4C_CASE,H4D_CASE}:
         raise RollbackBlocked("unapproved rollback case")
     CASE_ID=case_id
-    BACKUP=PRIVATE/("h4b_recovery" if case_id==H4B_CASE else "h4c_recovery")
+    BACKUP=PRIVATE/({H4B_CASE:"h4b_recovery",H4C_CASE:"h4c_recovery",H4D_CASE:"h4d_recovery"}[case_id])
     MANIFEST=BACKUP/"manifest.private.json"
     PRE_DB=BACKUP/"state_before.private.db"
     POST_DB=BACKUP/"state_after.private.db"
@@ -427,7 +428,7 @@ def main():
     op.add_argument("--prepare",action="store_true")
     op.add_argument("--check",action="store_true")
     op.add_argument("--restore",action="store_true")
-    cli.add_argument("--case",choices=[H4B_CASE,H4C_CASE],default=H4B_CASE)
+    cli.add_argument("--case",choices=[H4B_CASE,H4C_CASE,H4D_CASE],default=H4B_CASE)
     options=cli.parse_args()
     try:
         bind_case(options.case)

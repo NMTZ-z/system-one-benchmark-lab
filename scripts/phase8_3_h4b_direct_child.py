@@ -45,12 +45,13 @@ def configure_for_case(case_id: str) -> None:
     convenience rerun of H4B's immutable private original.
     """
     global CASE_ID, CASE_DIR, TARGET_PREFIX, CUSTOM_TOOLSET
-    if case_id!="h4c_missing_read":
+    if case_id not in {"h4c_missing_read","h4d_missing_read"}:
         raise DirectAgentBlocked("only a new separately named H4C is eligible")
     CASE_ID=case_id
     CASE_DIR=PRIVATE/"runs"/case_id
-    TARGET_PREFIX="h4c_absent_"
-    CUSTOM_TOOLSET="phase83-h4c-one-read-file-only"
+    TARGET_PREFIX="h4c_absent_" if case_id=="h4c_missing_read" else "h4d_absent_"
+    CUSTOM_TOOLSET=("phase83-h4c-one-read-file-only" if case_id=="h4c_missing_read"
+                    else "phase83-h4d-one-read-file-only")
 
 
 class DirectAgentBlocked(ValueError):
@@ -141,6 +142,38 @@ def install_readonly_tool_guard(target: Path) -> dict:
 
 
 
+def prepare_readonly_auth() -> dict:
+    """H4D-only compatibility for an unreadable optional global auth store."""
+    if CASE_ID != "h4d_missing_read":
+        return {}
+    import hermes_cli.auth as auth
+    from agent.credential_pool import load_pool
+    from hermes_cli.runtime_provider import resolve_runtime_provider
+    original = auth._load_global_auth_store
+
+    def optional_global_store():
+        # Frozen Hermes calls exists() outside its unreadable-store handler.
+        try:
+            return original()
+        except PermissionError:
+            return {}
+
+    auth._load_global_auth_store = optional_global_store
+    try:
+        resolved = resolve_runtime_provider(requested=PROVIDER, target_model=MODEL)
+        entries = load_pool(PROVIDER).entries()
+        if (len(entries) != 1 or entries[0].source != "manual"
+                or entries[0].base_url != "http://127.0.0.1:18794"
+                or resolved.get("provider") != PROVIDER
+                or resolved.get("base_url") != "http://127.0.0.1:18794"
+                or not resolved.get("api_key")
+                or resolved["api_key"] != entries[0].access_token):
+            raise DirectAgentBlocked("H4D credential or pinned route not verified")
+    except Exception:
+        raise DirectAgentBlocked("H4D native credential resolution failed") from None
+    return {"official_runtime_credentials_resolved": True}
+
+
 def main() -> None:
     cmd=argparse.ArgumentParser(description=__doc__)
     action=cmd.add_mutually_exclusive_group(required=True)
@@ -150,6 +183,7 @@ def main() -> None:
     try:
         target,_=check_case()
         guard=install_readonly_tool_guard(target)
+        guard.update(prepare_readonly_auth())
         from hermes_cli.oneshot import run_oneshot, _validate_explicit_toolsets
         selected,error=_validate_explicit_toolsets([CUSTOM_TOOLSET])
         if error is not None or selected!=[CUSTOM_TOOLSET]:
