@@ -1,0 +1,57 @@
+{
+  "active_authority": "NOT_AUTHORIZED",
+  "cohorts": {
+    "H1": {
+      "independent_decision_gold": false,
+      "local_decision_predictions": 0,
+      "physical_attempts": 3,
+      "scope": "off_read_only_success",
+      "source": "real_native_stepfun",
+      "terminal_http_200": 2,
+      "unresolved_attempts": 1,
+      "verified_task": true
+    },
+    "H2": {
+      "independent_decision_gold": false,
+      "local_decision_predictions": 2,
+      "physical_attempts": 3,
+      "scope": "shadow_read_only_success",
+      "source": "real_native_stepfun",
+      "terminal_http_200": 3,
+      "unresolved_attempts": 0,
+      "verified_task": true
+    },
+    "H3": {
+      "independent_decision_gold": false,
+      "local_decision_predictions": 0,
+      "physical_attempts": 2,
+      "scope": "runtime_down_read_only_success",
+      "source": "real_native_stepfun",
+      "terminal_http_200": 2,
+      "unresolved_attempts": 0,
+      "verified_task": true
+    }
+  },
+  "excluded_synthetic_stock_shadow_from_real_denominator": true,
+  "historical_case_ids": [
+    "H1",
+    "H2",
+    "H3"
+  ],
+  "historical_native_task_successes_with_published_verification": 3,
+  "historical_raw_native_evidence_rechecked_in_this_audit": false,
+  "interpretation": "Three authentic task successes do not supply independent decision gold; no causal real value accuracy estimate is supported.",
+  "new_model_inferences_for_this_audit": 0,
+  "new_provider_calls_for_this_audit": 0,
+  "provider_HTTP_200_terminal_historical": 7,
+  "provider_attempts_historical": 8,
+  "provider_outcome_unknown_historical": 1,
+  "provider_subscription_credit_spend": "UNKNOWN",
+  "qualified_rules_vs_laya_real_pairs": 0,
+  "real_agent_level_cost_savings": "NOT_MEASURED",
+  "real_decision_correctness_benchmark": "NOT_ESTABLISHED",
+  "recorded_real_local_decision_observations": 2,
+  "schema": "local-system-one/phase8_3-real-decision-feasibility-v1",
+  "separately_adjudicated_real_decision_gold_count": 0,
+  "source": "three_published_historic_real_hermes_stepfun_case_summaries_only"
+}

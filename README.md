@@ -269,6 +269,19 @@ requests 0; Agent value/savings NOT ESTABLISHED; Active NOT AUTHORIZED.**
 Future real-Provider/user budget requirements are kept in the
 [separate admission protocol](docs/PHASE8_3_REAL_VALUE_FOLLOWUP_ADMISSION.md).
 
+
+**2026-10-26 H4D admission + historical real-evidence audit (separate Draft):**
+A [zero-Provider H4D readiness report](docs/PHASE8_3_H4D_ADMISSION_REAL_INTAKE_REPORT.md)
+verifies frozen source/model and unmodified historical request-ledger
+fingerprints. Static OFF engineering prerequisites PASS_SCOPED but real
+H4D stays BLOCKED without separate request/time/cost authorization and
+independent credential-route attestation. The public frozen real H1/H2/H3
+records show three independently reported native task successes and two
+actual local Laya Completion observations, but **zero independently
+adjudicated decision-gold examples suitable for a real Rule-only-versus-Laya
+accuracy comparison**. No new requests, model inference, Active authority
+or real-Agent savings claims are made.
+
 ## Quick start
 
 ### Requirements
