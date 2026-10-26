@@ -311,6 +311,7 @@ def _services(keyfile: Path) -> list[subprocess.Popen]:
             if folder.is_symlink() or not folder.is_dir() or folder.stat().st_mode&0o077:
                 raise H4BBlocked("H4C service scratch not private/ready")
         env.update({
+            "PHASE83_H4D_OWNER_HOME":str(Path.home()) if RUN_ID==H4D else "",
             "HOME":str(service_home),
             "TMPDIR":str(CASE_DIR/"tmp"),
             "XDG_CACHE_HOME":str(service_home/"cache"),

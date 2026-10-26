@@ -12,7 +12,6 @@ import fcntl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
-import pwd
 from pathlib import Path
 import re
 import time
@@ -270,10 +269,16 @@ def main() -> None:
         parser.error("invalid bounded isolated runner settings")
     # A test helper must not write a ledger or lock into production homes.
     private_root = (Path(__file__).resolve().parents[1] / "private").resolve()
-    # H4D Provider service intentionally runs under a fresh disposable HOME.
-    # HOME may be overridden, so resolve the canonical owner from the OS
-    # uid database; never use the service's scratch HOME as the ledger base.
-    owner_home=Path(pwd.getpwuid(os.getuid()).pw_dir)
+    # The H4D Provider service runs under a separate disposable HOME; macOS
+    # Seatbelt may deny DirectoryService/getpwuid even when this uid is valid.
+    # Its owner-scoped parent orchestrator passes ONE absolute owner-home
+    # path in a fresh child-only env, independent of the disposable HOME.
+    owner_home=Path(os.environ.get("PHASE83_H4D_OWNER_HOME", ""))
+    if args.run=="h4d_missing_read":
+        if (not owner_home.is_absolute() or owner_home.is_symlink()
+                or not owner_home.is_dir() or owner_home.stat().st_uid!=os.getuid()
+                or owner_home.resolve()!=owner_home):
+            parser.error("H4D parent-provided exact owner Home is missing/invalid")
     historic=owner_home/"Projects/system-one-phase8-3/private/phase8_3_native_real/provider_real_ledger.private.jsonl"
     h4d_exception=(
         args.run=="h4d_missing_read" and not args.private_ledger.is_symlink()

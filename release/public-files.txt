@@ -289,3 +289,4 @@ scripts/phase8_3_h4d_adjudicate.py
 tests/test_phase8_3_h4d_once_safety.py
 docs/PHASE8_3_REAL_H4D_ONCE_PREREGISTRATION.md
 docs/PHASE8_3_REAL_H4D_PRESPEND_CORRECTION.md
+docs/PHASE8_3_REAL_H4D_SECOND_PRESPEND_CORRECTION.md
