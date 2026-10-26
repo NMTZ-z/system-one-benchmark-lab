@@ -104,3 +104,35 @@ stock-shell/Hermes Observer chain in these bounded synthetic-main tests;
 continue holding real-Provider 8.3A qualification PARTIAL/BLOCKED,
 real Laya incremental value NOT_ESTABLISHED and actual Agent savings
 NOT_MEASURED.
+
+## Final clean-code engineering regression and release QA
+
+Executed on the separate branch after the frozen four-case matrix and
+publication of the independent read-only verifier:
+
+- **Python main suite:** `1457 PASS / 2 SKIP / 5 separately deselected`
+  inside a macOS Seatbelt with only owned localhost test sockets, controlled
+  subprocesses and disposable filesystem writes. One SKIP is the
+  intentionally unmounted historical private Provider-ledger fixture;
+  the other is the optional official Hermes source-registry test.
+- **Separate OS/process tests:** `5/5 PASS`, including actual Seatbelt
+  sensitive-file denial and identity-checked process-group teardown. These
+  exact five are the main-suite deselections because nested Seatbelt
+  would block signal tests rather than test their intended control.
+- **Optional pinned upstream Hermes registry test:** separately `1/1 PASS`
+  against a credential-free exported frozen source, without changing
+  installed Hermes or production profiles.
+- **DeepSeek Harness:** `64/64 Vitest PASS`; TypeScript typecheck PASS;
+  TypeScript build PASS. Test dependencies were read from an independently
+  isolated lockfile installation, with a temporary `node_modules` link
+  removed afterward. Sandbox emitted worker-shutdown `EPERM` notices,
+  but Vitest finished with exit status 0; this is not a real DSH E2E.
+- **Public bundle:** `347` allowlisted files; sanitizer PASS;
+  independently verified full SHA-256 manifest; `publish_ready=true`
+  from the clean release commit. Only bounded aggregate, source, protocol,
+  tests and reports are in the bundle; no raw native or credential records.
+
+These results supersede neither the first historical experimental BLOCKED
+verdict nor the original H1 UNKNOWN. They are the **offline engineering
+qualification** for this separate stacked change, not approval to merge
+PR #9, conduct paid tests, or activate any Gate.
