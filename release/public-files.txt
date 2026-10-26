@@ -280,3 +280,6 @@ scripts/phase8_3_h4d_readiness.py
 scripts/phase8_3_real_value_intake.py
 tests/test_phase8_3_h4d_readiness.py
 tests/test_phase8_3_real_value_intake.py
+docs/PHASE8_3_H4D_ADMISSION_REAL_INTAKE_REPORT.md
+results/processed/phase8_3_h4d_offline_readiness.json
+results/processed/phase8_3_real_evidence_feasibility.json

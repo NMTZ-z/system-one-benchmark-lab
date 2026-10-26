@@ -87,3 +87,39 @@ def test_source_export_cannot_be_live_or_symlinked(tmp_path):
 def test_frozen_git_cannot_admit_dirty_wrong_head(tmp_path):
     with pytest.raises(hr.H4DReadinessBlocked):
         hr.verify_frozen_git(tmp_path,"not_a_sha")
+
+
+def test_actual_offline_inspection_never_opens_original_auth_file(monkeypatch,tmp_path):
+    """Exercise actual inspect() against a *synthetic* Home, not owner's secrets."""
+    import phase8_3_prepare_shared_dependency_home as home_module
+    import yaml
+    # This fixture makes the old tool's actual filesystem stat/config code
+    # run without depending on the user's production Hermes/PM installation.
+    synthetic=tmp_path/"home/system-one-phase83lab"
+    plugin=synthetic/"plugins/local-system-one-hermes"
+    plugin.mkdir(parents=True)
+    synthetic.chmod(0o700)
+    (synthetic/"plugins").chmod(0o700)
+    plugin.chmod(0o700)
+    for file,contents in (
+        (synthetic/"config.yaml",yaml.safe_dump(home_module.isolated_test_config("off"))),
+        (synthetic/".env",""),
+        (synthetic/"auth.json","SYNTHETIC_CREDENTIAL_MUST_NOT_BE_READ"),
+        (plugin/"plugin.yaml","plugin: fake offline fixture"),
+        (plugin/"__init__.py","# dummy plugin"),
+    ):
+        file.write_text(contents)
+        file.chmod(0o600)
+    monkeypatch.setattr(home_module,"TEST_HOME",synthetic)
+    monkeypatch.setattr(home_module,"dependency_scope",lambda :{"owner_dependency_env_available":True})
+    monkeypatch.setattr(home_module,"validate_home",lambda *_args,**_kw:{"mode":"off"})
+    opener=Path.open
+    def guarded_open(path,*a,**kw):
+        if path.name=="auth.json":
+            pytest.fail("stat-only H4D admission tried to read a credential")
+        return opener(path,*a,**kw)
+    monkeypatch.setattr(Path,"open",guarded_open)
+    result=hr.stat_only_home()
+    assert result["isolated_existing_test_home_mode"]=="off"
+    assert result["credential_file_contents_read"] is False
+    assert result["credential_status"]=="NOT_VERIFIED"
