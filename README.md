@@ -253,6 +253,22 @@ TypeScript build/typecheck PASS. [Public aggregate](results/processed/phase8_3_s
 This is **not** real H4D/DSH StepFun E2E or evidence of Laya savings;
 original H1 UNKNOWN and Active NOT_AUTHORIZED remain unchanged.
 
+
+**2026-10-26 independent stock-shell Shadow supplement (separate Draft):**
+A [pre-frozen four-case native Hermes test](docs/PHASE8_3_NATIVE_STOCK_SHADOW_REPORT.md)
+now joins the **unmodified upstream Bash/file tool** with OFF, fixture
+Shadow, pinned local Laya/MLX Shadow and HTTP 503 fail-open. Four bounded
+cases passed; three Shadow cases yielded **9/9 independently rechecked
+native/Adapter/HTTP causal links**; actual Laya had **2 Completion
+predictions**, Retry model predictions **0** because the original hard rule
+requires a verified retry budget. All native task outcomes were identical.
+The [separate read-only verifier](scripts/phase8_3_verify_stock_shadow.py)
+checks private SQLite, HMAC, HTTP, model metrics, process restoration and
+frozen source/model digests. **Main Provider was synthetic; new StepFun
+requests 0; Agent value/savings NOT ESTABLISHED; Active NOT AUTHORIZED.**
+Future real-Provider/user budget requirements are kept in the
+[separate admission protocol](docs/PHASE8_3_REAL_VALUE_FOLLOWUP_ADMISSION.md).
+
 ## Quick start
 
 ### Requirements
