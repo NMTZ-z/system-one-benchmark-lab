@@ -419,6 +419,7 @@ def _sandbox_offline_child_guard() -> dict:
             or evidence.get("only_advertised_native_tool")!="read_file"
             or evidence.get("official_hermes_inprocess_engine_imported") is not True
             or evidence.get("official_oneshot_preamble_zero_provider_passed") is not True
+            or (RUN_ID==H4D and evidence.get("official_runtime_credentials_resolved") is not True)
             or evidence.get("exact_absent_target_guard_installed") is not True
             or evidence.get("main_provider_requests")!=0):
         raise H4BBlocked("sandbox toolset/Agent import preflight not attested")

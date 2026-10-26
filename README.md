@@ -282,6 +282,16 @@ adjudicated decision-gold examples suitable for a real Rule-only-versus-Laya
 accuracy comparison**. No new requests, model inference, Active authority
 or real-Agent savings claims are made.
 
+**2026-10-26 H4D credential compatibility engineering closeout:**
+The [final acceptance report](docs/PHASE8_3_H4D_AUTH_COMPATIBILITY_REPORT.md)
+records the reproduced global-store permission failure, H4D-only compatibility
+handler and real resolver preflight. Full verification: 1513 distinct Python
+passes across the main/OS/frozen-registry runs, one unavailable legacy ledger
+fixture independently checked against the owner-global ledger; DSH 64/64,
+typecheck and build PASS. Historical evidence, OFF state and 8/24 ledger
+remain unchanged. [H4E proposal](docs/PHASE8_3_H4E_ONESHOT_PROPOSAL.md) is
+prepared; H4E execution remains **NO-GO / NOT AUTHORIZED**. No real retry ran.
+
 ## Quick start
 
 ### Requirements

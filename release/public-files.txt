@@ -290,3 +290,9 @@ tests/test_phase8_3_h4d_once_safety.py
 docs/PHASE8_3_REAL_H4D_ONCE_PREREGISTRATION.md
 docs/PHASE8_3_REAL_H4D_PRESPEND_CORRECTION.md
 docs/PHASE8_3_REAL_H4D_SECOND_PRESPEND_CORRECTION.md
+
+tests/test_phase8_3_h4d_auth.py
+docs/PHASE8_3_H4D_AUTH_COMPATIBILITY_REPORT.md
+results/processed/phase8_3_h4d_auth_compatibility.json
+docs/PHASE8_3_H4E_ONESHOT_PROPOSAL.md
+results/processed/phase8_3_h4d_auth_validation.log
