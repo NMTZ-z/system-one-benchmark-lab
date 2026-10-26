@@ -45,12 +45,13 @@ def configure_for_case(case_id: str) -> None:
     convenience rerun of H4B's immutable private original.
     """
     global CASE_ID, CASE_DIR, TARGET_PREFIX, CUSTOM_TOOLSET
-    if case_id!="h4c_missing_read":
+    if case_id not in {"h4c_missing_read","h4d_missing_read"}:
         raise DirectAgentBlocked("only a new separately named H4C is eligible")
     CASE_ID=case_id
     CASE_DIR=PRIVATE/"runs"/case_id
-    TARGET_PREFIX="h4c_absent_"
-    CUSTOM_TOOLSET="phase83-h4c-one-read-file-only"
+    TARGET_PREFIX="h4c_absent_" if case_id=="h4c_missing_read" else "h4d_absent_"
+    CUSTOM_TOOLSET=("phase83-h4c-one-read-file-only" if case_id=="h4c_missing_read"
+                    else "phase83-h4d-one-read-file-only")
 
 
 class DirectAgentBlocked(ValueError):

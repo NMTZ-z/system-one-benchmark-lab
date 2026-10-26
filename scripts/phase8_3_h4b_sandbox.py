@@ -47,7 +47,7 @@ def build_policy(*, home: Path=TEST_HOME, case_dir: Path,
     fixed=_safe_scope(home,needs_existing=True)
     if fixed!=TEST_HOME or fixed.parent!=Path.home()/".hermes":
         raise SandboxUnavailable("sandbox can only use original dedicated test Home")
-    if (case_dir.name not in {"h4b_missing_read","h4c_missing_read"} or
+    if (case_dir.name not in {"h4b_missing_read","h4c_missing_read","h4d_missing_read"} or
             case_dir.parent != PRIVATE/"runs" or
             not case_dir.is_dir() or case_dir.is_symlink() or
             case_dir.stat().st_mode & 0o077):
@@ -121,8 +121,18 @@ def build_policy(*, home: Path=TEST_HOME, case_dir: Path,
         if item.resolve()!=source_root.resolve():
             protect(item)
     for item in PRIVATE.iterdir():
-        if item.name!="runs":
+        if item.name not in {"runs", "h4d_hermes_archive"}:
             protect(item)
+    archive=PRIVATE/"h4d_hermes_archive"
+    if case_dir.name=="h4d_missing_read":
+        if archive.is_symlink() or not archive.is_dir():
+            raise SandboxUnavailable("H4D frozen source archive is missing")
+        for name in ("hermes_bootstrap.py","run_agent.py","hermes_cli/oneshot.py"):
+            if not (archive/name).is_file() or (archive/name).is_symlink():
+                raise SandboxUnavailable("H4D frozen source archive incomplete")
+        # H4D source may be read, but no corresponding write grant exists.
+    elif archive.exists() or archive.is_symlink():
+        protect(archive)
     for item in (PRIVATE/"runs").iterdir():
         if item.resolve()!=local.resolve():
             protect(item)

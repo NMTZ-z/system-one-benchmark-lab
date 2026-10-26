@@ -47,7 +47,7 @@ from phase8_3_real_hermes_h2 import (
     _spawn, _poll_http, _base_env, _read_jsonl, _read_json,
 )
 from phase8_3_transport_closeout import (
-    H4B, H4C, H3_ORIGINAL_SHA256, audited_snapshot, drain_run,
+    H4B, H4C, H4D, H3_ORIGINAL_SHA256, audited_snapshot, drain_run,
     CloseoutBlocked,
 )
 from phase8_3_h4b_sandbox import (
@@ -78,9 +78,9 @@ def configure_for_case(case_id: str) -> None:
     Explicitly scopes all disposable paths AND the SQLite recovery
     and owned PID ledger to h4c_recovery, never h4b_recovery.
     """
-    global RUN_ID, CASE_DIR, BACKUP
-    if case_id!=H4C:
-        raise H4BBlocked("only independent H4C is eligible here")
+    global RUN_ID, CASE_DIR, BACKUP, PROVIDER_LEDGER
+    if case_id not in {H4C,H4D}:
+        raise H4BBlocked("only independent H4C or separately approved H4D is eligible here")
     import phase8_3_h4b_transaction as tx
     import phase8_3_h4b_owned_processes as owned
     tx.bind_case(case_id)
@@ -88,6 +88,9 @@ def configure_for_case(case_id: str) -> None:
     RUN_ID=case_id
     CASE_DIR=PRIVATE/"runs"/case_id
     BACKUP=tx.BACKUP
+    if case_id==H4D:
+        PROVIDER_LEDGER=(Path.home()/"Projects/system-one-phase8-3/private/phase8_3_native_real"
+                         /"provider_real_ledger.private.jsonl")
 
 
 def _short_case() -> str:
@@ -129,16 +132,17 @@ def _verify_h4b_history_in_its_own_scoped_context() -> dict:
     """
     import phase8_3_h4b_transaction as tx
     import phase8_3_h4b_owned_processes as own
-    if tx.CASE_ID!=H4C or own.CASE_ID!=H4C:
-        raise H4BBlocked("H4C scoped rollback provenance not initialized")
+    original_case=H4D if RUN_ID==H4D else H4C
+    if tx.CASE_ID!=original_case or own.CASE_ID!=original_case:
+        raise H4BBlocked("H4C/H4D scoped rollback provenance not initialized")
     tx.bind_case(H4B)
     own.bind_case(H4B)
     try:
         from phase8_3_verify_h4b_seatbelt_block import verify
         return verify()
     finally:
-        tx.bind_case(H4C)
-        own.bind_case(H4C)
+        tx.bind_case(original_case)
+        own.bind_case(original_case)
 
 
 def _preflight(sha: str) -> dict:
@@ -147,6 +151,15 @@ def _preflight(sha: str) -> dict:
     ):
         raise H4BBlocked("clean frozen H4B source SHA required")
     _private_directory(PRIVATE)
+    if RUN_ID==H4D:
+        from phase8_2a_provider_cap import UPSTREAM, ALLOWED_MODEL
+        if (UPSTREAM!="https://api.stepfun.com/step_plan/v1/chat/completions"
+                or ALLOWED_MODEL!="step-5-preview" or PER_CASE_MAX!=3
+                or H4B_TIMEOUT!=90):
+            raise H4BBlocked("H4D Plan-only hard physical request/time cap was modified")
+        archive=PRIVATE/"h4d_hermes_archive"
+        from phase8_3_h4d_readiness import validate_fixed_source_and_model
+        validate_fixed_source_and_model(archive,MODEL_PATH)
     _private_directory(PRIVATE/"runs")
     _private_directory(PRIVATE/"logs")
     if subprocess.run(["git","check-ignore","-q",
@@ -185,7 +198,7 @@ def _preflight(sha: str) -> dict:
     if (previous.get("reserved_global")!=8
             or previous.get("reserved_new")!=0
             or previous.get("reserved_original_h4")!=0
-            or (RUN_ID==H4C and previous.get("reserved_original_h4b")!=0)
+            or (RUN_ID in {H4C,H4D} and previous.get("reserved_original_h4b")!=0)
             or previous.get("historic_h1_unresolved")!=1
             or previous.get("ledger_digest_sha256")!=EXPECTED_BEFORE):
         raise H4BBlocked("exact original 24 physical Provider ledger history changed")
@@ -218,7 +231,7 @@ def _preflight(sha: str) -> dict:
 
 def _create_private_case() -> dict:
     if CASE_DIR.exists() or CASE_DIR.is_symlink():
-        raise H4BBlocked("H4B test case already exists")
+        raise H4BBlocked("original single-use test case already exists")
     oldmask=os.umask(0o077)
     try:
         CASE_DIR.mkdir(mode=0o700)
@@ -250,7 +263,7 @@ def _create_private_case() -> dict:
         prompt_file.chmod(0o600)
         scratch=CASE_DIR/"tmp"
         scratch.mkdir(mode=0o700)
-        if RUN_ID==H4C:
+        if RUN_ID in {H4C,H4D}:
             service_home=CASE_DIR/"service_home"
             service_home.mkdir(mode=0o700)
             (service_home/"cache").mkdir(mode=0o700)
@@ -288,7 +301,7 @@ def _stop_owned_group(proc: subprocess.Popen) -> None:
 def _services(keyfile: Path) -> list[subprocess.Popen]:
     procs=[]
     env=_base_env()
-    if RUN_ID==H4C:
+    if RUN_ID in {H4C,H4D}:
         # Ancillary MLX/Observer/Proxy children must not use the owner's
         # HOME caches/config. Their model path is already pinned absolute.
         # Only the actual sandboxed official Hermes native child inherits
@@ -302,6 +315,7 @@ def _services(keyfile: Path) -> list[subprocess.Popen]:
             "TMPDIR":str(CASE_DIR/"tmp"),
             "XDG_CACHE_HOME":str(service_home/"cache"),
             "HF_HOME":str(service_home/"huggingface"),
+            "HF_HUB_OFFLINE":"1",
             "PYTHONDONTWRITEBYTECODE":"1",
         })
     py=sys.executable
@@ -450,7 +464,7 @@ def _native_child() -> tuple[int,bool]:
             _stop_owned_group(proc)
             raise
         try:
-            rc=proc.wait(timeout=H4B_TIMEOUT+12)
+            rc=proc.wait(timeout=H4B_TIMEOUT if RUN_ID==H4D else H4B_TIMEOUT+12)
             timed_out=False
         except subprocess.TimeoutExpired:
             timed_out=True
@@ -501,14 +515,19 @@ def run(frozen_sha: str) -> dict:
         # real child will use. A failure cannot consume a StepFun request.
         _sandbox_offline_child_guard()
         started=_services(keyfile)
+        provider_deadline=(time.monotonic()+90) if RUN_ID==H4D else None
         rc,timed_out=_native_child()
         state=audited_snapshot(PROVIDER_LEDGER,new_run=RUN_ID)
         if state["reserved_new"]:
+            # New H4D physical request accounting is strictly bound by
+            # the 90-second single-trial wall-clock cap. Old H4B/C code
+            # keeps its own historical logic unchanged.
+            remaining=max(0,min(80,provider_deadline-time.monotonic())) if provider_deadline else 80
             state=drain_run(
-                PROVIDER_LEDGER,run_id=RUN_ID,maximum_seconds=80,
+                PROVIDER_LEDGER,run_id=RUN_ID,maximum_seconds=remaining,
             )
         # Let ONLY already launched local observer callbacks close out.
-        until=time.monotonic()+7
+        until=min(time.monotonic()+7,provider_deadline) if provider_deadline else time.monotonic()+7
         while time.monotonic()<until:
             if len(_read_jsonl(_private_name("http.private.jsonl")))>=3:
                 break
@@ -555,6 +574,7 @@ def run(frozen_sha: str) -> dict:
         "main_model":"stepfun/step-5-preview",
         "agent_platform":"official_hermes_inprocess_AIAgent",
         "model_execution_route":"macOS_Seatbelt_to_local_physical_budget_proxy",
+        "H4D_real_case_if_any":"approved_step_plan_only_3_physical_90s_no_payg" if RUN_ID==H4D else None,
         "allowed_native_tool":"read_file_exact_absent_target",
         "mode_during_task":"shadow",
         "native_child_exit_code":rc,
