@@ -268,3 +268,10 @@ results/processed/phase8_3_offline_native_rehearsal.json
 docs/PHASE8_3_STOCK_SHELL_QUALIFICATION.md
 docs/PHASE8_3_STOCK_SHELL_QUALIFICATION_REPORT.md
 results/processed/phase8_3_stock_shell_qualification.json
+docs/PHASE8_3_NATIVE_STOCK_SHADOW_PROTOCOL.md
+docs/PHASE8_3_NATIVE_STOCK_SHADOW_AMENDMENT.md
+docs/PHASE8_3_NATIVE_STOCK_SHADOW_REPORT.md
+docs/PHASE8_3_REAL_VALUE_FOLLOWUP_ADMISSION.md
+results/processed/phase8_3_stock_shadow_four_case.json
+scripts/phase8_3_verify_stock_shadow.py
+tests/test_phase8_3_verify_stock_shadow.py

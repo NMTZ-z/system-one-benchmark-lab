@@ -1,0 +1,79 @@
+{
+  "active_canary": "NOT_AUTHORIZED",
+  "actual_agent_level_savings": "NOT_MEASURED",
+  "agent_value_or_savings": "NOT_ESTABLISHED",
+  "cases": [
+    {
+      "actual_laya_calls": 0,
+      "bash_spawns": 3,
+      "case": "off_stock_shell",
+      "causal_links": 0,
+      "model_warmup": 0,
+      "pass": true,
+      "provider_requests": 0,
+      "retry_model_calls": 0,
+      "support_spawns": 5
+    },
+    {
+      "actual_laya_calls": 0,
+      "bash_spawns": 3,
+      "case": "shadow_stock_fixture",
+      "causal_links": 3,
+      "model_warmup": 0,
+      "pass": true,
+      "provider_requests": 0,
+      "retry_model_calls": 0,
+      "support_spawns": 5
+    },
+    {
+      "actual_laya_calls": 2,
+      "bash_spawns": 3,
+      "case": "shadow_stock_mlx",
+      "causal_links": 3,
+      "model_warmup": 1,
+      "pass": true,
+      "provider_requests": 0,
+      "retry_model_calls": 0,
+      "support_spawns": 5
+    },
+    {
+      "actual_laya_calls": 0,
+      "bash_spawns": 3,
+      "case": "shadow_stock_503",
+      "causal_links": 3,
+      "model_warmup": 0,
+      "pass": true,
+      "provider_requests": 0,
+      "retry_model_calls": 0,
+      "support_spawns": 5
+    }
+  ],
+  "fixture_or_real_main_provider": "synthetic_in_memory_only",
+  "frozen_Hermes_upstream_commit": "4d04303818b61bf3aa09278af48356315515965b",
+  "frozen_executed_commit": "58a4d6b895e5da9e5848bf0a7a123eff32e56fc9",
+  "frozen_laya_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+  "historic_global_cap": 24,
+  "historic_h1_unresolved": 1,
+  "historic_provider_ledger_sha256_unchanged": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+  "historic_stepfun_physical_requests": 8,
+  "independent_true_real_agent_gold": "NOT_COLLECTED",
+  "limits": [
+    "Main model was synthetic in-memory transport; cannot attribute real StepFun decisions or credits.",
+    "Two real local MLX completions were advisory only, not executions; no real Retry model predictions.",
+    "A sandboxed production-incompatible credential-empty upstream Hermes archive was used, not production Home.",
+    "No representative external real Agent benchmark, native main-model task decision quality, or statistical latency result.",
+    "Source-conditional MLX dependency-version metric absent for newly named stock case; pinned weight SHA and actual class/counters separately verified.",
+    "No new paid Provider authorization, no H4D/DSH real Agent acceptance, no Active/Canary."
+  ],
+  "model_weights_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+  "native_final_consistency_verified": true,
+  "new_physical_provider_requests": 0,
+  "previous_frozen_execution_first_result": "3_PASS_1_VERIFIER_BLOCKED_C154446",
+  "previous_frozen_execution_preserved": true,
+  "qualification": "PASS_SCOPED_OFFLINE_SYNTHETIC_MAIN_PROVIDER",
+  "real_stepfun_e2e": "NOT_RUN",
+  "report_date_local": "2026-10-26",
+  "schema": "local-system-one/phase8_3-stock-shadow-independent-v1",
+  "true_local_laya_completion_predictions": 2,
+  "true_retry_model_predictions": 0
+}
