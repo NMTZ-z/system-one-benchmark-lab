@@ -173,3 +173,13 @@ print(json.dumps(r))
     assert observed['outside_network'] is False
     assert (archive/'run_agent.py').read_text()=='source protected'
     assert auth.read_text()=='synthetic test only'
+
+
+def test_h4d_proxy_canonical_ledger_does_not_follow_disposable_home(monkeypatch):
+    import os,pwd
+    actual=Path(pwd.getpwuid(os.getuid()).pw_dir)
+    monkeypatch.setenv("HOME","/private/tmp/synthetic_phase83_service_home")
+    source=(ROOT/"scripts/phase8_2a_provider_cap.py").read_text()
+    assert 'pwd.getpwuid(os.getuid()).pw_dir' in source
+    assert actual!=Path.home()
+    assert (actual/"Projects/system-one-phase8-3/private/phase8_3_native_real/provider_real_ledger.private.jsonl").parent.parent.name=="private"
