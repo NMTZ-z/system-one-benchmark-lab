@@ -275,3 +275,8 @@ docs/PHASE8_3_REAL_VALUE_FOLLOWUP_ADMISSION.md
 results/processed/phase8_3_stock_shadow_four_case.json
 scripts/phase8_3_verify_stock_shadow.py
 tests/test_phase8_3_verify_stock_shadow.py
+docs/PHASE8_3_H4D_ADMISSION_AND_REAL_INTAKE_PROTOCOL.md
+scripts/phase8_3_h4d_readiness.py
+scripts/phase8_3_real_value_intake.py
+tests/test_phase8_3_h4d_readiness.py
+tests/test_phase8_3_real_value_intake.py
