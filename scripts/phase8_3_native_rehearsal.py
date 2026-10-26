@@ -26,6 +26,16 @@ CHILD = Path(__file__).with_name("phase8_3_rehearsal_child.py")
 PLUGIN = ROOT / "integrations/hermes/local-system-one-hermes"
 CASES = ("off", "shadow_fixture", "shadow_mlx", "shadow_503")
 STOCK_CASE = "off_stock_shell"  # separately opt-in; never change the four-case default
+STOCK_SHADOW_CASES = ("shadow_stock_fixture", "shadow_stock_mlx", "shadow_stock_503")
+STOCK_CASES = (STOCK_CASE, *STOCK_SHADOW_CASES)
+REAL_MLX_CASES = ("shadow_mlx", "shadow_stock_mlx")
+RUNTIME_DOWN_CASES = ("shadow_503", "shadow_stock_503")
+OFF_CASES = ("off", STOCK_CASE)
+
+
+def stock_case(name: str) -> bool:
+    return name in STOCK_CASES
+
 
 STOCK_SOURCE_SHA256 = {
     "hermes_bootstrap.py": "f242036b2d35b92283b9a7e97c7059e537607fc4b02026f657a6d00cb4683f69",
@@ -117,10 +127,10 @@ def runtime(root: Path, kind: str, model: Path, port: int) -> int:
             return {"type": "choice", "choice": "verify", "confidence": 1.0,
                     "probabilities": {"complete": 0.0, "verify": 1.0, "continue": 0.0}}
 
-    model_runtime = MLXRuntime(model) if kind == "shadow_mlx" else FixtureRuntime()
+    model_runtime = MLXRuntime(model) if kind in REAL_MLX_CASES else FixtureRuntime()
     implementation = type(model_runtime).__module__ + "." + type(model_runtime).__name__
     warmup = {"attempts": 0, "successes": 0}
-    if kind == "shadow_mlx":
+    if kind in REAL_MLX_CASES:
         import faulthandler
         warmup["attempts"] = 1
         (root / "warmup.json").write_text(json.dumps(warmup))
@@ -176,7 +186,7 @@ def runtime(root: Path, kind: str, model: Path, port: int) -> int:
             if ordinal > 3 or self.path not in {"/v1/workflows/completion-gate", "/v1/workflows/retry-escalation-gate"}:
                 self._read_payload()
                 return self._json(429, {"error": "offline_request_cap"})
-            if kind == "shadow_503":
+            if kind in RUNTIME_DOWN_CASES:
                 self._read_payload()
                 return self._json(503, {"error": "synthetic_service_unavailable"})
             return super().do_POST()
@@ -318,8 +328,8 @@ def verify(case: Path) -> dict:
     states = list((post / "home/hermes/plugin-data").glob("*/state.json"))
     state = read_json(states[0]) if len(states) == 1 else {}
     settings = state.get("status", {})
-    expected_mode = "off" if manifest["case"] in {"off", STOCK_CASE} else "shadow"
-    if manifest["case"] == STOCK_CASE:
+    expected_mode = "off" if manifest["case"] in OFF_CASES else "shadow"
+    if stock_case(manifest["case"]):
         qualified, count, support_count = attest_stock_shell(events)
         result["native_stock_bash_spawn_count"] = count
         result["native_stock_support_spawn_count"] = support_count
@@ -370,7 +380,7 @@ def verify(case: Path) -> dict:
                     ("/v1/workflows/retry-escalation-gate", "retry_escalation_gate", "retry_shadow_advisory_only"))
                 if remote.get("path") != path or remote.get("runtime_kind") != manifest["case"]:
                     checks.append("shadow_endpoint_or_runtime_mismatch")
-                if manifest["case"] == "shadow_503":
+                if manifest["case"] in RUNTIME_DOWN_CASES:
                     if row.get("action_status") != "failed_open" or remote.get("http_status") != 503:
                         checks.append("failure_not_open")
                 elif (row.get("action_status") != "observed" or remote.get("http_status") != 200 or
@@ -380,21 +390,43 @@ def verify(case: Path) -> dict:
                       any(row.get(k) != remote.get(k) for k in ("decision", "decision_source", "backend"))):
                     checks.append("shadow_response_not_the_consumed_gate")
             result["identity_joins_verified"] = len(seen)
+            if manifest["case"] in STOCK_SHADOW_CASES:
+                # Native Retry is rule-only here. No verified retry budget can be
+                # invented by the Agent/adapter or inferred from error prose.
+                retries = [r for r in history if r.get("gate") == "retry_escalation"]
+                if (len(retries) != 1 or retries[0].get("decision") != "ask_user"
+                        or retries[0].get("decision_source") != "rule"
+                        or retries[0].get("raw_model_decision") is not None
+                        or retries[0].get("reason") != "retry_budget_unverified"):
+                    checks.append("retry_rule_only_or_unverified_budget_misreported")
+    if stock_case(manifest["case"]) and native:
+        # Both the OFF control and Shadow cases must preserve the exact
+        # fixture final answer. Return only its hash; no private content.
+        import hashlib
+        with sqlite3.connect(f"file:{case / 'session-snapshot.db'}?mode=ro&immutable=1", uri=True) as conn:
+            final_rows = conn.execute(
+                "SELECT content FROM messages WHERE role='assistant' AND session_id=? ORDER BY timestamp,id", (native["session_id"],)
+            ).fetchall()
+        if len(final_rows) != 2 or final_rows[-1][0] != "The requested file does not exist. No retry was attempted.":
+            checks.append("shadow_changed_native_final_outcome")
+        result["native_final_message_sha256"] = hashlib.sha256(
+            (final_rows[-1][0] or "").encode("utf-8")
+        ).hexdigest() if final_rows else None
     result["runtime_metrics"] = read_json(case / "runtime-post/metrics.json")
     receipt = result["runtime_metrics"]
     if expected_mode == "shadow":
-        expected_predictions = 0 if manifest["case"] == "shadow_503" else 2
+        expected_predictions = 0 if manifest["case"] in RUNTIME_DOWN_CASES else 2
         expected_backends = {} if expected_predictions == 0 else {"mlx": 2, "rule": 1}
         if (receipt.get("runtime_kind") != manifest["case"] or
                 receipt.get("predict") != {"attempts": expected_predictions, "successes": expected_predictions} or
                 receipt.get("engine", {}).get("backends") != expected_backends):
             checks.append("runtime_inference_or_metrics_unverified")
-        if manifest["case"] == "shadow_mlx" and receipt.get("implementation") != "local_system_one.runtime.mlx.MLXRuntime":
+        if manifest["case"] in REAL_MLX_CASES and receipt.get("implementation") != "local_system_one.runtime.mlx.MLXRuntime":
             checks.append("runtime_is_not_actual_mlx")
-        if manifest["case"] == "shadow_mlx" and receipt.get("warmup") != {"attempts": 1, "successes": 1}:
+        if manifest["case"] in REAL_MLX_CASES and receipt.get("warmup") != {"attempts": 1, "successes": 1}:
             checks.append("mlx_warmup_unverified")
     result["real_mlx_successful_predictions"] = (
-        receipt.get("predict", {}).get("successes", 0) if manifest["case"] == "shadow_mlx" else 0)
+        receipt.get("predict", {}).get("successes", 0) if manifest["case"] in REAL_MLX_CASES else 0)
     if not checks:
         result["verdict"] = "PASS_OFFLINE_NATIVE_REHEARSAL"
     return result
@@ -414,7 +446,7 @@ def run_case(root: Path, source: Path, python: Path, model_python: Path, model: 
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    mode = "off" if name in {"off", STOCK_CASE} else "shadow"
+    mode = "off" if name in OFF_CASES else "shadow"
     key = os.urandom(32).hex()
     settings = dict(mode=mode, service_url=f"http://127.0.0.1:{port}", timeout_ms=5000,
                     search_gate_enabled=False, model_tier_gate_enabled=False, notification_gate_enabled=False,
@@ -444,11 +476,11 @@ def run_case(root: Path, source: Path, python: Path, model_python: Path, model: 
     try:
         if mode == "shadow":
             readable = [ROOT, model_python.parent.parent, model_python.resolve().parent.parent]
-            if name == "shadow_mlx":
+            if name in REAL_MLX_CASES:
                 readable += [model] + [p.resolve(strict=True) for p in model_files(model)]
             policy = diag.build_policy(owner=Path.home(), readable=readable, mutable=service)
             policy += f'(allow network-bind (local ip "localhost:{port}"))\n(allow network-inbound (local ip "localhost:{port}"))\n'
-            if name == "shadow_mlx":
+            if name in REAL_MLX_CASES:
                 policy += '(allow iokit-open (iokit-user-client-class "AGXDeviceUserClient") (iokit-user-client-class "IOSurfaceRootUserClient") (iokit-registry-entry-class-prefix "AGXAcceleratorG"))\n(allow mach-lookup (global-name "com.apple.MTLCompilerService") (global-name "com.apple.cvmsServ"))\n'
             env = diag.environment(service)
             for variable in ("OPENAI_API_KEY", "OPENAI_BASE_URL"):
@@ -468,16 +500,16 @@ def run_case(root: Path, source: Path, python: Path, model_python: Path, model: 
         policy = diag.build_policy(owner=Path.home(), readable=readable, mutable=mutable)
         if mode == "shadow":
             policy += f'(allow network-outbound (remote ip "localhost:{port}"))\n'
-        if name == STOCK_CASE:
-            # Only this new, all-network-denied OFF case may fork Bash.
-            # Existing no-subprocess native/rehearsal policies are unchanged.
+        if stock_case(name):
+            # Only explicitly listed stock-native test cases may fork Bash.
+            # Existing four default no-subprocess cases retain their policies.
             policy += '(allow process-fork)\n'
         env = diag.environment(mutable)
         env.update(LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE="isolated-shadow-test-v1", LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX=key,
                    HERMES_NATIVE_FILE_READ="1", TERMINAL_ENV="local", TERMINAL_CWD=str(cwd))
         native_command = [str(python), "-I", "-B", str(CHILD), str(source),
                           str(mutable), str(forbidden), str(port), mode]
-        if name == STOCK_CASE:
+        if stock_case(name):
             native_command.append("--stock-shell")
         proc, identity = start_owned(native_command,
                                     env=env, cwd=cwd, policy=policy, case=case, role="native")
@@ -510,7 +542,7 @@ def main() -> int:
     parser.add_argument("--model-python", type=Path)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--case", choices=(*CASES, STOCK_CASE), action="append")
+    parser.add_argument("--case", choices=(*CASES, *STOCK_CASES), action="append")
     parser.add_argument("--verify", type=Path)
     args = parser.parse_args()
     if args.verify:
@@ -519,12 +551,15 @@ def main() -> int:
         return 0 if result["verdict"] == "PASS_OFFLINE_NATIVE_REHEARSAL" else 3
     requested = args.case or list(CASES)
     stock_only = requested == [STOCK_CASE]
+    if not requested or len(set(requested)) != len(requested):
+        parser.error("case identifiers must be unique")
     if (sys.platform != "darwin" or not all((args.source, args.python, args.output))
             or (not stock_only and not all((args.model_python, args.model)))):
         parser.error("explicit isolated source, interpreter, output, and model when needed")
     source = diag.validate_source(args.source)
-    if stock_only:
+    if any(stock_case(case) for case in requested):
         validate_stock_source(source)
+    if stock_only:
         # The OFF-only native shell test never opens any decision model.
         model_python, model, frozen_model = args.python, Path("."), {}
     else:
