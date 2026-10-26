@@ -333,7 +333,12 @@ def _stock_shadow_fixture(tmp_path, monkeypatch, kind):
         metrics_path.write_text(json.dumps(metrics))
     if kind == "shadow_stock_503":
         for name in rehearsal.HISTORIES:
-            state[name][0]["action_status"] = "failed_open"
+            row = state[name][0]
+            row.update(action_status="failed_open", action_reason=(
+                "retry_runtime_unavailable" if row["gate"] == "retry_escalation"
+                else "runtime_HTTPError"),
+                decision=None, decision_source=None, raw_model_decision=None, backend=None,
+                reason=None)
         statepath.write_text(json.dumps(state))
         http_path = case / "runtime-post/http.jsonl"
         http = rehearsal.rows(http_path)
@@ -375,9 +380,11 @@ def test_stock_shadow_independent_verifier_requires_actual_provenance(tmp_path, 
 @pytest.mark.parametrize("mutation", [
     "wrong_final", "wrong_retry", "retry_model_claim", "fake_raw_retry",
     "wrong_runtime", "no_model_call", "missing_stock_shell", "fake_bridge", "bad_hmac", "bad_503",
+    "down_fake_decision", "down_wrong_reason",
 ])
 def test_stock_shadow_rejects_forgeries(tmp_path, monkeypatch, mutation):
-    kind = "shadow_stock_503" if mutation == "bad_503" else "shadow_stock_mlx"
+    kind = ("shadow_stock_503" if mutation in
+            {"bad_503", "down_fake_decision", "down_wrong_reason"} else "shadow_stock_mlx")
     case, statepath = _stock_shadow_fixture(tmp_path, monkeypatch, kind)
     state = rehearsal.read_json(statepath)
     metrics_path = case / "runtime-post/metrics.json"
@@ -407,6 +414,10 @@ def test_stock_shadow_rejects_forgeries(tmp_path, monkeypatch, mutation):
         retry["decision_request_ref"] = "0" * 32
     elif mutation == "bad_503":
         metrics["predict"]["attempts"] = 2
+    elif mutation == "down_fake_decision":
+        retry["decision"] = "ask_user"
+    elif mutation == "down_wrong_reason":
+        retry["action_reason"] = "retry_shadow_advisory_only"
     statepath.write_text(json.dumps(state))
     metrics_path.write_text(json.dumps(metrics))
     events_path.write_text("\n".join(json.dumps(e) for e in events))

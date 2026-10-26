@@ -391,13 +391,21 @@ def verify(case: Path) -> dict:
                     checks.append("shadow_response_not_the_consumed_gate")
             result["identity_joins_verified"] = len(seen)
             if manifest["case"] in STOCK_SHADOW_CASES:
-                # Native Retry is rule-only here. No verified retry budget can be
-                # invented by the Agent/adapter or inferred from error prose.
+                # Healthy Retry is rule-only because no native retry budget
+                # is externally verified. When Runtime is down the correct
+                # observation is *no decision* and fail-open to Hermes.
                 retries = [r for r in history if r.get("gate") == "retry_escalation"]
-                if (len(retries) != 1 or retries[0].get("decision") != "ask_user"
-                        or retries[0].get("decision_source") != "rule"
-                        or retries[0].get("raw_model_decision") is not None
-                        or retries[0].get("reason") != "retry_budget_unverified"):
+                if len(retries) != 1:
+                    checks.append("retry_observation_missing")
+                elif manifest["case"] in RUNTIME_DOWN_CASES:
+                    if (any(r.get(k) is not None for r in history for k in
+                            ("decision", "decision_source", "raw_model_decision", "backend"))
+                            or retries[0].get("action_reason") != "retry_runtime_unavailable"):
+                        checks.append("runtime_down_fabricated_decision")
+                elif (retries[0].get("decision") != "ask_user"
+                      or retries[0].get("decision_source") != "rule"
+                      or retries[0].get("raw_model_decision") is not None
+                      or retries[0].get("reason") != "retry_budget_unverified"):
                     checks.append("retry_rule_only_or_unverified_budget_misreported")
     if stock_case(manifest["case"]) and native:
         # Both the OFF control and Shadow cases must preserve the exact
