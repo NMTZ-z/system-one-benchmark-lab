@@ -621,3 +621,9 @@ new isolated one-shot, shared physical cap/deadline, native SDK guard and
 independent adjudicator. The [offline report](docs/PHASE8_3_H4E_OFFLINE_REPORT.md)
 separates synthetic primary-Provider traffic from real local MLX observations.
 Real execution remains **NO-GO pending exact-source owner admission**.
+
+The final admission review found and fixed a Provider listener-identity gap.
+Provider readiness now binds the owned PID and run window by HMAC; the parent
+and native process retain the same exclusive listener so it cannot be replaced
+after readiness. The updated frozen SHA and manifest are recorded in Draft PR #13.
+This repair introduces no real Provider execution authority.

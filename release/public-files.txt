@@ -320,3 +320,8 @@ tests/test_phase8_3_h4e_runner.py
 tests/test_phase8_3_h4e_scope.py
 tests/test_phase8_3_h4e_sdk_guard.py
 tests/test_phase8_3_h4e_source.py
+
+# H4E Provider listener identity correction
+tests/test_phase8_3_h4e_proxy_identity.py
+results/processed/phase8_3_h4e_proxy_identity_validation.json
+results/processed/phase8_3_h4e_proxy_identity_validation.log

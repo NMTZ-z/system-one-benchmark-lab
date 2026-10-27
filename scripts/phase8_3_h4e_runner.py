@@ -28,7 +28,7 @@ from phase8_3_h4b_direct_child import HERMES_PYTHON
 from phase8_3_h4d_readiness import stat_only_home, MODEL_SHA, MODEL_REV
 from phase8_3_real_hermes_h2 import MODEL_PATH
 from phase8_3_transport_closeout import audited_snapshot, drain_run
-from phase8_3_h4e_proxy import NoRedirects
+from phase8_3_h4e_proxy import NoRedirects, verify_provider_ready
 
 PORTS = (18782, 18793, 18794)
 
@@ -166,12 +166,13 @@ def _service_policy(role: str, *, upstream_ipv4: str | None = None,
     return policy
 
 
-def _launch(command: list[str], role: str, env: dict, children: list, *, cwd: Path):
+def _launch(command: list[str], role: str, env: dict, children: list, *, cwd: Path, pass_fds: tuple[int, ...] = ()):
     log = c.PRIVATE / 'logs' / (role + '.private.log')
     with log.open('x') as stream:
         proc = subprocess.Popen([sys.executable, '-I', '-B', str(c.ROOT / 'scripts/phase8_3_h4e_process_child.py'),
                                  *command], cwd=cwd, env=env, stdin=subprocess.PIPE,
-                                stdout=stream, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+                                stdout=stream, stderr=subprocess.STDOUT, text=True, start_new_session=True,
+                                pass_fds=pass_fds)
     children.append(proc)
     try:
         owner.record_spawn(proc, role)
@@ -214,15 +215,21 @@ def _poll(url: str, proc, *, deadline: float):
     raise c.H4EBlocked('owned service admission timed out')
 
 
-def _native_command(*, offline: bool, deadline: float):
+def _native_command(*, offline: bool, deadline: float, listener_fd: int | None = None):
     policy = build_policy(home=TEST_HOME, case_dir=c.CASE)
     if offline: policy += '(deny network*)\n'
+    args = ['--check-offline' if offline else '--run-native', '--deadline-monotonic', str(deadline)]
+    if not offline:
+        if listener_fd is None:
+            raise c.H4EBlocked('native provider listener descriptor missing')
+        args += ['--provider-listener-fd', str(listener_fd)]
     return sandbox_command(policy=policy, interpreter=HERMES_PYTHON,
         entry=c.ROOT / 'scripts/phase8_3_h4e_direct_child.py',
-        args=['--check-offline' if offline else '--run-native', '--deadline-monotonic', str(deadline)])
+        args=args)
 
 
-def _execute_one(source_sha: str, release: Path, approval: Path, children: list) -> tuple[int, bool, float]:
+def _execute_one(source_sha: str, release: Path, approval: Path, children: list,
+                 provider_listener: socket.socket) -> tuple[int, bool, float]:
     preflight_end = time.monotonic() + 22
     preflight = _launch(_native_command(offline=True, deadline=preflight_end), 'preflight',
                         _environment(native=True), children, cwd=c.CASE)
@@ -235,7 +242,8 @@ def _execute_one(source_sha: str, release: Path, approval: Path, children: list)
     def service(role, command, ip=None):
         return _launch(['/usr/bin/sandbox-exec', '-p', _service_policy(role, upstream_ipv4=ip,
                         release=release, approval=approval), *command],
-                       role, env, children, cwd=c.PRIVATE / 'service_home')
+                       role, env, children, cwd=c.PRIVATE / 'service_home',
+                       pass_fds=(provider_listener.fileno(),) if role == 'provider' else ())
     runtime = service('mlx', [sys.executable, str(c.ROOT / 'scripts/phase8_3_h4e_runtime.py'),
                               '--model', str(MODEL_PATH)])
     health = _poll('http://127.0.0.1:18782/health', runtime, deadline=time.monotonic() + 45)
@@ -259,13 +267,15 @@ def _execute_one(source_sha: str, release: Path, approval: Path, children: list)
                      'deadline_monotonic': deadline, 'physical_limit': 3, 'seconds': 90})
     provider = service('provider', [sys.executable, str(c.ROOT / 'scripts/phase8_3_h4e_proxy.py'),
         '--execute-real-step-plan', '--deadline-monotonic', str(deadline), '--upstream-ipv4', ip,
+        '--listener-fd', str(provider_listener.fileno()),
         '--owner-home', str(Path.home()), '--frozen-sha', source_sha,
         '--release-manifest', str(release), '--authorization', str(approval)], ip)
     state = _poll('http://127.0.0.1:18794/_budget', provider, deadline=min(deadline, time.monotonic() + 8))
-    if state != {'run': c.CASE_ID, 'used_total': 8, 'used_run': 0, 'total_cap': 24, 'per_run_cap': 3, 'failed': False}:
-        raise c.H4EBlocked('physical proxy does not attest original budget')
-    native = _launch(_native_command(offline=False, deadline=deadline), 'native',
-                     _environment(native=True), children, cwd=c.CASE)
+    verify_provider_ready(state, pid=provider.pid, source_sha=source_sha, deadline=deadline,
+                          run_token=(c.PRIVATE / 'observer/run_token.private.bin').read_bytes().hex())
+    c.write_new_json(c.PRIVATE / 'observer/provider_ready.private.json', state)
+    native = _launch(_native_command(offline=False, deadline=deadline, listener_fd=provider_listener.fileno()), 'native',
+                     _environment(native=True), children, cwd=c.CASE, pass_fds=(provider_listener.fileno(),))
     try:
         rc = native.wait(timeout=c.remaining(deadline))
     except subprocess.TimeoutExpired:
@@ -287,6 +297,7 @@ def run(source_sha: str, manifest: Path, archive: Path, authorization: Path) -> 
     c.PRIVATE.mkdir(mode=0o700)
     c.fsync_directory(c.PRIVATE.parent)
     children = []
+    provider_listener = None
     prepared = False
     error = None
     rc = None
@@ -299,14 +310,22 @@ def run(source_sha: str, manifest: Path, archive: Path, authorization: Path) -> 
         _make_case(archive, source_sha, ready['manifest_sha256'], authorization)
         c.write_new_json(c.PRIVATE / 'protected_before.private.json', protected)
         tx.prepare(); prepared = True
+        provider_listener = socket.socket()
+        provider_listener.bind(('127.0.0.1', 18794))
+        provider_listener.listen()
         if set_test_mode('shadow')['mode'] != 'shadow':
             raise c.H4EBlocked('test profile did not enter Shadow')
-        rc, timed_out, deadline = _execute_one(source_sha, manifest, authorization, children)
+        rc, timed_out, deadline = _execute_one(source_sha, manifest, authorization, children, provider_listener)
     except BaseException as exc:
         error = type(exc).__name__
     finally:
         try:
-            processes = _stop_children(children)
+            try:
+                processes = _stop_children(children)
+            finally:
+                # Native retains its inherited descriptor until exit, even if this parent fails.
+                if provider_listener is not None:
+                    provider_listener.close()
             if not processes['all_stopped']:
                 raise c.H4EBlocked('owned process group remains')
             rollback = tx.restore() if prepared else {'status': 'OFF_UNCHANGED_BEFORE_CHECKPOINT'}

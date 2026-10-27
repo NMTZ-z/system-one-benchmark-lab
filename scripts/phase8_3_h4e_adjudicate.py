@@ -11,6 +11,7 @@ import phase8_3_h4b_adjudicate as native
 import phase8_3_h4b_owned_processes as owner
 import phase8_3_h4b_transaction as tx
 from phase8_3_h4e_source import verify_release, digest
+from phase8_3_h4e_proxy import verify_provider_ready
 from phase8_3_h4d_readiness import MODEL_REV, MODEL_SHA
 
 SDK_FIELDS = {'logical_epochs', 'sdk_create_attempts', 'blocked_requests', 'route_rejections',
@@ -45,6 +46,7 @@ def verify_controls(window, preflight, control, events, model, physical):
     require(bounded(start, 0, float('inf')) and bounded(end, start, start + 90)
             and end - start == 90 and window.get('physical_limit') == 3 and window.get('seconds') == 90)
     require(preflight.get('mode') == 'offline_preflight' and preflight.get('exit_code') == 0
+            and preflight.get('provider_listener_retained') is False
             and preflight.get('case_id') == c.CASE_ID
             and bounded(preflight.get('ended_monotonic'), 0, start)
             and preflight.get('tool_calls') == 0 and preflight.get('tool_violations') == 0
@@ -54,6 +56,7 @@ def verify_controls(window, preflight, control, events, model, physical):
     count = physical['attempted_new']
     require(type(count) is int and 1 <= count <= 3)
     require(control.get('mode') == 'native' and control.get('case_id') == c.CASE_ID
+            and control.get('provider_listener_retained') is True
             and control.get('exit_code') == 0 and control.get('deadline_monotonic') == end
             and bounded(control.get('started_monotonic'), start, end)
             and bounded(control.get('ended_monotonic'), control['started_monotonic'], end)
@@ -113,7 +116,8 @@ def adjudicate(source_sha: str, manifest: Path, approval: Path) -> dict:
     require(result.get('H4E_scoped_verdict') == 'PASS_SCOPED')
     physical = native.audited_snapshot(native.PROVIDER_LEDGER, new_run=c.CASE_ID)
     require(physical['unknown_new'] == 0)
-    verify_controls(read(c.PRIVATE / 'window.private.json'), read(c.CASE / 'offline_control.private.json'),
+    window = read(c.PRIVATE / 'window.private.json')
+    verify_controls(window, read(c.CASE / 'offline_control.private.json'),
         read(c.CASE / 'native_control.private.json'), read(c.PRIVATE / 'observer/provider.private.jsonl', rows=True),
         read(c.PRIVATE / 'logs/model.private.jsonl', rows=True), physical)
     rows = read(c.PRIVATE / 'observer/http.private.jsonl', rows=True)
@@ -122,6 +126,13 @@ def adjudicate(source_sha: str, manifest: Path, approval: Path) -> dict:
             and retry[0].get('decision_source') == 'rule' and retry[0].get('decision') == 'ask_user'
             and retry[0].get('advisory_only') is True)
     verify_owned_processes(owner.inspect_owned())
+    provider = next(row for row in owner._validated_records() if row['role'] == 'provider')
+    key_file = c.safe_path(c.PRIVATE / 'observer/run_token.private.bin')
+    require(key_file.is_file() and key_file.stat().st_uid == os.getuid() and not key_file.stat().st_mode & 0o077)
+    key = key_file.read_bytes()
+    require(len(key) == 32)
+    verify_provider_ready(read(c.PRIVATE / 'observer/provider_ready.private.json'), pid=provider['pid'],
+                          source_sha=source_sha, deadline=window['deadline_monotonic'], run_token=key.hex())
     current = tx.inspect()
     require(all(current.get(key) is True for key in ('auth_metadata_unchanged',
         'current_profile_state_matches_before', 'original_sqlite_digest_matches_before')))
@@ -131,6 +142,7 @@ def adjudicate(source_sha: str, manifest: Path, approval: Path) -> dict:
         'one_shared_90_second_window_verified': True, 'sdk_no_retry_verified': True,
         'local_model_warmups': 1, 'local_model_completion_inferences': 2,
         'retry_inference_count': 0, 'owned_groups_currently_stopped': True,
+        'provider_identity_and_native_listener_retention_verified': True,
         'new_requests_by_adjudicator': 0, 'rerun_authority': 'NOT_AUTHORIZED'}
 
 

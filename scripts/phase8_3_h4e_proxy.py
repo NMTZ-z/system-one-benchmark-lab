@@ -5,6 +5,7 @@ import argparse
 from contextlib import contextmanager
 import fcntl
 import hashlib
+import hmac
 import ipaddress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -144,8 +145,40 @@ def enforce_upstream_socket(address: str) -> None:
     sys.addaudithook(audit)
 
 
+def provider_ready_proof(state: dict, run_token: str) -> str:
+    payload = b'h4e-provider-ready-v1\0' + json.dumps(state, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+    return hmac.new(bytes.fromhex(run_token), payload, hashlib.sha256).hexdigest()
+
+
+def verify_provider_ready(response: dict, *, pid: int, source_sha: str, deadline: float, run_token: str):
+    expected = {'run': contract.CASE_ID, 'used_total': 8, 'used_run': 0, 'total_cap': 24,
+                'per_run_cap': 3, 'failed': False, 'pid': pid, 'source_sha': source_sha,
+                'deadline_monotonic': deadline}
+    if (not isinstance(response, dict) or set(response) != set(expected) | {'proof'}
+            or any(type(response[k]) is not type(v) or response[k] != v for k, v in expected.items())
+            or not isinstance(response['proof'], str)
+            or not hmac.compare_digest(response['proof'], provider_ready_proof(expected, run_token))):
+        raise contract.H4EBlocked('owned provider identity and initial budget not attested')
+
+
+def inherited_listener(fd: int, *, port: int = 18794) -> socket.socket:
+    if type(fd) is not int or fd < 3:
+        raise contract.H4EBlocked('owned provider listener descriptor required')
+    listener = socket.socket(fileno=fd)
+    try:
+        if (listener.family != socket.AF_INET or listener.getsockname() != ('127.0.0.1', port)
+                or listener.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) != socket.SOCK_STREAM):
+            raise contract.H4EBlocked('owned provider listener does not match the fixed endpoint')
+        listener.set_inheritable(False)
+        return listener
+    except BaseException:
+        listener.close()
+        raise
+
+
 def make_server(*, ledger: Path, deadline: float, run_token: str, audit_path: Path,
-                port: int = 18794, upstream: str = contract.UPSTREAM):
+                port: int = 18794, upstream: str = contract.UPSTREAM, source_sha: str = '',
+                listener_fd: int | None = None):
     """The CLI fixes the real upstream; tests may use an ephemeral loopback fixture."""
     contract.remaining(deadline)
     target = urlsplit(upstream)
@@ -153,6 +186,8 @@ def make_server(*, ledger: Path, deadline: float, run_token: str, audit_path: Pa
                and target.path == '/step_plan/v1/chat/completions')
     if upstream != contract.UPSTREAM and not fixture:
         raise contract.H4EBlocked('Step Plan endpoint required')
+    if not fixture and listener_fd is None:
+        raise contract.H4EBlocked('real provider requires the parent-owned listener')
     if len(run_token) != 64 or any(c not in '0123456789abcdef' for c in run_token):
         raise contract.H4EBlocked('private H4E request token missing')
     budget = PhysicalLedger(ledger)
@@ -197,8 +232,10 @@ def make_server(*, ledger: Path, deadline: float, run_token: str, audit_path: Pa
             if self.path != '/_budget':
                 return self.error(404)
             total, current = budget.counts()
-            data = json.dumps({'run': contract.CASE_ID, 'used_total': total, 'used_run': current,
-                               'total_cap': 24, 'per_run_cap': 3, 'failed': state['failed']}).encode()
+            ready = {'run': contract.CASE_ID, 'used_total': total, 'used_run': current,
+                     'total_cap': 24, 'per_run_cap': 3, 'failed': state['failed'],
+                     'pid': os.getpid(), 'source_sha': source_sha, 'deadline_monotonic': deadline}
+            data = json.dumps({**ready, 'proof': provider_ready_proof(ready, run_token)}).encode()
             self.send_response(200); self.send_header('Content-Length', str(len(data)))
             self.end_headers(); self.wfile.write(data)
 
@@ -294,7 +331,12 @@ def make_server(*, ledger: Path, deadline: float, run_token: str, audit_path: Pa
                 self.close_connection = True
                 request_lock.release()
 
-    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    server = ThreadingHTTPServer(('127.0.0.1', port), Handler, bind_and_activate=listener_fd is None)
+    if listener_fd is not None:
+        server.socket.close()
+        server.socket = inherited_listener(listener_fd, port=port)
+        server.server_address = server.socket.getsockname()
+        server.server_name, server.server_port = server.server_address
     server.daemon_threads = True
     return server
 
@@ -304,6 +346,7 @@ def main():
     p.add_argument('--execute-real-step-plan', action='store_true', required=True)
     p.add_argument('--deadline-monotonic', type=float, required=True)
     p.add_argument('--upstream-ipv4', required=True)
+    p.add_argument('--listener-fd', type=int, required=True)
     p.add_argument('--owner-home', type=Path, required=True)
     p.add_argument('--frozen-sha', required=True)
     p.add_argument('--release-manifest', type=Path, required=True)
@@ -328,7 +371,9 @@ def main():
         contract.write_new_json(contract.PRIVATE / 'logs/provider.started.json',
                                 {'source_sha': args.frozen_sha, 'deadline': args.deadline_monotonic})
         server = make_server(ledger=ledger, deadline=args.deadline_monotonic,
-                             run_token=request_token, audit_path=contract.PRIVATE / 'observer/provider.private.jsonl')
+                             run_token=request_token, source_sha=args.frozen_sha,
+                             listener_fd=args.listener_fd,
+                             audit_path=contract.PRIVATE / 'observer/provider.private.jsonl')
         server.serve_forever(poll_interval=.1)
     except (OSError, ValueError, TypeError):
         print(json.dumps({'status': 'H4E_PROXY_BLOCKED', 'real_execution_authority': 'NOT_INFERRED'}))

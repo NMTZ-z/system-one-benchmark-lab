@@ -38,7 +38,9 @@ c.PRIVATE=private;c.CASE=private/'runs/h4e_missing_read';c.SOURCE=source
 import phase8_3_h4e_sdk_guard as guard
 guard.FROZEN_SOURCE=source
 import phase8_3_h4e_direct_child as child
-sys.argv=['h4e-test',sys.argv[4],'--deadline-monotonic',sys.argv[5]]
+args=['h4e-test',sys.argv[4],'--deadline-monotonic',sys.argv[5]]
+if sys.argv[4]=='--run-native' and sys.argv[6]!='none':args+=['--provider-listener-fd',sys.argv[6]]
+sys.argv=args
 child.main()
 '''
 
@@ -146,7 +148,7 @@ def local_shadow(private):
             stop_owned(proc, receipt)
 
 
-@pytest.mark.parametrize('mode', ['success', 'http500', 'empty_stream', 'offline', 'second_tool', 'shadow_mlx'])
+@pytest.mark.parametrize('mode', ['success', 'http500', 'empty_stream', 'offline', 'second_tool', 'shadow_mlx', 'missing_listener'])
 def test_actual_frozen_native_and_sdk_never_retry(native_fixture, historical_ledger, tmp_path, mode):
     home, case, target, interpreter, source, policy, env = native_fixture
     ledger, before = historical_ledger
@@ -180,12 +182,15 @@ def test_actual_frozen_native_and_sdk_never_retry(native_fixture, historical_led
             if mode == 'offline': policy += '(deny network*)\n'
             proc = subprocess.run(['/usr/bin/sandbox-exec', '-p', policy, str(interpreter), '-I', '-B', '-c',
                 CHILD, str(ROOT), str(case.parent.parent), str(source),
-                '--check-offline' if mode == 'offline' else '--run-native', str(deadline)],
-                env=env, cwd=case, text=True, capture_output=True, timeout=60)
+                '--check-offline' if mode == 'offline' else '--run-native', str(deadline),
+                'none' if mode == 'missing_listener' else str(server.socket.fileno())],
+                env=env, cwd=case, text=True, capture_output=True, timeout=60,
+                pass_fds=(server.socket.fileno(),) if mode not in {'offline', 'missing_listener'} else ())
     (tmp_path / 'native.log').write_text(proc.stdout + proc.stderr)
     control = json.loads((case / ('offline_control.private.json' if mode == 'offline' else 'native_control.private.json')).read_text())
     assert 'SYNTHETIC_NOT_VALID' not in proc.stdout + proc.stderr
     assert control['ended_monotonic'] < deadline
+    assert control['provider_listener_retained'] is (mode not in {'offline', 'missing_listener'})
     if mode in {'success', 'shadow_mlx'}:
         assert proc.returncode == 0, (control, proc.stderr[-500:])
         assert len(seen) == control['sdk']['sdk_create_attempts'] == 2
@@ -216,6 +221,9 @@ def test_actual_frozen_native_and_sdk_never_retry(native_fixture, historical_led
     elif mode == 'second_tool':
         assert proc.returncode == 3 and len(seen) == 2
         assert control['tool_calls'] == control['tool_violations'] == 1
+    elif mode == 'missing_listener':
+        assert proc.returncode == 3 and seen == [] and control['sdk'] is None
+        assert control['tool_calls'] == 0 and ledger.read_bytes() == before
     else:
         assert proc.returncode == 3
         assert len(seen) == control['sdk']['sdk_create_attempts'] == 1

@@ -16,6 +16,7 @@ import time
 import phase8_3_h4e_contract as contract
 import phase8_3_h4b_direct_child as native
 from phase8_3_h4e_sdk_guard import H4EStop, install_runtime_guards
+from phase8_3_h4e_proxy import inherited_listener
 
 
 def bind_native():
@@ -115,15 +116,24 @@ def main():
     mode.add_argument('--check-offline', action='store_true')
     mode.add_argument('--run-native', action='store_true')
     p.add_argument('--deadline-monotonic', type=float, required=True)
+    p.add_argument('--provider-listener-fd', type=int)
     args = p.parse_args()
     bind_native()
     guard = None
     tools = {'tool_calls': 0, 'tool_violations': 0}
     start = time.monotonic()
     rc = 3
+    listener_retained = False
     path = contract.CASE / ('offline_control.private.json' if args.check_offline else 'native_control.private.json')
     try:
         contract.remaining(args.deadline_monotonic)
+        if args.run_native:
+            if args.provider_listener_fd is None:
+                raise H4EStop()
+            with inherited_listener(os.dup(args.provider_listener_fd)):
+                os.set_inheritable(args.provider_listener_fd, False)
+            # The original inherited descriptor stays open until process exit.
+            listener_retained = True
         if path.exists() or path.is_symlink():
             raise contract.H4EBlocked('child control evidence already exists')
         target, prompt = native.check_case()
@@ -168,6 +178,7 @@ def main():
                 'mode': 'offline_preflight' if args.check_offline else 'native',
                 'started_monotonic': start, 'ended_monotonic': time.monotonic(),
                 'deadline_monotonic': args.deadline_monotonic, 'exit_code': rc,
+                'provider_listener_retained': listener_retained,
                 'sdk': guard.report() if guard else None, **tools})
     raise SystemExit(rc if type(rc) is int else 3)
 

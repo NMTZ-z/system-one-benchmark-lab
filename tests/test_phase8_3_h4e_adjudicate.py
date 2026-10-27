@@ -15,9 +15,11 @@ def evidence():
     window = {'started_monotonic': 100, 'deadline_monotonic': 190, 'physical_limit': 3, 'seconds': 90}
     sdk = dict.fromkeys(judge.SDK_FIELDS, 0)
     preflight = {'mode': 'offline_preflight', 'case_id': c.CASE_ID, 'exit_code': 0,
+        'provider_listener_retained': False,
         'tool_calls': 0, 'tool_violations': 0, 'ended_monotonic': 95, 'sdk': dict(sdk)}
     sdk.update(logical_epochs=2, sdk_create_attempts=2)
     control = {'mode': 'native', 'case_id': c.CASE_ID, 'exit_code': 0,
+        'provider_listener_retained': True,
         'started_monotonic': 101, 'ended_monotonic': 130, 'deadline_monotonic': 190,
         'tool_calls': 1, 'tool_violations': 0, 'sdk': sdk}
     events = [{'kind': 'started', 'deadline_monotonic': 190, 'upstream_kind': 'step_plan',
@@ -38,7 +40,7 @@ def test_complete_controls_are_bounded_and_have_two_real_local_inferences(eviden
 
 
 @pytest.mark.parametrize('fault', ['synthetic', 'retry', 'over_cap', 'late', 'failed_http',
-    'unknown', 'extra_tool', 'partial_warmup', 'extra_inference', 'sdk_missing', 'preflight_request', 'unordered'])
+    'unknown', 'extra_tool', 'partial_warmup', 'extra_inference', 'sdk_missing', 'preflight_request', 'unordered', 'listener_missing'])
 def test_independent_controls_block_every_broken_boundary(evidence, fault):
     window, preflight, control, events, model, physical = evidence
     if fault == 'synthetic': events[0]['upstream_kind'] = 'synthetic_loopback'
@@ -53,6 +55,7 @@ def test_independent_controls_block_every_broken_boundary(evidence, fault):
     if fault == 'sdk_missing': del control['sdk']['route_rejections']
     if fault == 'preflight_request': preflight['sdk']['sdk_create_attempts'] = 1
     if fault == 'unordered': events[3]['monotonic'] = events[2]['monotonic'] - 1
+    if fault == 'listener_missing': control['provider_listener_retained'] = False
     with pytest.raises(c.H4EBlocked): judge.verify_controls(*evidence)
 
 
