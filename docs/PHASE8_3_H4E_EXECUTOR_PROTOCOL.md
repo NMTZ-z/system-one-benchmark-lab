@@ -23,7 +23,7 @@
 1. `phase8_3_h4e_runner.py --check-offline` 要求干净的精确 Git HEAD、完整发布清单、固定 Hermes Git 归档、原账本哈希、OFF 测试 Home、固定本地模型权重、空闲端口和真实 Seatbelt 探测。它不读凭据内容，也不创建真实 H4E 根目录。
 2. 真实入口还要求一份 owner-only 授权文件。字段由 `phase8_3_h4e_contract.authorization_fields` 定义，绑定源码 SHA、清单 SHA-256、案例、模型、路由、预算和禁用项；唯一有效决定为 `APPROVE_ONE_H4E_ATTEMPT`，有效期不超过 24 小时。离线成功不生成该授权。
 3. 独占创建案例，写入输入绑定、随机目标、HMAC key 和请求 token；从哈希固定的无凭据 Git tar 提取 Hermes 源码。保存测试 Home 的配置、SQLite、插件状态和公开插件文件，凭据仅记录元数据。
-4. checkpoint 文件与目录落盘后，父进程独占监听 `127.0.0.1:18794`，随后测试 Home 进入 Shadow。真实原生预检在同一受限策略内解析官方凭据、检查固定代理路由、打开真实 SQLite、构造 AIAgent，并运行零模型 oneshot 前置流程。
+4. checkpoint 文件与目录落盘后，父进程独占监听 `127.0.0.1:18794`，随后测试 Home 进入 Shadow。模式切换执行固定 Home、完整配置与路由的静态检查；父进程不启动需要安装写权限的 Hermes 管理 CLI。紧接着，真实原生预检在禁止全部网络的受限策略内解析官方凭据、检查固定代理路由、打开真实 SQLite、构造 AIAgent，并运行零模型 oneshot 前置流程。凭据预检失败时立即恢复，MLX、观察服务、DNS 和 Provider 均不得启动。
 5. 启动独立本地 MLX 和观察服务，完成一次本地模型预热。观察服务返回 HMAC 和 PID 绑定的就绪证明。随后开启唯一 90 秒窗口，预算代理继承父进程的监听描述符。父进程核验代理就绪响应的 HMAC、案例、源码 SHA、PID、deadline 和初始预算，落盘后才启动原生 Agent。
 6. 每个子进程先等待父进程信号；父进程将 PID／PGID／UID／启动时间登记并落盘后，才释放执行。H4E 最多记录 `preflight`、`mlx`、`observer`、`provider`、`native` 五个角色。
 7. 原生 Agent 同时继承监听描述符，并在读取凭据前校验固定端点。它保留描述符到进程退出，防止父进程或代理先退出后端口被接替。无论成功、失败或中断，都先核验并停止自身进程组，关闭父进程保留的描述符，再归档运行后 SQLite 和插件状态，恢复原 OFF 状态。归属不确定、账本缺失或恢复验证失败时，保留现场并要求人工处理。

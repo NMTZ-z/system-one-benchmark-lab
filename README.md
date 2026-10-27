@@ -627,3 +627,8 @@ Provider readiness now binds the owned PID and run window by HMAC; the parent
 and native process retain the same exclusive listener so it cannot be replaced
 after readiness. The updated frozen SHA and manifest are recorded in Draft PR #13.
 This repair introduces no real Provider execution authority.
+
+The H4E parent mode switch uses static Home/configuration checks. Credential
+admission remains in the frozen, network-denied native preflight before any
+model or Provider service starts. This avoids an installation-management CLI
+dependency in the parent launch path; earlier callers keep their default checks.

@@ -325,3 +325,7 @@ tests/test_phase8_3_h4e_source.py
 tests/test_phase8_3_h4e_proxy_identity.py
 results/processed/phase8_3_h4e_proxy_identity_validation.json
 results/processed/phase8_3_h4e_proxy_identity_validation.log
+
+# H4E parent launch dependency correction
+results/processed/phase8_3_h4e_launch_fix_validation.json
+results/processed/phase8_3_h4e_launch_fix_validation.log

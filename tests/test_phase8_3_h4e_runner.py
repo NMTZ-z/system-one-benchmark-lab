@@ -36,7 +36,7 @@ def isolated_run(fake_test_home, monkeypatch):
         c.CASE.mkdir(parents=True, mode=0o700)
         (root / 'logs').mkdir(mode=0o700)
     monkeypatch.setattr(runner, '_make_case', make_case)
-    def shadow(mode):
+    def shadow(mode, **kwargs):
         config.write_text('mode: shadow\n')
         state.write_text('{"events":[1,2,3]}')
         with sqlite3.connect(db) as connection:
@@ -82,6 +82,49 @@ def test_missing_approval_never_creates_real_root(isolated_run, monkeypatch):
     monkeypatch.setattr(c, 'read_authorization', deny)
     with pytest.raises(c.H4EBlocked): runner.run('a' * 40, root, root, root)
     assert not root.exists()
+
+
+def test_failed_native_auth_preflight_restores_without_cli_or_services(isolated_run,monkeypatch):
+    import hashlib
+    from types import SimpleNamespace
+    import phase8_3_prepare_shared_dependency_home as shared
+    (home,private,plugin,state,config,auth,db),root=isolated_run
+    checkout=home.parent/'hermes-agent';checkout.mkdir()
+    key=hashlib.sha256(str(checkout.resolve()).encode()).hexdigest()[:16]
+    facts=home.parent/'installs'/key/'facts.json';facts.parent.mkdir(parents=True);facts.write_text('{}')
+    (home/'.env').write_text('');(home/'.env').chmod(0o600)
+    (home/'plugins').chmod(0o700)
+    plugin.write_bytes((shared.PLUGIN_SRC/'__init__.py').read_bytes())
+    plugin.with_name('plugin.yaml').write_bytes((shared.PLUGIN_SRC/'plugin.yaml').read_bytes())
+    plugin.with_name('plugin.yaml').chmod(0o600)
+    monkeypatch.setattr(shared,'BASE',home.parent)
+    monkeypatch.setattr(shared,'SOURCE_CHECKOUT',checkout)
+    monkeypatch.setattr(shared,'TEST_HOME',home)
+    assert shared.inspect(official_auth=False)['mode']=='off'
+    monkeypatch.setattr(runner,'set_test_mode',shared.set_test_mode)
+    make_case=runner._make_case
+    def synthetic_case(*args):
+        make_case(*args);(root/'observer').mkdir()
+        for name in ('correlation_key.private.bin','run_token.private.bin'):
+            (root/'observer'/name).write_bytes(b'a'*32)
+    monkeypatch.setattr(runner,'_make_case',synthetic_case)
+    original=[p.read_bytes() for p in (plugin,state,config,auth,facts)]
+    def missing_cli(*args,**kwargs):raise FileNotFoundError('hermes unavailable')
+    monkeypatch.setattr(shared.subprocess,'run',missing_cli)
+    launched=[]
+    def launch(command,role,*args,**kwargs):
+        launched.append(role)
+        assert role=='preflight'
+        return SimpleNamespace(wait=lambda **kwargs:3)
+    monkeypatch.setattr(runner,'_native_command',lambda **kwargs:['synthetic-zero-network-preflight'])
+    monkeypatch.setattr(runner,'_launch',launch)
+    monkeypatch.setattr(runner,'_poll',lambda *a,**kw:pytest.fail('no service admission allowed'))
+    monkeypatch.setattr(runner.socket,'getaddrinfo',lambda *a,**kw:pytest.fail('no DNS before preflight'))
+    result=runner.run('a'*40,private/'manifest',private/'archive',private/'approval')
+    assert launched==['preflight'] and result['error_class']=='H4EBlocked',result['error_class']
+    assert result['local_rollback']['status']=='TEST_HOME_STATE_RESTORED'
+    assert result['physical_provider']['reserved_new']==0 and not (root/'window.private.json').exists()
+    assert [p.read_bytes() for p in (plugin,state,config,auth,facts)]==original
 
 
 def test_unrecorded_trampoline_never_runs_command(tmp_path, monkeypatch):

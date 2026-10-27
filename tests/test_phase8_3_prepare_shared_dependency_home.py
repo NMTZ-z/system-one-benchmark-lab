@@ -223,3 +223,28 @@ def test_title_migration_denied_if_credential_url_is_not_proxy(fixture_home,monk
     with pytest.raises(unit.TestHomeError,match="not pinned"):
         unit.disable_test_title_model_upgrade()
     assert yaml.safe_load((home/"config.yaml").read_text())==unit.safe_config("off")
+
+
+def test_shadow_can_defer_credentials_to_native_preflight_without_cli(fixture_home,monkeypatch):
+    home,facts=fixture_home
+    unit.prepare()
+    auth=home/'auth.json';auth.write_text('{"synthetic":"native preflight must reject"}');auth.chmod(0o600)
+    before=auth.read_bytes(),facts.read_bytes()
+    monkeypatch.setattr(unit.subprocess,'run',lambda *a,**kw:pytest.fail('mode switch must not launch the installer CLI'))
+    result=unit.set_test_mode('shadow',official_auth=False)
+    assert result['mode']=='shadow' and result['main_provider_requests']==0
+    assert unit.inspect(official_auth=False)['credential_stage_ready'] is False
+    assert yaml.safe_load((home/'config.yaml').read_text())==unit.isolated_test_config('shadow')
+    assert (auth.read_bytes(),facts.read_bytes())==before
+
+
+def test_deferred_auth_mode_switch_still_rejects_wrong_route(fixture_home,monkeypatch):
+    home,_=fixture_home
+    unit.prepare()
+    config=home/'config.yaml'
+    value=yaml.safe_load(config.read_text());value['model']['base_url']='https://api.stepfun.com/v1'
+    config.write_text(yaml.safe_dump(value));before=config.read_bytes()
+    monkeypatch.setattr(unit.subprocess,'run',lambda *a,**kw:pytest.fail('must not launch CLI'))
+    with pytest.raises(unit.TestHomeError,match='unapproved'):
+        unit.set_test_mode('shadow',official_auth=False)
+    assert config.read_bytes()==before

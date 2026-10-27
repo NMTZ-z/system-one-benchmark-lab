@@ -313,7 +313,8 @@ def run(source_sha: str, manifest: Path, archive: Path, authorization: Path) -> 
         provider_listener = socket.socket()
         provider_listener.bind(('127.0.0.1', 18794))
         provider_listener.listen()
-        if set_test_mode('shadow')['mode'] != 'shadow':
+        # The frozen, network-denied native preflight validates credentials next.
+        if set_test_mode('shadow', official_auth=False)['mode'] != 'shadow':
             raise c.H4EBlocked('test profile did not enter Shadow')
         rc, timed_out, deadline = _execute_one(source_sha, manifest, authorization, children, provider_listener)
     except BaseException as exc:
