@@ -48,12 +48,13 @@ class AdjudicationBlocked(ValueError):
 def configure_for_case(case_id: str) -> None:
     """One H4C independent verifier process; NEVER read H4B postrun by default."""
     global RUN_ID, CASE_DIR, POST_DB, PRE_STATE, POST_STATE
-    global FINAL_REPORT, HMAC_FILE, OBSERVER, PUBLIC, PROVIDER_LEDGER
-    if case_id not in {"h4c_missing_read","h4d_missing_read"}:
+    global FINAL_REPORT, HMAC_FILE, OBSERVER, PUBLIC, PROVIDER_LEDGER, PRIVATE
+    if case_id not in {"h4c_missing_read","h4d_missing_read","h4e_missing_read"}:
         raise AdjudicationBlocked("only the new H4C private evidence scope is accepted")
     import phase8_3_h4b_transaction as tx
     tx.bind_case(case_id)
     RUN_ID=case_id
+    PRIVATE=tx.PRIVATE
     CASE_DIR=PRIVATE/"runs"/case_id
     POST_DB=tx.POST_DB
     PRE_STATE=tx.PRE_STATE
@@ -63,7 +64,11 @@ def configure_for_case(case_id: str) -> None:
     HMAC_FILE=PRIVATE/f"{short}_correlation_key.private.bin"
     OBSERVER=PRIVATE/f"{short}_http.private.jsonl"
     PUBLIC=ROOT/f"results/processed/phase8_3_{short}_real_native_adjudicated.json"
-    if short=="h4d":
+    if short=="h4e":
+        HMAC_FILE=PRIVATE/"observer/correlation_key.private.bin"
+        OBSERVER=PRIVATE/"observer/http.private.jsonl"
+        PUBLIC=PRIVATE/"adjudication.private.json"
+    if short in {"h4d","h4e"}:
         PROVIDER_LEDGER=(Path.home()/"Projects/system-one-phase8-3/private/phase8_3_native_real"
                          /"provider_real_ledger.private.jsonl")
 
@@ -158,7 +163,7 @@ def adjudicate(*, frozen_sha: str) -> dict:
             or history.get("reserved_h2")!=3
             or history.get("reserved_h3")!=2
             or history.get("reserved_original_h4")!=0
-            or (RUN_ID in {"h4c_missing_read","h4d_missing_read"}
+            or (RUN_ID in {"h4c_missing_read","h4d_missing_read","h4e_missing_read"}
                 and history.get("reserved_original_h4b")!=0)
             or history.get("historic_h1_unresolved")!=1
             or not 8<=history.get("reserved_global",0)<=11

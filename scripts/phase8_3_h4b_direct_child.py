@@ -144,7 +144,7 @@ def install_readonly_tool_guard(target: Path) -> dict:
 
 def prepare_readonly_auth() -> dict:
     """H4D-only compatibility for an unreadable optional global auth store."""
-    if CASE_ID != "h4d_missing_read":
+    if CASE_ID not in {"h4d_missing_read", "h4e_missing_read"}:
         return {}
     import hermes_cli.auth as auth
     from agent.credential_pool import load_pool

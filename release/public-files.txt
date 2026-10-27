@@ -296,3 +296,40 @@ docs/PHASE8_3_H4D_AUTH_COMPATIBILITY_REPORT.md
 results/processed/phase8_3_h4d_auth_compatibility.json
 docs/PHASE8_3_H4E_ONESHOT_PROPOSAL.md
 results/processed/phase8_3_h4d_auth_validation.log
+
+# H4E isolated one-shot preparation, no real execution
+docs/PHASE8_3_H4E_EXECUTOR_PROTOCOL.md
+docs/PHASE8_3_H4E_OFFLINE_REPORT.md
+results/processed/phase8_3_h4e_offline_qualification.json
+results/processed/phase8_3_h4e_validation.log
+scripts/phase8_3_h4e_adjudicate.py
+scripts/phase8_3_h4e_contract.py
+scripts/phase8_3_h4e_direct_child.py
+scripts/phase8_3_h4e_observer.py
+scripts/phase8_3_h4e_process_child.py
+scripts/phase8_3_h4e_proxy.py
+scripts/phase8_3_h4e_runner.py
+scripts/phase8_3_h4e_runtime.py
+scripts/phase8_3_h4e_sdk_guard.py
+scripts/phase8_3_h4e_source.py
+tests/test_phase8_3_h4e_adjudicate.py
+tests/test_phase8_3_h4e_contract.py
+tests/test_phase8_3_h4e_native.py
+tests/test_phase8_3_h4e_proxy.py
+tests/test_phase8_3_h4e_runner.py
+tests/test_phase8_3_h4e_scope.py
+tests/test_phase8_3_h4e_sdk_guard.py
+tests/test_phase8_3_h4e_source.py
+
+# H4E Provider listener identity correction
+tests/test_phase8_3_h4e_proxy_identity.py
+results/processed/phase8_3_h4e_proxy_identity_validation.json
+results/processed/phase8_3_h4e_proxy_identity_validation.log
+
+# H4E parent launch dependency correction
+results/processed/phase8_3_h4e_launch_fix_validation.json
+results/processed/phase8_3_h4e_launch_fix_validation.log
+
+# H4E effective zero-network preflight correction
+results/processed/phase8_3_h4e_zero_network_validation.json
+results/processed/phase8_3_h4e_zero_network_validation.log

@@ -275,16 +275,16 @@ def disable_test_title_model_upgrade() -> dict:
     }
 
 
-def set_test_mode(mode: str) -> dict:
+def set_test_mode(mode: str, *, official_auth: bool=True) -> dict:
     """Atomically select OFF/Shadow only in the ONE fixed test data Home.
 
     Does not change the primary default Home or the production gateway and
-    never starts a Provider/Runtime. Auth and source integrity are checked.
+    never starts a Provider/Runtime. H4E defers auth to its native preflight.
     """
     if mode not in {"off","shadow"}:
         raise TestHomeError("test Home only supports OFF and Shadow")
-    info=inspect(official_auth=True)
-    if not info["credential_stage_ready"]:
+    info=inspect(official_auth=official_auth)
+    if official_auth and not info["credential_stage_ready"]:
         raise TestHomeError("test credential and route must already be verified")
     path=TEST_HOME/"config.yaml"
     if path.is_symlink() or not path.is_file():
@@ -302,8 +302,8 @@ def set_test_mode(mode: str) -> dict:
         tmp.replace(path)
     finally:
         os.umask(old)
-    current=inspect(official_auth=True)
-    if current["mode"]!=mode or not current["credential_stage_ready"]:
+    current=inspect(official_auth=official_auth)
+    if current["mode"]!=mode or (official_auth and not current["credential_stage_ready"]):
         raise TestHomeError("test-only OFF/Shadow mode did not verify")
     return {
         "test_home": "~/.hermes/system-one-phase83lab",
