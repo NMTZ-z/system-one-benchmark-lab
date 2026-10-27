@@ -114,6 +114,29 @@ print(json.dumps(out))
     assert json.loads(proc.stdout) == {'case': True, 'auth': False, 'source': False,
                                       'global': False, 'recovery': False, 'history': False,
                                       'external_port': False}
+    import socket
+    import time
+    import phase8_3_h4e_runner as runner
+    monkeypatch.setattr(runner,'TEST_HOME',home)
+    monkeypatch.setattr(runner,'HERMES_PYTHON',Path('/usr/bin/python3'))
+    monkeypatch.setattr(h4e,'CASE',case)
+    connect = '''import socket,sys,json
+try:
+    with socket.create_connection(('127.0.0.1',int(sys.argv[1])),timeout=1):pass
+    result={'connected':True,'permission_denied':False}
+except OSError as exc:
+    result={'connected':False,'permission_denied':isinstance(exc,PermissionError)}
+print(json.dumps(result))
+'''
+    for port in (18793,18794):
+        with socket.socket() as listener:
+            listener.bind(('127.0.0.1',port));listener.listen()
+            for offline in (True,False):
+                command=runner._native_command(offline=offline,deadline=time.monotonic()+22,
+                    listener_fd=None if offline else listener.fileno())
+                probe=subprocess.run([*command[:4],'-c',connect,str(port)],capture_output=True,text=True,timeout=5)
+                assert probe.returncode==0,probe.stderr[-200:]
+                assert json.loads(probe.stdout)=={'connected':not offline,'permission_denied':offline}
 
 
 def test_h4e_orphan_group_cannot_be_mistaken_for_stopped(tmp_path, monkeypatch):

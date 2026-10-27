@@ -1,0 +1,274 @@
+H4E effective zero-network preflight correction: offline validation on 2026-10-28.
+Real Provider requests: 0.
+
+=== python.log ===
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+........................................................................ [ 27%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+......................s................................................. [ 45%]
+...................................ssssssss............................. [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 63%]
+...............s........................................................ [ 67%]
+........................................................................ [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................................ [ 95%]
+........................................................................ [ 99%]
+......                                                                   [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_phase8_3_h4b_direct_child.py:102: Provide an exported Hermes source using HERMES_TEST_SOURCE
+SKIPPED [8] tests/test_phase8_3_h4e_native.py:160: requires explicit local frozen Hermes/SDK and macOS Seatbelt
+SKIPPED [1] tests/test_phase8_3_real_hermes_h4b_safety.py:26: Local H1/H2/H3 original private ledger not mounted
+1580 passed, 10 skipped, 11 deselected in 39.00s
+
+=== kernel-and-process.log ===
+...........                                                              [100%]
+11 passed in 2.10s
+
+=== frozen-native-registry.log ===
+.                                                                        [100%]
+1 passed in 0.02s
+
+=== native-qualification.log ===
+........                                                                 [100%]
+8 passed in 49.87s
+
+=== dsh-vitest.log ===
+> local-system-one-dsh@0.6.0 test
+> vitest run --pool=threads
+
+
+ RUN  v4.1.11 DISPOSABLE_TEST_PATH
+
+ ✓ tests/evidence.test.ts (6 tests) 19ms
+ ✓ tests/adapter.test.ts (46 tests) 57ms
+ ✓ tests/retry.test.ts (12 tests) 86ms
+
+ Test Files  3 passed (3)
+      Tests  64 passed (64)
+   Start at  00:45:59
+   Duration  204ms (transform 97ms, setup 0ms, import 144ms, tests 162ms, environment 0ms)
+
+=== dsh-typecheck.log ===
+> local-system-one-dsh@0.6.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+=== dsh-build.log ===
+> local-system-one-dsh@0.6.0 build
+> tsc -p tsconfig.json
+
+=== synthetic native controls ===
+[
+  {
+    "fixture": "test_actual_frozen_native_and_3",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "offline_preflight",
+    "provider_listener_retained": false,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 0,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 0,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_4",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 2,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 2,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 1,
+    "tool_violations": 1
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_5",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 2,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 2,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 1,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_2",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 1,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 1,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 1,
+      "stopped": 1,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 1
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_7",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "offline_preflight",
+    "provider_listener_retained": false,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 0,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 0,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_0",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 2,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 2,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 1,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_1",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 1,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 1,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 1,
+      "stopped": 1,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 1
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_6",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": false,
+    "sdk": null,
+    "tool_calls": 0,
+    "tool_violations": 0
+  }
+]
+
+=== original synthetic reproduction after correction ===
+{
+  "database": "legacy_plugin_cache_listener",
+  "mode": "shadow",
+  "seconds": 2.2686023330315948,
+  "deadline_seconds": 22,
+  "timed_out": false,
+  "exit_code": 0,
+  "control": {
+    "case_id": "h4e_missing_read",
+    "deadline_monotonic": 1660979.070502875,
+    "ended_monotonic": 1660958.890187666,
+    "exit_code": 0,
+    "mode": "offline_preflight",
+    "provider_listener_retained": false,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 0,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 0,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "started_monotonic": 1660957.10655375,
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  "real_credentials_used": false,
+  "policy_appends_deny_all_network": true,
+  "owned_group_stopped": true,
+  "local_probe_request_lines": []
+}

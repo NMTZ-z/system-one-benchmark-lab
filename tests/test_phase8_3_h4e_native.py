@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -51,8 +52,9 @@ def native_fixture(tmp_path, monkeypatch, request):
     interpreter = os.environ.get('H4E_TEST_HERMES_PYTHON')
     if sys.platform != 'darwin' or not source or not interpreter:
         pytest.skip('requires explicit local frozen Hermes/SDK and macOS Seatbelt')
-    shadow = request.node.callspec.params['mode'] == 'shadow_mlx'
-    if shadow and os.environ.get('H4E_TEST_LOCAL_MLX') != '1':
+    mode = request.node.callspec.params['mode']
+    shadow = mode in {'shadow_mlx','offline_reserved'}
+    if mode == 'shadow_mlx' and os.environ.get('H4E_TEST_LOCAL_MLX') != '1':
         pytest.skip('requires explicit local MLX warmup qualification')
     source, interpreter = Path(source).resolve(), Path(interpreter)
     owner = tmp_path / 'owner'
@@ -98,7 +100,14 @@ def native_fixture(tmp_path, monkeypatch, request):
     monkeypatch.setattr(sandbox, 'TEST_HOME', home)
     monkeypatch.setattr(sandbox, 'SOURCE_ROOT', project)
     monkeypatch.setattr(c, 'PRIVATE', private)
-    policy = sandbox.build_policy(home=home, case_dir=case)
+    if mode in {'offline','offline_reserved'}:
+        import phase8_3_h4e_runner as runner
+        monkeypatch.setattr(c,'CASE',case)
+        monkeypatch.setattr(runner,'TEST_HOME',home)
+        monkeypatch.setattr(runner,'HERMES_PYTHON',interpreter.resolve())
+        policy=runner._native_command(offline=True,deadline=time.monotonic()+22)[2]
+    else:
+        policy = sandbox.build_policy(home=home, case_dir=case)
     # Tighten the same policy's read baseline so the synthetic owner cannot read
     # the actual owner's credentials. Keep every native write/network rule intact.
     reads = read_policy(owner=real_owner,
@@ -148,9 +157,10 @@ def local_shadow(private):
             stop_owned(proc, receipt)
 
 
-@pytest.mark.parametrize('mode', ['success', 'http500', 'empty_stream', 'offline', 'second_tool', 'shadow_mlx', 'missing_listener'])
+@pytest.mark.parametrize('mode', ['success', 'http500', 'empty_stream', 'offline', 'second_tool', 'shadow_mlx', 'missing_listener', 'offline_reserved'])
 def test_actual_frozen_native_and_sdk_never_retry(native_fixture, historical_ledger, tmp_path, mode):
     home, case, target, interpreter, source, policy, env = native_fixture
+    offline=mode in {'offline','offline_reserved'}
     ledger, before = historical_ledger
     seen = []
     class Handler(BaseHTTPRequestHandler):
@@ -174,23 +184,26 @@ def test_actual_frozen_native_and_sdk_never_retry(native_fixture, historical_led
                 self.wfile.write(('data: ' + json.dumps(chunk) + '\n\n').encode())
             self.wfile.write(b'data: [DONE]\n\n')
     with local_shadow(case.parent.parent) if mode == 'shadow_mlx' else nullcontext():
-      deadline = time.monotonic() + 55
+      deadline = time.monotonic() + (22 if offline else 55)
       with running(ThreadingHTTPServer(('127.0.0.1', 0), Handler)) as upstream:
         server = proxy.make_server(ledger=ledger, deadline=deadline, run_token='a' * 64,
             audit_path=tmp_path / 'audit.jsonl', upstream=upstream + '/step_plan/v1/chat/completions')
-        with running(server):
-            if mode == 'offline': policy += '(deny network*)\n'
+        with server if mode == 'offline_reserved' else running(server):
             proc = subprocess.run(['/usr/bin/sandbox-exec', '-p', policy, str(interpreter), '-I', '-B', '-c',
                 CHILD, str(ROOT), str(case.parent.parent), str(source),
-                '--check-offline' if mode == 'offline' else '--run-native', str(deadline),
+                '--check-offline' if offline else '--run-native', str(deadline),
                 'none' if mode == 'missing_listener' else str(server.socket.fileno())],
-                env=env, cwd=case, text=True, capture_output=True, timeout=60,
-                pass_fds=(server.socket.fileno(),) if mode not in {'offline', 'missing_listener'} else ())
+                env=env, cwd=case, text=True, capture_output=True, timeout=max(.1,deadline-time.monotonic()),
+                pass_fds=(server.socket.fileno(),) if not offline and mode != 'missing_listener' else ())
+            if mode == 'offline_reserved':
+                server.socket.settimeout(.1)
+                with pytest.raises(socket.timeout):
+                    connection,_=server.socket.accept();connection.close()
     (tmp_path / 'native.log').write_text(proc.stdout + proc.stderr)
-    control = json.loads((case / ('offline_control.private.json' if mode == 'offline' else 'native_control.private.json')).read_text())
+    control = json.loads((case / ('offline_control.private.json' if offline else 'native_control.private.json')).read_text())
     assert 'SYNTHETIC_NOT_VALID' not in proc.stdout + proc.stderr
     assert control['ended_monotonic'] < deadline
-    assert control['provider_listener_retained'] is (mode not in {'offline', 'missing_listener'})
+    assert control['provider_listener_retained'] is (not offline and mode != 'missing_listener')
     if mode in {'success', 'shadow_mlx'}:
         assert proc.returncode == 0, (control, proc.stderr[-500:])
         assert len(seen) == control['sdk']['sdk_create_attempts'] == 2
@@ -214,7 +227,7 @@ def test_actual_frozen_native_and_sdk_never_retry(native_fixture, historical_led
             rows = [json.loads(line) for line in (case.parent.parent / 'logs/model.private.jsonl').read_text().splitlines()]
             assert [row['kind'] for row in rows] == ['warmup_complete', 'inference_attempted',
                 'inference_completed', 'inference_attempted', 'inference_completed']
-    elif mode == 'offline':
+    elif offline:
         assert proc.returncode == 0, (control, proc.stderr[-500:])
         assert seen == [] and control['sdk']['sdk_create_attempts'] == 0
         assert ledger.read_bytes() == before

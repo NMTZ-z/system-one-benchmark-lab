@@ -632,3 +632,7 @@ The H4E parent mode switch uses static Home/configuration checks. Credential
 admission remains in the frozen, network-denied native preflight before any
 model or Provider service starts. This avoids an installation-management CLI
 dependency in the parent launch path; earlier callers keep their default checks.
+
+The offline native preflight removes explicit outbound grants before applying
+its network deny. Kernel probes verify permission rejection on both occupied
+loopback ports; the reserved-listener native case uses the real 22-second bound.

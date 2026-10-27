@@ -217,7 +217,11 @@ def _poll(url: str, proc, *, deadline: float):
 
 def _native_command(*, offline: bool, deadline: float, listener_fd: int | None = None):
     policy = build_policy(home=TEST_HOME, case_dir=c.CASE)
-    if offline: policy += '(deny network*)\n'
+    if offline:
+        # A blanket deny does not cancel Seatbelt's explicit loopback grants.
+        policy = '\n'.join(line for line in policy.splitlines()
+                           if not line.lstrip().startswith('(allow network-outbound'))
+        policy += '\n(deny network*)\n'
     args = ['--check-offline' if offline else '--run-native', '--deadline-monotonic', str(deadline)]
     if not offline:
         if listener_fd is None:

@@ -329,3 +329,7 @@ results/processed/phase8_3_h4e_proxy_identity_validation.log
 # H4E parent launch dependency correction
 results/processed/phase8_3_h4e_launch_fix_validation.json
 results/processed/phase8_3_h4e_launch_fix_validation.log
+
+# H4E effective zero-network preflight correction
+results/processed/phase8_3_h4e_zero_network_validation.json
+results/processed/phase8_3_h4e_zero_network_validation.log
