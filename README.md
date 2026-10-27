@@ -613,3 +613,11 @@ That makes the control layer cheap, local, inspectable, reversible, and easy to 
 Local System One is released under the [Apache License 2.0](LICENSE).
 
 The project depends on and documents upstream work separately. See [references/UPSTREAM.md](references/UPSTREAM.md) for pinned revisions and provenance.
+
+
+**2026-10-27 H4E executor preparation:**
+The [executor protocol](docs/PHASE8_3_H4E_EXECUTOR_PROTOCOL.md) documents the
+new isolated one-shot, shared physical cap/deadline, native SDK guard and
+independent adjudicator. The [offline report](docs/PHASE8_3_H4E_OFFLINE_REPORT.md)
+separates synthetic primary-Provider traffic from real local MLX observations.
+Real execution remains **NO-GO pending exact-source owner admission**.

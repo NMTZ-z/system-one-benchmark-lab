@@ -36,7 +36,9 @@ from phase8_3_real_hermes_h2 import PRIVATE
 H4B_CASE="h4b_missing_read"
 H4C_CASE="h4c_missing_read"
 H4D_CASE="h4d_missing_read"
+H4E_CASE="h4e_missing_read"
 CASE_ID=H4B_CASE
+_LEGACY_PRIVATE=PRIVATE
 BACKUP=PRIVATE/"h4b_recovery"
 DB=TEST_HOME/"state.db"
 PLUGIN_ROOT=TEST_HOME/"plugin-data"
@@ -69,11 +71,21 @@ def bind_case(case_id: str) -> None:
     separate Python process. No previous H4B recovery can be overwritten.
     """
     global CASE_ID, BACKUP, MANIFEST, PRE_DB, POST_DB
-    global PRE_STATE, POST_STATE, PRE_PLUGIN_LOCK, FINAL_REPORT
-    if case_id not in {H4B_CASE,H4C_CASE,H4D_CASE}:
+    global PRE_STATE, POST_STATE, PRE_PLUGIN_LOCK, FINAL_REPORT, PRIVATE, _LEGACY_PRIVATE
+    if case_id not in {H4B_CASE,H4C_CASE,H4D_CASE,H4E_CASE}:
         raise RollbackBlocked("unapproved rollback case")
+    previous=CASE_ID
     CASE_ID=case_id
-    BACKUP=PRIVATE/({H4B_CASE:"h4b_recovery",H4C_CASE:"h4c_recovery",H4D_CASE:"h4d_recovery"}[case_id])
+    if case_id==H4E_CASE:
+        if previous!=H4E_CASE:
+            _LEGACY_PRIVATE=PRIVATE
+        from phase8_3_h4e_contract import PRIVATE as h4e_private
+        PRIVATE=h4e_private
+        BACKUP=PRIVATE/"recovery"
+    else:
+        if previous==H4E_CASE:
+            PRIVATE=_LEGACY_PRIVATE
+        BACKUP=PRIVATE/({H4B_CASE:"h4b_recovery",H4C_CASE:"h4c_recovery",H4D_CASE:"h4d_recovery"}[case_id])
     MANIFEST=BACKUP/"manifest.private.json"
     PRE_DB=BACKUP/"state_before.private.db"
     POST_DB=BACKUP/"state_after.private.db"
@@ -268,6 +280,12 @@ def prepare() -> dict[str,Any]:
             "prepared_before_native_agent":True,
         }
         _write_new(MANIFEST,(json.dumps(manifest,sort_keys=True,indent=2)+"\n").encode())
+        if CASE_ID=="h4e_missing_read":
+            from phase8_3_h4e_contract import fsync_directory
+            with PRE_DB.open('rb') as checkpoint:
+                os.fsync(checkpoint.fileno())
+            fsync_directory(BACKUP)
+            fsync_directory(PRIVATE)
     finally:
         os.umask(oldmask)
     return {
@@ -428,7 +446,7 @@ def main():
     op.add_argument("--prepare",action="store_true")
     op.add_argument("--check",action="store_true")
     op.add_argument("--restore",action="store_true")
-    cli.add_argument("--case",choices=[H4B_CASE,H4C_CASE,H4D_CASE],default=H4B_CASE)
+    cli.add_argument("--case",choices=[H4B_CASE,H4C_CASE,H4D_CASE,H4E_CASE],default=H4B_CASE)
     options=cli.parse_args()
     try:
         bind_case(options.case)
