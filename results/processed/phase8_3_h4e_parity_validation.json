@@ -85,10 +85,10 @@
   },
   "verification": "Independent source-derived commands and policies, complete role inventory, kernel-denial probes, HMAC/native/plugin/HTTP/SQLite joins, process groups, budget and restored Home are recomputed.",
   "python": {
-    "main_passed": 1626,
+    "main_passed": 1629,
     "main_skipped": 10,
     "explicit_native_and_auth_passed": 9,
-    "distinct_passed": 1635,
+    "distinct_passed": 1638,
     "remaining_skip": 1,
     "remaining_skip_coverage": "Original historical ledger read-only digest and 8/24 state verified separately."
   },
@@ -120,5 +120,15 @@
     "StepFun availability and model behavior",
     "Subscription debit"
   ],
-  "admission": "Full exact-source frozen revalidation plus Coco Chat review and new exact-source owner authorization still required."
+  "admission": "Full exact-source frozen revalidation plus Coco Chat review and new exact-source owner authorization still required.",
+  "exit_confirmation": {
+    "all_owned_children_waited_with_4_second_bound": true,
+    "confirmed_exit_before_restore_independently_verified": true,
+    "port_conflict_condition_unchanged": true,
+    "fixed_port_and_connect_status_logged": true,
+    "new_counterexamples": 3,
+    "full_nine_scenario_revalidation": "PASS",
+    "earlier_947fd9d_frozen_rehearsal": "BLOCKED on recovery port check; original record preserved and synthetic Home separately restored",
+    "earlier_port_race_unique_cause": "UNCONFIRMED; original log did not identify the port"
+  }
 }

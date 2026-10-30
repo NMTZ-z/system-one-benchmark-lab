@@ -88,3 +88,46 @@ def test_reusable_port_probe_still_rejects_an_active_listener(monkeypatch):
         monkeypatch.setattr(runner, 'PORTS', (listener.getsockname()[1],))
         with pytest.raises(OSError):
             runner.ports_free()
+
+
+@pytest.mark.parametrize('timeout', [False, True])
+def test_stop_requires_every_child_wait_even_after_group_disappears(tmp_path, monkeypatch, timeout):
+    import subprocess
+    import phase8_3_h4e_runner as runner
+    ledger = tmp_path / 'owned.jsonl'; ledger.touch()
+    monkeypatch.setattr(runner.owner, 'LEDGER', ledger)
+    monkeypatch.setattr(runner.owner, 'stop_verified', lambda: {'all_stopped': True})
+    waited = []
+    def wait(*, timeout):
+        waited.append(timeout)
+        if should_timeout:
+            raise subprocess.TimeoutExpired('owned child', timeout)
+        return -15
+    should_timeout = timeout
+    child = SimpleNamespace(pid=123, poll=lambda: None, wait=wait)
+    if timeout:
+        with pytest.raises(subprocess.TimeoutExpired):
+            runner._stop_children_local([child])
+    else:
+        result = runner._stop_children_local([child])
+        assert result['exit_confirmations'][0]['exit_code'] == -15
+    assert waited == [4]
+
+
+def test_recovery_listener_conflict_keeps_exact_port_and_status(monkeypatch):
+    import phase8_3_h4b_transaction as tx
+    import phase8_3_h4e_diagnostics as diagnostics
+    class Connection:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def settimeout(self, value): pass
+        def connect_ex(self, target):
+            assert target == ('127.0.0.1', 18794)
+            return 0
+    monkeypatch.setattr(tx, 'CASE_ID', tx.H4E_CASE)
+    monkeypatch.setattr(tx, 'PORTS', (18794,))
+    monkeypatch.setattr(tx.socket, 'socket', lambda *args: Connection())
+    with pytest.raises(tx.RollbackBlocked):
+        tx._no_listeners()
+    row = diagnostics.records()[-1]
+    assert row['stage'] == 'recovery.port_18794' and row['result'] == 0 and row['event'] == 'failed'

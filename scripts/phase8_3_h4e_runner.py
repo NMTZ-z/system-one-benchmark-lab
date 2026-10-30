@@ -243,8 +243,14 @@ def _stop_children_local(children: list) -> dict:
     if owner.LEDGER.is_file() and not owner.LEDGER.is_symlink():
         try:
             result = owner.stop_verified()
+            result['exit_confirmations'] = []
             for proc in children:
-                if proc.poll() is not None: proc.wait()
+                with stage('recovery.reap', 'owned_child_wait'):
+                    code = proc.wait(timeout=4)
+                    if type(code) is not int:
+                        raise c.H4EBlocked('child exit has not been confirmed')
+                    result['exit_confirmations'].append({'pid': proc.pid, 'exit_code': code,
+                                                        'ended_monotonic': time.monotonic()})
             return result
         except owner.OwnedProcessBlocked:
             if not all(proc.poll() is not None and owner._live_group_members(proc.pid) == [] for proc in children):

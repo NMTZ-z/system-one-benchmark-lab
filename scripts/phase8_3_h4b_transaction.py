@@ -157,7 +157,12 @@ def _no_listeners() -> None:
     for port in PORTS:
         with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as sock:
             sock.settimeout(.4)
-            if sock.connect_ex(("127.0.0.1",port))==0:
+            status=sock.connect_ex(("127.0.0.1",port))
+            if CASE_ID==H4E_CASE:
+                from phase8_3_h4e_diagnostics import emit
+                emit(f'recovery.port_{port}', 'socket_connect_probe',
+                     'failed' if status==0 else 'completed', result=status)
+            if status==0:
                 raise RollbackBlocked("test-only port still listening; refuse unsafe restore")
 
 

@@ -27,11 +27,15 @@ def exception_record(exc):
             'origin': origin}
 
 
-def emit(stage, operation, event, exc=None):
+def emit(stage, operation, event, exc=None, *, result=None):
     if not all(re.fullmatch(r'[a-z_][a-z0-9_.]{0,79}', x) for x in (stage, operation, event)):
         raise ValueError('diagnostic identifiers must be fixed labels')
     row = {'schema': 'local-system-one/h4e-stage-v1', 'stage': stage,
            'operation': operation, 'event': event, 'monotonic': time.monotonic()}
+    if result is not None:
+        if type(result) is not int or not -1 <= result <= 65535:
+            raise ValueError('diagnostic result must be a bounded system status')
+        row['result'] = result
     if exc is not None:
         row.update(exception_record(exc))
     with _lock:

@@ -317,6 +317,7 @@ def verify_launch_evidence(context: dict, path: Path, attempts: int) -> dict:
     if {p.name for p in (root / 'provenance').glob('*.json')} != {role + '.json' for role in roles}:
         raise c.H4EBlocked('child provenance inventory changed')
     boundary = LoopbackBoundary(context, path)
+    role_pids = []
     for role in roles:
         receipt = json.loads((root / 'controller' / (role + '.json')).read_text())
         provenance = json.loads((root / 'provenance' / (role + '.json')).read_text())
@@ -332,6 +333,17 @@ def verify_launch_evidence(context: dict, path: Path, attempts: int) -> dict:
                 or receipt['plan_sha256'] != plan_digest(original, environment, cwd)):
             raise c.H4EBlocked('actual child launch differs from the controller fixed plan')
         identities.append(receipt['identity'])
+        role_pids.append(receipt['identity']['pid'])
+    if roles:
+        worker_result = json.loads((root / 'worker-result.json').read_text())
+        exits = worker_result.get('processes', {}).get('exit_confirmations', [])
+        restores = [r['monotonic'] for r in worker_result.get('diagnostics', [])
+                    if r['stage'] == 'recovery.restore' and r['event'] == 'started']
+        if (len(exits) != len(roles) or [row.get('pid') for row in exits] != role_pids or len(restores) != 1
+                or any(type(row.get('exit_code')) is not int
+                       or type(row.get('ended_monotonic')) not in (int, float)
+                       or not 0 <= row['ended_monotonic'] <= restores[0] for row in exits)):
+            raise c.H4EBlocked('every child must confirm exit before Home restoration')
     if any(group_members(identity['pgid']) for identity in identities):
         raise c.H4EBlocked('a recorded rehearsal process group is still alive')
     logs = {'worker': root / 'worker.log', 'fixture': root / 'fixture.log', 'verify': root / 'verify.log'}
