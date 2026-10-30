@@ -1,10 +1,13 @@
 """Read-only H4E decision from native/HMAC, physical, model and recovery evidence."""
 import argparse
+from contextlib import contextmanager
 import json
 import math
 import os
 from pathlib import Path
 import sqlite3
+import shutil
+import tempfile
 
 import phase8_3_h4e_contract as c
 import phase8_3_h4b_adjudicate as native
@@ -35,13 +38,38 @@ def bounded(value, start, end):
     return type(value) in (int, float) and math.isfinite(value) and start <= value <= end
 
 
+@contextmanager
+def sqlite_copies():
+    """SQLite mode=ro can create WAL sidecars; adjudication opens disposable copies."""
+    originals = {name: getattr(tx, name) for name in ('DB', 'PRE_DB', 'POST_DB')}
+    native_post = native.POST_DB
+    with tempfile.TemporaryDirectory(prefix='h4e-adjudication-') as directory:
+        try:
+            for name, source in originals.items():
+                c.safe_path(source)
+                require(source.is_file() and source.stat().st_uid == os.getuid() and not source.stat().st_mode & 0o077)
+                target = Path(directory) / (name + '.db')
+                shutil.copy2(source, target)
+                wal = source.with_name(source.name + '-wal')
+                if wal.exists():
+                    c.safe_path(wal)
+                    shutil.copy2(wal, target.with_name(target.name + '-wal'))
+                setattr(tx, name, target)
+            native.POST_DB = tx.POST_DB
+            yield
+        finally:
+            for name, source in originals.items():
+                setattr(tx, name, source)
+            native.POST_DB = native_post
+
+
 def verify_owned_processes(processes):
     require(processes['all_stopped'] is True and processes['recorded_child_groups'] == 5
             and set(processes['statuses']) == {'preflight', 'mlx', 'observer', 'provider', 'native'}
             and all(value == 'NOT_RUNNING' for value in processes['statuses'].values()))
 
 
-def verify_controls(window, preflight, control, events, model, physical):
+def verify_controls(window, preflight, control, events, model, physical, *, upstream_kind='step_plan'):
     start, end = window.get('started_monotonic'), window.get('deadline_monotonic')
     require(bounded(start, 0, float('inf')) and bounded(end, start, start + 90)
             and end - start == 90 and window.get('physical_limit') == 3 and window.get('seconds') == 90)
@@ -67,7 +95,7 @@ def verify_controls(window, preflight, control, events, model, physical):
             and sdk.get('stopped') == 0 and all(v == 0 for k, v in sdk.items()
                 if k not in {'sdk_create_attempts', 'logical_epochs'}))
     require(len(events) == 1 + 2 * count and events[0] == {
-        'kind': 'started', 'deadline_monotonic': end, 'upstream_kind': 'step_plan',
+        'kind': 'started', 'deadline_monotonic': end, 'upstream_kind': upstream_kind,
         'physical_limit': 3, 'redirects': False, 'automatic_retries': False})
     previous = start
     for index in range(1, count + 1):
@@ -91,6 +119,11 @@ def verify_controls(window, preflight, control, events, model, physical):
 
 
 def adjudicate(source_sha: str, manifest: Path, approval: Path) -> dict:
+    return _adjudicate(source_sha, manifest, approval,
+        evidence_origin='separately_approved_real_step_plan', upstream_kind='step_plan')
+
+
+def _adjudicate(source_sha: str, manifest: Path, approval: Path, *, evidence_origin: str, upstream_kind: str) -> dict:
     manifest_sha = verify_release(source_sha, manifest)
     native.configure_for_case(c.CASE_ID)
     owner.bind_case(c.CASE_ID)
@@ -109,41 +142,48 @@ def adjudicate(source_sha: str, manifest: Path, approval: Path) -> dict:
             and inputs.get('hermes_archive_sha256') == c.HERMES_ARCHIVE_SHA256
             and inputs.get('historical_ledger_sha256') == c.LEDGER_SHA
             and inputs.get('model_revision') == MODEL_REV and inputs.get('weights_sha256') == MODEL_SHA
-            and inputs.get('evidence_origin') == 'separately_approved_real_step_plan')
+            and inputs.get('evidence_origin') == evidence_origin)
     require(read(c.PRIVATE / 'protected_before.private.json') == read(c.PRIVATE / 'protected_after.private.json')
             == c.protected_metadata(Path.home()))
-    result = native.adjudicate(frozen_sha=source_sha)
-    require(result.get('H4E_scoped_verdict') == 'PASS_SCOPED')
-    physical = native.audited_snapshot(native.PROVIDER_LEDGER, new_run=c.CASE_ID)
-    require(physical['unknown_new'] == 0)
-    window = read(c.PRIVATE / 'window.private.json')
-    verify_controls(window, read(c.CASE / 'offline_control.private.json'),
-        read(c.CASE / 'native_control.private.json'), read(c.PRIVATE / 'observer/provider.private.jsonl', rows=True),
-        read(c.PRIVATE / 'logs/model.private.jsonl', rows=True), physical)
-    rows = read(c.PRIVATE / 'observer/http.private.jsonl', rows=True)
-    retry = [row for row in rows if row.get('path') == '/v1/workflows/retry-escalation-gate']
-    require(len(retry) == 1 and retry[0].get('backend') == 'rule'
-            and retry[0].get('decision_source') == 'rule' and retry[0].get('decision') == 'ask_user'
-            and retry[0].get('advisory_only') is True)
     verify_owned_processes(owner.inspect_owned())
-    provider = next(row for row in owner._validated_records() if row['role'] == 'provider')
-    key_file = c.safe_path(c.PRIVATE / 'observer/run_token.private.bin')
-    require(key_file.is_file() and key_file.stat().st_uid == os.getuid() and not key_file.stat().st_mode & 0o077)
-    key = key_file.read_bytes()
-    require(len(key) == 32)
-    verify_provider_ready(read(c.PRIVATE / 'observer/provider_ready.private.json'), pid=provider['pid'],
-                          source_sha=source_sha, deadline=window['deadline_monotonic'], run_token=key.hex())
-    current = tx.inspect()
-    require(all(current.get(key) is True for key in ('auth_metadata_unchanged',
-        'current_profile_state_matches_before', 'original_sqlite_digest_matches_before')))
-    require(tx.CONFIG.read_bytes() == (tx.BACKUP / 'config_before.private.yml').read_bytes()
-            and tx.PUBLIC_PLUGIN.read_bytes() == (tx.BACKUP / 'plugin_source_before.private.py').read_bytes())
-    return {**result, 'H4E_scoped_verdict': 'PASS_SCOPED', 'fixed_source_and_approval_verified': True,
-        'one_shared_90_second_window_verified': True, 'sdk_no_retry_verified': True,
-        'local_model_warmups': 1, 'local_model_completion_inferences': 2,
-        'retry_inference_count': 0, 'owned_groups_currently_stopped': True,
-        'provider_identity_and_native_listener_retention_verified': True,
-        'new_requests_by_adjudicator': 0, 'rerun_authority': 'NOT_AUTHORIZED'}
+    with sqlite_copies():
+        result = native.adjudicate(frozen_sha=source_sha)
+        require(result.get('H4E_scoped_verdict') == 'PASS_SCOPED')
+        physical = native.audited_snapshot(native.PROVIDER_LEDGER, new_run=c.CASE_ID)
+        require(physical['unknown_new'] == 0)
+        window = read(c.PRIVATE / 'window.private.json')
+        verify_controls(window, read(c.CASE / 'offline_control.private.json'),
+            read(c.CASE / 'native_control.private.json'), read(c.PRIVATE / 'observer/provider.private.jsonl', rows=True),
+            read(c.PRIVATE / 'logs/model.private.jsonl', rows=True), physical, upstream_kind=upstream_kind)
+        rows = read(c.PRIVATE / 'observer/http.private.jsonl', rows=True)
+        retry = [row for row in rows if row.get('path') == '/v1/workflows/retry-escalation-gate']
+        require(len(retry) == 1 and retry[0].get('backend') == 'rule'
+                and retry[0].get('decision_source') == 'rule' and retry[0].get('decision') == 'ask_user'
+                and retry[0].get('advisory_only') is True)
+        provider = next(row for row in owner._validated_records() if row['role'] == 'provider')
+        from phase8_3_h4e_observer import verify_ready
+        observer = next(row for row in owner._validated_records() if row['role'] == 'observer')
+        verify_ready(read(c.PRIVATE / 'observer/observer_ready.private.json'), pid=observer['pid'],
+                     source_sha=source_sha, key=(c.PRIVATE / 'observer/correlation_key.private.bin').read_bytes())
+        key_file = c.safe_path(c.PRIVATE / 'observer/run_token.private.bin')
+        require(key_file.is_file() and key_file.stat().st_uid == os.getuid() and not key_file.stat().st_mode & 0o077)
+        key = key_file.read_bytes()
+        require(len(key) == 32)
+        verify_provider_ready(read(c.PRIVATE / 'observer/provider_ready.private.json'), pid=provider['pid'],
+                              source_sha=source_sha, deadline=window['deadline_monotonic'], run_token=key.hex())
+        current = tx.inspect()
+        require(all(current.get(key) is True for key in ('auth_metadata_unchanged',
+            'current_profile_state_matches_before', 'original_sqlite_digest_matches_before')))
+        require(tx.CONFIG.read_bytes() == (tx.BACKUP / 'config_before.private.yml').read_bytes()
+                and tx.PUBLIC_PLUGIN.read_bytes() == (tx.BACKUP / 'plugin_source_before.private.py').read_bytes())
+        return {**result, 'H4E_scoped_verdict': 'PASS_SCOPED', 'fixed_source_and_approval_verified': True,
+            'evidence_origin': evidence_origin, 'upstream_kind': upstream_kind,
+            'real_provider_e2e': upstream_kind == 'step_plan',
+            'one_shared_90_second_window_verified': True, 'sdk_no_retry_verified': True,
+            'local_model_warmups': 1, 'local_model_completion_inferences': 2,
+            'retry_inference_count': 0, 'owned_groups_currently_stopped': True,
+            'provider_identity_and_native_listener_retention_verified': True,
+            'new_requests_by_adjudicator': 0, 'rerun_authority': 'NOT_AUTHORIZED'}
 
 
 def main():

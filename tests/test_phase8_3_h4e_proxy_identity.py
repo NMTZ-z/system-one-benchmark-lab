@@ -38,6 +38,7 @@ def test_inherited_listener_cannot_be_replaced_after_proxy_or_parent_exit(histor
     import phase8_3_h4e_proxy as proxy
     ledger, before = historical_ledger
     with socket.socket() as parent:
+        parent.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         parent.bind(('127.0.0.1', 0)); parent.listen()
         address = parent.getsockname()
         native = proxy.inherited_listener(os.dup(parent.fileno()), port=address[1])

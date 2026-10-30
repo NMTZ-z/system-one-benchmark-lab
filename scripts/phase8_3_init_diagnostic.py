@@ -61,6 +61,11 @@ def quoted(path: Path) -> str:
 def build_policy(*, owner: Path, readable: list[Path], mutable: Path) -> str:
     """Fixed data allowlist; metadata supports dyld and Python symlinks."""
     allowed = [p.resolve(strict=True) for p in readable] + [mutable.resolve(strict=True)]
+    return render_policy(owner=owner, allowed=allowed, mutable=mutable.resolve(strict=True))
+
+
+def render_policy(*, owner: Path, allowed: list[Path], mutable: Path) -> str:
+    """Render already resolved paths; runtime callers validate existence before rendering."""
     excluded = (owner.parent, Path("/Users"), Path("/Volumes"), Path("/private/tmp"),
                 Path("/tmp"), Path("/private/var/folders"), Path("/var/folders"))
     system_reads = " ".join(f"(require-not (subpath {quoted(p)}))" for p in excluded)
@@ -69,7 +74,7 @@ def build_policy(*, owner: Path, readable: list[Path], mutable: Path) -> str:
         "(version 1)", "(deny default)", "(allow process-exec)",
         "(allow sysctl-read)", "(allow file-read-metadata)",
         f"(allow file-read* (require-all {system_reads}))", *grants,
-        f"(allow file-write* (subpath {quoted(mutable.resolve())}))",
+        f"(allow file-write* (subpath {quoted(mutable)}))",
         '(allow file-write* (literal "/dev/null"))', "",
     ])
 

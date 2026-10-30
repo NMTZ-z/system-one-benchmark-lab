@@ -17,6 +17,7 @@ import phase8_3_h4e_contract as contract
 import phase8_3_h4b_direct_child as native
 from phase8_3_h4e_sdk_guard import H4EStop, install_runtime_guards
 from phase8_3_h4e_proxy import inherited_listener
+from phase8_3_h4e_diagnostics import stage, records, exception_record
 
 
 def bind_native():
@@ -123,6 +124,7 @@ def main():
     tools = {'tool_calls': 0, 'tool_violations': 0}
     start = time.monotonic()
     rc = 3
+    failure = None
     listener_retained = False
     path = contract.CASE / ('offline_control.private.json' if args.check_offline else 'native_control.private.json')
     try:
@@ -130,24 +132,30 @@ def main():
         if args.run_native:
             if args.provider_listener_fd is None:
                 raise H4EStop()
-            with inherited_listener(os.dup(args.provider_listener_fd)):
-                os.set_inheritable(args.provider_listener_fd, False)
+            with stage('native.endpoint_identity', 'inherited_socket_validate'):
+                with inherited_listener(os.dup(args.provider_listener_fd)):
+                    os.set_inheritable(args.provider_listener_fd, False)
             # The original inherited descriptor stays open until process exit.
             listener_retained = True
         if path.exists() or path.is_symlink():
             raise contract.H4EBlocked('child control evidence already exists')
-        target, prompt = native.check_case()
-        tools = install_once_tool_guard(target, args.deadline_monotonic)
-        isolate_native_logs()
-        proof = native.prepare_readonly_auth()
-        guard = install_runtime_guards(args.deadline_monotonic, run_token=os.environ.get('H4E_RUN_TOKEN', ''))
-        require_native_store()
+        with stage('native.case', 'manifest_source_and_target_read'):
+            target, prompt = native.check_case()
+        with stage('native.tools', 'native_tool_registry_initialize'):
+            tools = install_once_tool_guard(target, args.deadline_monotonic)
+            isolate_native_logs()
+        with stage('native.credentials', 'official_profile_resolver'):
+            proof = native.prepare_readonly_auth()
+        with stage('native.sdk_guard', 'sdk_runtime_guard_install'):
+            guard = install_runtime_guards(args.deadline_monotonic, run_token=os.environ.get('H4E_RUN_TOKEN', ''))
+            require_native_store()
         from hermes_cli.oneshot import run_oneshot, _validate_explicit_toolsets
         chosen, error = _validate_explicit_toolsets([native.CUSTOM_TOOLSET])
         if error is not None or chosen != [native.CUSTOM_TOOLSET]:
             raise H4EStop()
         if args.check_offline:
-            preflight_constructor(native.CUSTOM_TOOLSET)
+            with stage('native.constructor', 'official_agent_and_sqlite_initialize'):
+                preflight_constructor(native.CUSTOM_TOOLSET)
             import hermes_cli.oneshot as oneshot
             previous = oneshot._run_agent
             oneshot._run_agent = lambda *a, **k: ('H4E_OFFLINE', {'completed': True, 'failed': False})
@@ -164,14 +172,16 @@ def main():
                               'real_agent_constructed': True, 'real_agent_task_started': False,
                               'sdk_requests': 0, 'only_tool': 'read_file'}))
         else:
-            rc = run_oneshot(prompt, model=contract.MODEL, provider=contract.PROVIDER,
-                             toolsets=[native.CUSTOM_TOOLSET], usage_file=str(contract.CASE / 'usage.private.json'))
-            time.sleep(min(3, max(0, args.deadline_monotonic - time.monotonic())))
-            if guard.report()['stopped'] or tools['tool_calls'] != 1 or tools['tool_violations']:
-                rc = 3
-    except BaseException:
+            with stage('native.task', 'official_oneshot_and_native_tools'):
+                rc = run_oneshot(prompt, model=contract.MODEL, provider=contract.PROVIDER,
+                                 toolsets=[native.CUSTOM_TOOLSET], usage_file=str(contract.CASE / 'usage.private.json'))
+                time.sleep(min(3, max(0, args.deadline_monotonic - time.monotonic())))
+                if rc != 0 or guard.report()['stopped'] or tools['tool_calls'] != 1 or tools['tool_violations']:
+                    raise H4EStop()
+    except BaseException as exc:
         rc = 3
-        print(json.dumps({'status': 'H4E_CHILD_BLOCKED', 'credentials_printed': False}))
+        failure = exception_record(exc)
+        print(json.dumps({'status': 'H4E_CHILD_BLOCKED', 'credentials_printed': False, 'diagnostic': failure}))
     finally:
         if contract.CASE.is_dir() and not path.exists() and not path.is_symlink():
             contract.write_new_json(path, {'case_id': contract.CASE_ID,
@@ -179,6 +189,7 @@ def main():
                 'started_monotonic': start, 'ended_monotonic': time.monotonic(),
                 'deadline_monotonic': args.deadline_monotonic, 'exit_code': rc,
                 'provider_listener_retained': listener_retained,
+                'diagnostics': records(), 'failure': failure,
                 'sdk': guard.report() if guard else None, **tools})
     raise SystemExit(rc if type(rc) is int else 3)
 

@@ -7,6 +7,13 @@ import os
 
 import phase8_3_h4e_contract as c
 from phase8_2a_shadow_proxy import Handler as Recorder
+from phase8_3_h4e_diagnostics import stage
+
+
+def verify_ready(value, *, pid, source_sha, key):
+    expected = hmac.new(key, ('observer-ready\0' + source_sha + '\0' + str(pid)).encode(), hashlib.sha256).hexdigest()
+    if len(key) != 32 or value != {'case_id': c.CASE_ID, 'pid': pid, 'proof': expected}:
+        raise c.H4EBlocked('owned observer identity not attested')
 
 
 def main():
@@ -36,7 +43,9 @@ def main():
             if self.evidence_path.is_file():
                 with self.evidence_path.open('rb') as stream: os.fsync(stream.fileno())
 
-    with ThreadingHTTPServer(('127.0.0.1', 18793), Handler) as server:
+    with stage('observer.listen', 'socket_bind_listen'):
+        server = ThreadingHTTPServer(('127.0.0.1', 18793), Handler)
+    with server:
         server.run_salt = os.urandom(16).hex()
         server.correlation_secret = key
         server.run_id = c.CASE_ID

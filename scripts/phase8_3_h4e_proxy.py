@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
 
 import phase8_3_h4e_contract as contract
+from phase8_3_h4e_diagnostics import stage
 
 
 class PhysicalLedger:
@@ -38,14 +39,17 @@ class PhysicalLedger:
     def transaction(self):
         contract.safe_path(self.path)
         contract.safe_path(self.lock)
-        lock_fd = os.open(self.lock, os.O_RDWR | os.O_NOFOLLOW)
+        with stage('provider.budget_lock_open', 'file_open'):
+            lock_fd = os.open(self.lock, os.O_RDWR | os.O_NOFOLLOW)
         with os.fdopen(lock_fd, 'r+') as lock:
             info = os.fstat(lock.fileno())
             if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
                 raise contract.H4EBlocked('unsafe original ledger lock')
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with stage('provider.budget_lock_acquire', 'nonblocking_flock'):
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             try:
-                fd = os.open(self.path, os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW)
+                with stage('provider.budget_ledger_open', 'append_file_open'):
+                    fd = os.open(self.path, os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW)
                 with os.fdopen(fd, 'r+') as stream:
                     info = os.fstat(stream.fileno())
                     if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
@@ -135,10 +139,12 @@ def pin_upstream_ipv4(address: str) -> None:
     socket.getaddrinfo = resolve
 
 
-def enforce_upstream_socket(address: str) -> None:
+def enforce_upstream_socket(address: str, port: int = 443) -> None:
     fixed = str(ipaddress.IPv4Address(address))
+    if type(port) is not int or not 1 <= port <= 65535:
+        raise contract.H4EBlocked('invalid fixed socket port')
     def audit(event, args):
-        if event == 'socket.connect' and args[1] != (fixed, 443):
+        if event == 'socket.connect' and args[1] != (fixed, port):
             raise contract.H4EBlocked('non-Step-Plan socket blocked')
         if event in {'socket.sendto', 'socket.sendmsg'}:
             raise contract.H4EBlocked('datagram egress blocked')
@@ -190,12 +196,14 @@ def make_server(*, ledger: Path, deadline: float, run_token: str, audit_path: Pa
         raise contract.H4EBlocked('real provider requires the parent-owned listener')
     if len(run_token) != 64 or any(c not in '0123456789abcdef' for c in run_token):
         raise contract.H4EBlocked('private H4E request token missing')
-    budget = PhysicalLedger(ledger)
-    if budget.counts() != (8, 0):
-        raise contract.H4EBlocked('H4E proxy cannot resume a used case')
+    with stage('provider.budget_initialize', 'ledger_validate_and_lock'):
+        budget = PhysicalLedger(ledger)
+        if budget.counts() != (8, 0):
+            raise contract.H4EBlocked('H4E proxy cannot resume a used case')
     contract.safe_path(audit_path)
-    with audit_path.open('x') as stream:
-        os.chmod(audit_path, 0o600)
+    with stage('provider.audit_create', 'exclusive_file_create'):
+        with audit_path.open('x') as stream:
+            os.chmod(audit_path, 0o600)
     audit_inode = audit_path.stat().st_ino
     audit_lock = threading.Lock()
     request_lock = threading.Lock()
@@ -334,14 +342,15 @@ def make_server(*, ledger: Path, deadline: float, run_token: str, audit_path: Pa
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler, bind_and_activate=listener_fd is None)
     if listener_fd is not None:
         server.socket.close()
-        server.socket = inherited_listener(listener_fd, port=port)
+        with stage('provider.listener_identity', 'inherited_socket_validate'):
+            server.socket = inherited_listener(listener_fd, port=port)
         server.server_address = server.socket.getsockname()
         server.server_name, server.server_port = server.server_address
     server.daemon_threads = True
     return server
 
 
-def main():
+def main(*, upstream: str = contract.UPSTREAM):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--execute-real-step-plan', action='store_true', required=True)
     p.add_argument('--deadline-monotonic', type=float, required=True)
@@ -354,26 +363,37 @@ def main():
     args = p.parse_args()
     try:
         from phase8_3_h4e_source import verify_release_files, digest
-        _, manifest_sha = verify_release_files(args.release_manifest)
-        contract.read_authorization(args.authorization, args.frozen_sha, manifest_sha)
-        inputs = json.loads((contract.PRIVATE / 'input.private.json').read_text())
-        if (inputs.get('source_sha') != args.frozen_sha or inputs.get('manifest_sha256') != manifest_sha
-                or inputs.get('authorization_sha256') != digest(args.authorization)):
-            raise contract.H4EBlocked('proxy source differs from the admitted parent')
-        pin_upstream_ipv4(args.upstream_ipv4)
-        enforce_upstream_socket(args.upstream_ipv4)
+        with stage('provider.source_authorization', 'source_and_approval_read'):
+            _, manifest_sha = verify_release_files(args.release_manifest)
+            contract.read_authorization(args.authorization, args.frozen_sha, manifest_sha)
+            inputs = json.loads((contract.PRIVATE / 'input.private.json').read_text())
+            if (inputs.get('source_sha') != args.frozen_sha or inputs.get('manifest_sha256') != manifest_sha
+                    or inputs.get('authorization_sha256') != digest(args.authorization)):
+                raise contract.H4EBlocked('proxy source differs from the admitted parent')
+        if upstream == contract.UPSTREAM:
+            pin_upstream_ipv4(args.upstream_ipv4)
+            enforce_upstream_socket(args.upstream_ipv4)
+        else:
+            # The real CLI exposes no upstream override; the synthetic boundary is loopback-only.
+            target = urlsplit(upstream)
+            if (target.scheme != 'http' or target.hostname != '127.0.0.1' or not target.port
+                    or target.path != '/step_plan/v1/chat/completions' or args.upstream_ipv4 != '127.0.0.1'):
+                raise contract.H4EBlocked('synthetic upstream must be fixed numeric loopback')
+            enforce_upstream_socket('127.0.0.1', target.port)
         ledger = contract.original_ledger(args.owner_home)
         token_file = contract.PRIVATE / 'observer/run_token.private.bin'
         contract.safe_path(token_file)
         if token_file.stat().st_mode & 0o077 or len(token_file.read_bytes()) != 32:
             raise contract.H4EBlocked('private H4E token unavailable')
         request_token = token_file.read_bytes().hex()
-        contract.write_new_json(contract.PRIVATE / 'logs/provider.started.json',
-                                {'source_sha': args.frozen_sha, 'deadline': args.deadline_monotonic})
-        server = make_server(ledger=ledger, deadline=args.deadline_monotonic,
-                             run_token=request_token, source_sha=args.frozen_sha,
-                             listener_fd=args.listener_fd,
-                             audit_path=contract.PRIVATE / 'observer/provider.private.jsonl')
+        with stage('provider.startup_record', 'durable_json_create'):
+            contract.write_new_json(contract.PRIVATE / 'logs/provider.started.json',
+                                    {'source_sha': args.frozen_sha, 'deadline': args.deadline_monotonic})
+        with stage('provider.initialize', 'budget_and_server_initialize'):
+            server = make_server(ledger=ledger, deadline=args.deadline_monotonic,
+                                 run_token=request_token, source_sha=args.frozen_sha, upstream=upstream,
+                                 listener_fd=args.listener_fd,
+                                 audit_path=contract.PRIVATE / 'observer/provider.private.jsonl')
         server.serve_forever(poll_interval=.1)
     except (OSError, ValueError, TypeError):
         print(json.dumps({'status': 'H4E_PROXY_BLOCKED', 'real_execution_authority': 'NOT_INFERRED'}))

@@ -10,6 +10,8 @@ import re
 import stat
 import time
 
+from phase8_3_h4e_diagnostics import stage
+
 ROOT = Path(__file__).resolve().parents[1]
 CASE_ID = 'h4e_missing_read'
 PRIVATE = ROOT / 'private/phase8_3_h4e_real'
@@ -133,17 +135,20 @@ def protected_metadata(owner: Path) -> dict:
 
 def write_new_json(path: Path, data: dict) -> None:
     safe_path(path)
-    with path.open('x', encoding='utf-8') as stream:
-        os.chmod(path, 0o600)
-        stream.write(json.dumps(data, sort_keys=True, indent=2) + '\n')
-        stream.flush()
-        os.fsync(stream.fileno())
+    with stage('evidence.file_commit', 'exclusive_file_write_fsync'):
+        with path.open('x', encoding='utf-8') as stream:
+            os.chmod(path, 0o600)
+            stream.write(json.dumps(data, sort_keys=True, indent=2) + '\n')
+            stream.flush()
+            os.fsync(stream.fileno())
     fsync_directory(path.parent)
 
 
 def fsync_directory(path: Path) -> None:
-    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    with stage('evidence.directory_open', 'directory_open'):
+        fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
-        os.fsync(fd)
+        with stage('evidence.directory_sync', 'directory_fsync'):
+            os.fsync(fd)
     finally:
         os.close(fd)

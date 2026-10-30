@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import sys
 import time
 
 from phase8_3_h4b_transaction import BACKUP
@@ -110,9 +111,14 @@ def _validated_records() -> list[dict]:
 def record_spawn(proc: subprocess.Popen, role: str) -> dict:
     if role not in (ROLES|{"preflight"} if CASE_ID==H4E_CASE else ROLES) or proc.pid<=1:
         raise OwnedProcessBlocked("H4B subprocess role/PID is not allowed")
-    if os.getpgid(proc.pid)!=proc.pid or _ps_uid(proc.pid)!=os.getuid():
+    kernel = None
+    if CASE_ID == H4E_CASE and sys.platform == 'darwin':
+        from phase8_3_h4e_process_identity import identity
+        kernel = identity(proc.pid)
+    uid = kernel['uid'] if kernel is not None else _ps_uid(proc.pid)
+    if os.getpgid(proc.pid)!=proc.pid or uid!=os.getuid():
         raise OwnedProcessBlocked("H4B process must be its own session/group leader")
-    lstart=_ps_start(proc.pid)
+    lstart=kernel['start'] if kernel is not None else _ps_start(proc.pid)
     if lstart is None:
         raise OwnedProcessBlocked("unable to attest to subprocess kernel start time")
     if LEDGER.is_symlink() or not BACKUP.is_dir() or BACKUP.is_symlink():
@@ -142,6 +148,18 @@ def record_spawn(proc: subprocess.Popen, role: str) -> dict:
 def _live_matches(row: dict) -> bool | None:
     """None means a live PID is INCONSISTENT: never kill it."""
     pid=row["pid"]
+    if CASE_ID == H4E_CASE and sys.platform == 'darwin':
+        from phase8_3_h4e_process_identity import identity
+        try:
+            item = identity(pid)
+        except OSError:
+            return None
+        if item is None or item['zombie']:
+            return False
+        if (item['uid'] != row['uid'] or item['pgid'] != row['pgid']
+                or item['start'] != row['lstart']):
+            return None
+        return True
     start=_ps_start(pid)
     state=_ps_state(pid)
     if start is None or state is None or state.startswith("Z"):
@@ -157,6 +175,12 @@ def _live_matches(row: dict) -> bool | None:
 
 
 def _live_group_members(pgid: int) -> list[int] | None:
+    if CASE_ID == H4E_CASE and sys.platform == 'darwin':
+        from phase8_3_h4e_process_identity import group_members
+        try:
+            return group_members(pgid)
+        except OSError:
+            return None
     try:
         result=subprocess.run(["/bin/ps","-axo","pid=,pgid=,stat="],
                               capture_output=True,text=True,timeout=4,check=True)

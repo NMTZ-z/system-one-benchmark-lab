@@ -1,0 +1,124 @@
+{
+  "status": "CANDIDATE_SYSTEM_REHEARSAL_PASS",
+  "baseline_sha": "40d49fc1dd480a4d77aa94a84193d52db1dd4054",
+  "final_source_binding": "Exact frozen SHA, manifest, final clean-source matrix, and canonical offline admission are bound in the external delivery receipt.",
+  "third_failure": {
+    "reproduced_entrypoint": "actual proxy.main",
+    "system_call": "os.open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)",
+    "errno": 1,
+    "minimal_fix": "literal log-directory file-read-data only",
+    "unregistered_log_content": "DENIED",
+    "historical_unique_cause": "UNPROVEN; historical exception chain unavailable"
+  },
+  "matrix": [
+    {
+      "scenario": "success",
+      "verdict": "SYNTHETIC_E2E_PASS",
+      "synthetic_requests": 2,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "directory_denied",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "port_busy",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "proxy_exit",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "invalid_fd",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "ledger_busy",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "missing_input",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "target_exists",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "upstream_failure",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 1,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    }
+  ],
+  "success": {
+    "native_read_file_calls": 1,
+    "completion_mlx_inferences": 2,
+    "rule_retry_observations": 1,
+    "synthetic_provider_requests": 2,
+    "owned_roles": 5,
+    "sdk_automatic_retries": 0
+  },
+  "verification": "Independent source-derived commands and policies, complete role inventory, kernel-denial probes, HMAC/native/plugin/HTTP/SQLite joins, process groups, budget and restored Home are recomputed.",
+  "python": {
+    "main_passed": 1626,
+    "main_skipped": 10,
+    "explicit_native_and_auth_passed": 9,
+    "distinct_passed": 1635,
+    "remaining_skip": 1,
+    "remaining_skip_coverage": "Original historical ledger read-only digest and 8/24 state verified separately."
+  },
+  "dsh": {
+    "passed": 64,
+    "typecheck": "PASS",
+    "build": "PASS"
+  },
+  "protected_state": {
+    "prior_attempt_file_counts": [
+      20709,
+      20713,
+      20721
+    ],
+    "all_prior_file_hashes_unchanged": true,
+    "original_ledger_unchanged": true,
+    "original_reservations": 8,
+    "global_limit": 24,
+    "historic_H1_UNKNOWN": 1,
+    "production_metadata_unchanged": true
+  },
+  "controller_exception": "Explicitly owner-approved fixed-role controller outside Seatbelt; controller itself has no kernel WAN guarantee. Executor and each service apply separate constrained profiles.",
+  "real_provider_requests": 0,
+  "new_real_case_created": false,
+  "real_execution_authorized": false,
+  "uncovered": [
+    "Real DNS and TLS",
+    "Real credential validity",
+    "StepFun availability and model behavior",
+    "Subscription debit"
+  ],
+  "admission": "Full exact-source frozen revalidation plus Coco Chat review and new exact-source owner authorization still required."
+}

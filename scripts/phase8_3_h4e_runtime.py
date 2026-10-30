@@ -11,6 +11,7 @@ import time
 import phase8_3_h4e_contract as c
 from phase8_3_h4e_source import digest
 from phase8_3_h4d_readiness import MODEL_REV, MODEL_SHA
+from phase8_3_h4e_diagnostics import stage
 
 
 def main():
@@ -39,20 +40,25 @@ def main():
                 'implementation': 'local_system_one.runtime.mlx.MLXRuntime',
                 'model_revision': MODEL_REV, 'weights_sha256': MODEL_SHA}) + '\n')
             evidence.flush(); os.fsync(evidence.fileno())
-    model = MLXRuntime(args.model)
-    model.predict({'task': 'Read a missing file', 'result': 'File not found'},
-                  {'type': 'choice', 'instructions': 'Choose the completion state.',
-                   'criteria': {'complete': 'done', 'verify': 'check evidence', 'continue': 'more work'}})
+    with stage('mlx.load', 'model_weights_and_runtime_initialize'):
+        model = MLXRuntime(args.model)
+    with stage('mlx.warmup', 'local_model_inference'):
+        model.predict({'task': 'Read a missing file', 'result': 'File not found'},
+                      {'type': 'choice', 'instructions': 'Choose the completion state.',
+                       'criteria': {'complete': 'done', 'verify': 'check evidence', 'continue': 'more work'}})
     emit('warmup_complete')
     original = model.predict
     def predict(*args, **kwargs):
         emit('inference_attempted')
-        result = original(*args, **kwargs)
+        with stage('mlx.completion', 'local_model_inference'):
+            result = original(*args, **kwargs)
         emit('inference_completed')
         return result
     model.predict = predict
     engine = DecisionEngine(mlx=model, ane=None, router=DecisionRouter(), health=ANEHealthGate(available=False))
-    with create_server(engine, host='127.0.0.1', port=18782) as server:
+    with stage('mlx.listen', 'socket_bind_listen'):
+        server = create_server(engine, host='127.0.0.1', port=18782)
+    with server:
         server.serve_forever(poll_interval=.1)
 
 

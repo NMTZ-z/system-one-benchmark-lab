@@ -636,3 +636,9 @@ dependency in the parent launch path; earlier callers keep their default checks.
 The offline native preflight removes explicit outbound grants before applying
 its network deny. Kernel probes verify permission rejection on both occupied
 loopback ports; the reserved-listener native case uses the real 22-second bound.
+
+
+H4E now has a [production-path synthetic rehearsal](docs/PHASE8_3_H4E_PARITY.md)
+and a shared fixed-role controller. Admission requires a complete, source-bound
+fault matrix and independent evidence re-verification. Synthetic validation does
+not authorize a real Provider attempt; see the [execution protocol](docs/PHASE8_3_H4E_EXECUTOR_PROTOCOL.md).

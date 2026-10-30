@@ -165,7 +165,7 @@ def test_H4E_provider_policy_checks_files_and_blocks_other_sockets(tmp_path, mon
     (project / 'local_system_one').mkdir()
     (project / 'release').mkdir()
     names = ['scripts/' + name for name in ('phase8_3_h4e_contract.py',
-             'phase8_3_h4e_source.py', 'phase8_3_h4e_proxy.py', 'build_public_release.py')]
+             'phase8_3_h4e_source.py', 'phase8_3_h4e_proxy.py', 'phase8_3_h4e_diagnostics.py', 'build_public_release.py')]
     for name in names: shutil.copyfile(Path(runner.__file__).parents[1] / name, project / name)
     names.append('example.txt')
     (project / 'example.txt').write_text('synthetic approved source')
@@ -219,7 +219,7 @@ print(json.dumps(out))
     result = subprocess.run(command, env=runner._environment(), cwd=private / 'service_home',
                             capture_output=True, text=True, timeout=15)
     assert result.returncode == 0, result.stderr[-800:]
-    assert json.loads(result.stdout) == {'files_verified': 5, 'protected_read_denied': True,
+    assert json.loads(result.stdout) == {'files_verified': 6, 'protected_read_denied': True,
         'kernel_denied_other_port': True, 'dns_pinned': True, 'audit_blocked': 3}
     (project / 'example.txt').write_text('source drift')
     result = subprocess.run(command, env=runner._environment(), cwd=private / 'service_home',

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import hmac
 import ipaddress
 import json
 import os
@@ -29,8 +28,10 @@ from phase8_3_h4d_readiness import stat_only_home, MODEL_SHA, MODEL_REV
 from phase8_3_real_hermes_h2 import MODEL_PATH
 from phase8_3_transport_closeout import audited_snapshot, drain_run
 from phase8_3_h4e_proxy import NoRedirects, verify_provider_ready
+from phase8_3_h4e_diagnostics import stage, records, exception_record
 
 PORTS = (18782, 18793, 18794)
+CONTROLLER = None
 
 
 def bind():
@@ -41,30 +42,41 @@ def bind():
 def ports_free():
     for port in PORTS:
         with socket.socket() as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(('127.0.0.1', port))
 
 
-def check_offline(source_sha: str, manifest: Path, archive: Path) -> dict:
-    release_digest = verify_release(source_sha, manifest)
-    verify_archive(archive)
-    c.check_fresh_root(c.PRIVATE)
-    history = c.attest_original_ledger(Path.home())
+def _check_inputs(source_sha: str, manifest: Path, archive: Path) -> dict:
+    with stage('admission.source', 'source_manifest_and_archive_verify'):
+        release_digest = verify_release(source_sha, manifest)
+        verify_archive(archive)
+        c.check_fresh_root(c.PRIVATE)
+        if c.ROOT.parent.resolve() != (Path.home() / 'Projects').resolve():
+            raise c.H4EBlocked('executor checkout must match the native policy Projects layout')
+    with stage('admission.budget', 'ledger_prefix_read'):
+        history = c.attest_original_ledger(Path.home())
     lock = c.original_ledger(Path.home()).with_name('provider_real_ledger.private.jsonl.lock')
     c.safe_path(lock)
     if not lock.is_file() or lock.stat().st_mode & 0o077:
         raise c.H4EBlocked('existing original budget lock required')
-    stat_only_home()
+    with stage('admission.home', 'isolated_home_static_read'):
+        stat_only_home()
     if MODEL_PATH.is_symlink() or digest(MODEL_PATH / 'model.safetensors') != MODEL_SHA:
         raise c.H4EBlocked('pinned local model changed')
     if not HERMES_PYTHON.is_file():
         raise c.H4EBlocked('existing Hermes interpreter unavailable')
     for path in ('private/phase8_3_h4e_real/probe', 'private/phase8_3_h4e_authorization.json'):
         subprocess.run(['git', '-C', str(c.ROOT), 'check-ignore', '-q', path], check=True)
-    ports_free()
-    with tempfile.TemporaryDirectory(prefix='h4e-seatbelt-admission-') as directory:
-        root = Path(directory).resolve()
-        root.chmod(0o700)
-        probe = probe_sandbox_offline(sandbox_root=root)
+    with stage('admission.ports', 'socket_bind'):
+        ports_free()
+    with stage('admission.kernel', 'seatbelt_profile_apply_and_file_probe'):
+        if CONTROLLER is not None:
+            probe = CONTROLLER.kernel_admission()
+        else:
+            with tempfile.TemporaryDirectory(prefix='h4e-seatbelt-admission-') as directory:
+                root = Path(directory).resolve()
+                root.chmod(0o700)
+                probe = probe_sandbox_offline(sandbox_root=root)
         if probe.get('seatbelt_enforced') is not True:
             raise c.H4EBlocked('actual Seatbelt probe failed')
     return {'status': 'H4E_OFFLINE_PRECONDITIONS_PASS', 'source_sha': source_sha,
@@ -74,13 +86,22 @@ def check_offline(source_sha: str, manifest: Path, archive: Path) -> dict:
             'real_execution_authorized': False, 'real_execution': 'NO_GO_PENDING_OWNER_REVIEW'}
 
 
-def _make_case(archive: Path, source_sha: str, manifest_sha: str, authorization: Path):
+def check_offline(source_sha: str, manifest: Path, archive: Path, rehearsal_receipt: Path | None = None) -> dict:
+    ready = _check_inputs(source_sha, manifest, archive)
+    with stage('admission.system_rehearsal', 'rehearsal_evidence_verify'):
+        from phase8_3_h4e_parity_admission import verify_receipt
+        parity = verify_receipt(rehearsal_receipt, source_sha=source_sha, manifest=manifest)
+    return {**ready, 'system_rehearsal': parity}
+
+
+def _make_case(archive: Path, source_sha: str, manifest_sha: str, authorization: Path,
+               evidence_origin: str = 'separately_approved_real_step_plan'):
     c.write_new_json(c.PRIVATE / 'input.private.json', {
         'case_id': c.CASE_ID, 'source_sha': source_sha, 'manifest_sha256': manifest_sha,
         'hermes_revision': c.HERMES_REV, 'hermes_archive_sha256': c.HERMES_ARCHIVE_SHA256,
         'authorization_sha256': digest(authorization), 'historical_ledger_sha256': c.LEDGER_SHA,
         'admitted_at_unix': time.time(), 'model_revision': MODEL_REV, 'weights_sha256': MODEL_SHA,
-        'evidence_origin': 'separately_approved_real_step_plan'})
+        'evidence_origin': evidence_origin})
     for name in ('runs', 'logs', 'observer', 'service_home', 'tmp'):
         (c.PRIVATE / name).mkdir(mode=0o700)
     c.CASE.mkdir(mode=0o700)
@@ -121,7 +142,8 @@ def _environment(*, native: bool = False) -> dict:
 
 
 def _service_policy(role: str, *, upstream_ipv4: str | None = None,
-                    release: Path | None = None, approval: Path | None = None) -> str:
+                    release: Path | None = None, approval: Path | None = None,
+                    reconstruct_removed_input: bool = False) -> str:
     python = Path(sys.executable)
     readable = [c.ROOT / 'scripts', c.ROOT / 'local_system_one',
                 python.parent.parent.resolve(), python.resolve().parent.parent]
@@ -135,7 +157,17 @@ def _service_policy(role: str, *, upstream_ipv4: str | None = None,
         from build_public_release import load_allowlist, select_source_files
         readable += [c.ROOT / name for name in select_source_files(load_allowlist(c.ROOT / 'release/public-files.txt'), root=c.ROOT)]
         readable.extend([ledger, ledger.with_name(ledger.name + '.lock'), release, approval])
-    policy = service_base_policy(owner=Path.home(), readable=readable, mutable=c.PRIVATE / 'service_home')
+    mutable = c.PRIVATE / 'service_home'
+    if reconstruct_removed_input:
+        from phase8_3_init_diagnostic import render_policy
+        removed = c.safe_path(c.PRIVATE / 'input.private.json')
+        if role not in {'observer', 'provider'} or removed.exists():
+            raise c.H4EBlocked('only the injected missing input may be reconstructed')
+        allowed = [removed.parent.resolve(strict=True) / removed.name if p == removed else p.resolve(strict=True)
+                   for p in readable] + [mutable.resolve(strict=True)]
+        policy = render_policy(owner=Path.home(), allowed=allowed, mutable=mutable.resolve(strict=True))
+    else:
+        policy = service_base_policy(owner=Path.home(), readable=readable, mutable=mutable)
     policy += '(allow process-fork)\n'
     policy += f'(allow file-write* (subpath {quoted(c.PRIVATE / "tmp")}))\n'
     policy += f'(allow file-write* (literal {quoted(c.PRIVATE / "logs" / (role + ".private.log"))}))\n'
@@ -155,6 +187,8 @@ def _service_policy(role: str, *, upstream_ipv4: str | None = None,
         policy += '(allow mach-lookup (global-name "com.apple.MTLCompilerService") (global-name "com.apple.cvmsServ"))\n'
         policy += f'(allow file-write* (literal {quoted(c.PRIVATE / "logs/model.private.jsonl")}))\n'
     if role == 'provider':
+        # write_new_json fsyncs this directory after the exclusive file creation.
+        policy += f'(allow file-read-data (literal {quoted(c.PRIVATE / "logs")}))\n'
         ipaddress.IPv4Address(upstream_ipv4)
         # Seatbelt accepts only localhost/* hosts; the stdlib proxy's audit hook
         # pins the sole numeric destination before any upstream socket can connect.
@@ -168,15 +202,27 @@ def _service_policy(role: str, *, upstream_ipv4: str | None = None,
 
 def _launch(command: list[str], role: str, env: dict, children: list, *, cwd: Path, pass_fds: tuple[int, ...] = ()):
     log = c.PRIVATE / 'logs' / (role + '.private.log')
-    with log.open('x') as stream:
-        proc = subprocess.Popen([sys.executable, '-I', '-B', str(c.ROOT / 'scripts/phase8_3_h4e_process_child.py'),
-                                 *command], cwd=cwd, env=env, stdin=subprocess.PIPE,
-                                stdout=stream, stderr=subprocess.STDOUT, text=True, start_new_session=True,
-                                pass_fds=pass_fds)
+    safe_env = {k: v for k, v in env.items() if k not in {'LOCAL_SYSTEM_ONE_EVIDENCE_KEY_HEX', 'H4E_RUN_TOKEN'}}
+    c.write_new_json(c.PRIVATE / 'logs' / (role + '.launch.private.json'), {
+        'role': role, 'command': command, 'environment': safe_env,
+        'secret_environment_names': sorted(set(env) - set(safe_env)),
+        'cwd': str(cwd), 'inherited_descriptor_count': len(pass_fds),
+        'trampoline_interpreter': sys.executable,
+        'launch_backend': 'fixed_controller' if CONTROLLER is not None else 'direct_test'})
+    with stage(role + '.spawn', 'process_spawn'):
+        if CONTROLLER is not None:
+            proc = CONTROLLER.spawn(role, command, env, cwd, pass_fds)
+        else:
+            with log.open('x') as stream:
+                proc = subprocess.Popen([sys.executable, '-I', '-B', str(c.ROOT / 'scripts/phase8_3_h4e_process_child.py'),
+                                         *command], cwd=cwd, env=env, stdin=subprocess.PIPE,
+                                        stdout=stream, stderr=subprocess.STDOUT, text=True, start_new_session=True,
+                                        pass_fds=pass_fds)
     children.append(proc)
     try:
-        owner.record_spawn(proc, role)
-        proc.stdin.write('H4E_PARENT_GO\n'); proc.stdin.flush(); proc.stdin.close()
+        with stage(role + '.ownership', 'process_identity_fsync_then_go'):
+            owner.record_spawn(proc, role)
+            proc.stdin.write('H4E_PARENT_GO\n'); proc.stdin.flush(); proc.stdin.close()
     except BaseException:
         proc.stdin.close()
         proc.wait(timeout=4)
@@ -185,6 +231,13 @@ def _launch(command: list[str], role: str, env: dict, children: list, *, cwd: Pa
 
 
 def _stop_children(children: list) -> dict:
+    result = _stop_children_local(children)
+    if CONTROLLER is not None and not CONTROLLER.request({'op': 'inspect_groups'})['all_stopped']:
+        raise c.H4EBlocked('controller still owns a live or uncertain child group')
+    return result
+
+
+def _stop_children_local(children: list) -> dict:
     if not children:
         return {'all_stopped': True, 'recorded_child_groups': 0}
     if owner.LEDGER.is_file() and not owner.LEDGER.is_symlink():
@@ -233,38 +286,51 @@ def _native_command(*, offline: bool, deadline: float, listener_fd: int | None =
 
 
 def _execute_one(source_sha: str, release: Path, approval: Path, children: list,
-                 provider_listener: socket.socket) -> tuple[int, bool, float]:
+                 provider_listener: socket.socket, boundary=None) -> tuple[int, bool, float]:
     preflight_end = time.monotonic() + 22
-    preflight = _launch(_native_command(offline=True, deadline=preflight_end), 'preflight',
+    command = _native_command(offline=True, deadline=preflight_end)
+    if boundary is not None and CONTROLLER is None:
+        command = boundary.child_command('preflight', command)
+    preflight = _launch(command, 'preflight',
                         _environment(native=True), children, cwd=c.CASE)
-    if preflight.wait(timeout=c.remaining(preflight_end)) != 0:
-        raise c.H4EBlocked('same-policy native credential/constructor preflight failed')
+    with stage('preflight.complete', 'native_preflight_wait'):
+        if preflight.wait(timeout=c.remaining(preflight_end)) != 0:
+            raise c.H4EBlocked('same-policy native credential/constructor preflight failed')
     control = json.loads((c.CASE / 'offline_control.private.json').read_text())
     if control.get('sdk', {}).get('sdk_create_attempts') != 0 or control.get('exit_code') != 0:
         raise c.H4EBlocked('offline preflight lacks zero-request proof')
     env = _environment()
     def service(role, command, ip=None):
-        return _launch(['/usr/bin/sandbox-exec', '-p', _service_policy(role, upstream_ipv4=ip,
-                        release=release, approval=approval), *command],
+        command = ['/usr/bin/sandbox-exec', '-p', _service_policy(role, upstream_ipv4=ip,
+                   release=release, approval=approval), *command]
+        if boundary is not None and CONTROLLER is None:
+            command = boundary.child_command(role, command)
+        return _launch(command,
                        role, env, children, cwd=c.PRIVATE / 'service_home',
                        pass_fds=(provider_listener.fileno(),) if role == 'provider' else ())
     runtime = service('mlx', [sys.executable, str(c.ROOT / 'scripts/phase8_3_h4e_runtime.py'),
                               '--model', str(MODEL_PATH)])
-    health = _poll('http://127.0.0.1:18782/health', runtime, deadline=time.monotonic() + 45)
+    with stage('mlx.ready', 'http_health_after_warmup'):
+        health = _poll('http://127.0.0.1:18782/health', runtime, deadline=time.monotonic() + 45)
     if not isinstance(health, dict) or health.get('service') != 'ok':
         raise c.H4EBlocked('local runtime health invalid')
     model_rows = [json.loads(line) for line in (c.PRIVATE / 'logs/model.private.jsonl').read_text().splitlines()]
     if len(model_rows) != 1 or model_rows[0].get('kind') != 'warmup_complete':
         raise c.H4EBlocked('local model warmup is unverified')
     observer = service('observer', [sys.executable, str(c.ROOT / 'scripts/phase8_3_h4e_observer.py')])
-    proof = _poll('http://127.0.0.1:18793/_h4e_ready', observer, deadline=time.monotonic() + 8)
+    with stage('observer.ready', 'http_identity'):
+        proof = _poll('http://127.0.0.1:18793/_h4e_ready', observer, deadline=time.monotonic() + 8)
     key = (c.PRIVATE / 'observer/correlation_key.private.bin').read_bytes()
-    expected = hmac.new(key, ('observer-ready\0' + source_sha + '\0' + str(observer.pid)).encode(), hashlib.sha256).hexdigest()
-    if proof != {'case_id': c.CASE_ID, 'pid': observer.pid, 'proof': expected}:
-        raise c.H4EBlocked('owned observer identity not attested')
+    from phase8_3_h4e_observer import verify_ready
+    verify_ready(proof, pid=observer.pid, source_sha=source_sha, key=key)
+    c.write_new_json(c.PRIVATE / 'observer/observer_ready.private.json', proof)
     # DNS is resolved only after real approval; the proxy pins this IP for TLS.
-    addresses = socket.getaddrinfo('api.stepfun.com', 443, socket.AF_INET, socket.SOCK_STREAM)
-    ip = str(ipaddress.IPv4Address(addresses[0][4][0]))
+    with stage('provider.destination', 'upstream_resolution'):
+        if boundary is None:
+            addresses = socket.getaddrinfo('api.stepfun.com', 443, socket.AF_INET, socket.SOCK_STREAM)
+            ip = str(ipaddress.IPv4Address(addresses[0][4][0]))
+        else:
+            ip = boundary.upstream_ipv4
     start = time.monotonic()
     deadline = start + c.SECONDS
     c.write_new_json(c.PRIVATE / 'window.private.json', {'started_monotonic': start,
@@ -274,14 +340,19 @@ def _execute_one(source_sha: str, release: Path, approval: Path, children: list,
         '--listener-fd', str(provider_listener.fileno()),
         '--owner-home', str(Path.home()), '--frozen-sha', source_sha,
         '--release-manifest', str(release), '--authorization', str(approval)], ip)
-    state = _poll('http://127.0.0.1:18794/_budget', provider, deadline=min(deadline, time.monotonic() + 8))
-    verify_provider_ready(state, pid=provider.pid, source_sha=source_sha, deadline=deadline,
-                          run_token=(c.PRIVATE / 'observer/run_token.private.bin').read_bytes().hex())
+    with stage('provider.ready', 'http_hmac_identity'):
+        state = _poll('http://127.0.0.1:18794/_budget', provider, deadline=min(deadline, time.monotonic() + 8))
+        verify_provider_ready(state, pid=provider.pid, source_sha=source_sha, deadline=deadline,
+                              run_token=(c.PRIVATE / 'observer/run_token.private.bin').read_bytes().hex())
     c.write_new_json(c.PRIVATE / 'observer/provider_ready.private.json', state)
-    native = _launch(_native_command(offline=False, deadline=deadline, listener_fd=provider_listener.fileno()), 'native',
+    command = _native_command(offline=False, deadline=deadline, listener_fd=provider_listener.fileno())
+    if boundary is not None and CONTROLLER is None:
+        command = boundary.child_command('native', command)
+    native = _launch(command, 'native',
                      _environment(native=True), children, cwd=c.CASE, pass_fds=(provider_listener.fileno(),))
     try:
-        rc = native.wait(timeout=c.remaining(deadline))
+        with stage('native.complete', 'native_task_wait'):
+            rc = native.wait(timeout=c.remaining(deadline))
     except subprocess.TimeoutExpired:
         return 124, True, deadline
     ledger = c.original_ledger(Path.home())
@@ -291,9 +362,15 @@ def _execute_one(source_sha: str, release: Path, approval: Path, children: list,
     return rc, time.monotonic() >= deadline, deadline
 
 
-def run(source_sha: str, manifest: Path, archive: Path, authorization: Path) -> dict:
-    ready = check_offline(source_sha, manifest, archive)
-    c.read_authorization(authorization, source_sha, ready['manifest_sha256'])
+def run(source_sha: str, manifest: Path, archive: Path, authorization: Path,
+        rehearsal_receipt: Path | None = None) -> dict:
+    ready = check_offline(source_sha, manifest, archive, rehearsal_receipt)
+    return _run(source_sha, manifest, archive, authorization, ready)
+
+
+def _run(source_sha: str, manifest: Path, archive: Path, authorization: Path, ready: dict, *, boundary=None) -> dict:
+    with stage('admission.authorization', 'owner_approval_read'):
+        c.read_authorization(authorization, source_sha, ready['manifest_sha256'])
     protected = c.protected_metadata(Path.home())
     bind()
     c.check_fresh_root(c.PRIVATE)
@@ -311,29 +388,42 @@ def run(source_sha: str, manifest: Path, archive: Path, authorization: Path) -> 
     rollback = {'status': 'NOT_STARTED'}
     oldmask = os.umask(0o077)
     try:
-        _make_case(archive, source_sha, ready['manifest_sha256'], authorization)
+        with stage('case.create', 'exclusive_case_and_source_create'):
+            if boundary is None:
+                _make_case(archive, source_sha, ready['manifest_sha256'], authorization)
+            else:
+                _make_case(archive, source_sha, ready['manifest_sha256'], authorization, boundary.evidence_origin)
         c.write_new_json(c.PRIVATE / 'protected_before.private.json', protected)
-        tx.prepare(); prepared = True
-        provider_listener = socket.socket()
-        provider_listener.bind(('127.0.0.1', 18794))
-        provider_listener.listen()
+        with stage('home.checkpoint', 'sqlite_backup_and_state_fsync'):
+            tx.prepare(); prepared = True
+        with stage('provider.reserve_endpoint', 'socket_bind_listen'):
+            provider_listener = socket.socket()
+            provider_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            provider_listener.bind(('127.0.0.1', 18794))
+            provider_listener.listen()
         # The frozen, network-denied native preflight validates credentials next.
-        if set_test_mode('shadow', official_auth=False)['mode'] != 'shadow':
-            raise c.H4EBlocked('test profile did not enter Shadow')
-        rc, timed_out, deadline = _execute_one(source_sha, manifest, authorization, children, provider_listener)
+        with stage('home.shadow', 'static_config_switch'):
+            if set_test_mode('shadow', official_auth=False)['mode'] != 'shadow':
+                raise c.H4EBlocked('test profile did not enter Shadow')
+        if boundary is None:
+            rc, timed_out, deadline = _execute_one(source_sha, manifest, authorization, children, provider_listener)
+        else:
+            rc, timed_out, deadline = _execute_one(source_sha, manifest, authorization, children, provider_listener, boundary)
     except BaseException as exc:
         error = type(exc).__name__
     finally:
         try:
             try:
-                processes = _stop_children(children)
+                with stage('recovery.stop', 'owned_process_groups_stop'):
+                    processes = _stop_children(children)
             finally:
                 # Native retains its inherited descriptor until exit, even if this parent fails.
                 if provider_listener is not None:
                     provider_listener.close()
             if not processes['all_stopped']:
                 raise c.H4EBlocked('owned process group remains')
-            rollback = tx.restore() if prepared else {'status': 'OFF_UNCHANGED_BEFORE_CHECKPOINT'}
+            with stage('recovery.restore', 'archive_and_restore_home'):
+                rollback = tx.restore() if prepared else {'status': 'OFF_UNCHANGED_BEFORE_CHECKPOINT'}
         except BaseException as exc:
             rollback = {'status': 'OWNER_ACTION_REQUIRED', 'error_class': type(exc).__name__}
             error = error or type(exc).__name__
@@ -351,6 +441,7 @@ def run(source_sha: str, manifest: Path, archive: Path, authorization: Path) -> 
               'local_rollback': rollback, 'private_original_file_still_missing': not any(c.CASE.glob('h4e_absent_*.txt')),
               'production_and_historical_metadata_unchanged': protected == protected_after,
               'automatic_retries': 0, 'active_authority': 'NOT_AUTHORIZED',
+              'diagnostics': records(),
               'acceptance': 'PENDING_INDEPENDENT_ADJUDICATION'}
     report_path = c.PRIVATE / 'runs/h4e_verified.private.json' if (c.PRIVATE / 'runs').is_dir() else c.PRIVATE / 'early_failure.private.json'
     c.write_new_json(report_path, report)
@@ -374,7 +465,7 @@ def recover(source_sha: str, manifest: Path) -> dict:
     return tx.restore()
 
 
-def main():
+def parse_arguments(arguments=None):
     p = argparse.ArgumentParser(description=__doc__)
     action = p.add_mutually_exclusive_group(required=True)
     action.add_argument('--check-offline', action='store_true')
@@ -384,22 +475,35 @@ def main():
     p.add_argument('--release-manifest', type=Path, required=True)
     p.add_argument('--source-archive', type=Path)
     p.add_argument('--authorization', type=Path)
-    args = p.parse_args()
+    p.add_argument('--rehearsal-receipt', type=Path)
+    p.add_argument('--controller-fd', type=int)
+    return p.parse_args(arguments)
+
+
+def main():
+    global CONTROLLER
+    args = parse_arguments()
     try:
+        if args.controller_fd is not None:
+            from phase8_3_h4e_controller import Client
+            CONTROLLER = Client(args.controller_fd, args.frozen_sha)
+        elif args.execute_real_step_plan:
+            raise c.H4EBlocked('real execution requires the canonical fixed controller launcher')
         if args.recover_only:
             result = recover(args.frozen_sha, args.release_manifest)
         elif args.check_offline and args.source_archive:
-            result = check_offline(args.frozen_sha, args.release_manifest, args.source_archive)
+            result = check_offline(args.frozen_sha, args.release_manifest, args.source_archive, args.rehearsal_receipt)
         elif args.execute_real_step_plan and args.source_archive and args.authorization:
-            result = run(args.frozen_sha, args.release_manifest, args.source_archive, args.authorization)
+            result = run(args.frozen_sha, args.release_manifest, args.source_archive, args.authorization, args.rehearsal_receipt)
         else:
             raise c.H4EBlocked('explicit required inputs missing')
         print(json.dumps(result, sort_keys=True))
         if args.execute_real_step_plan and (result['native_child_exit_code'] != 0 or
                 result['local_rollback']['status'] != 'TEST_HOME_STATE_RESTORED'):
             raise SystemExit(3)
-    except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError):
-        print(json.dumps({'status': 'H4E_BLOCKED', 'real_execution_authority': 'NOT_INFERRED'}))
+    except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as exc:
+        print(json.dumps({'status': 'H4E_BLOCKED', 'real_execution_authority': 'NOT_INFERRED',
+                          'diagnostic': exception_record(exc), 'stages': records()}))
         raise SystemExit(3) from None
 
 
