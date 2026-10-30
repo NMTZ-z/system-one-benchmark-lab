@@ -112,15 +112,19 @@ def attest_original_ledger(owner: Path) -> dict:
             'historic_H1_UNKNOWN': 1, 'ledger_sha256': LEDGER_SHA}
 
 
-def protected_metadata(owner: Path) -> dict:
-    """No credential bytes: track old experiment and production control-file metadata."""
+def protected_roots(owner: Path) -> list[Path]:
     roots = [owner / '.hermes' / name for name in ('config.yaml', 'auth.json', '.env', 'plugins')]
     roots += [p / 'private/phase8_3_native_real' for p in (owner / 'Projects').glob('system-one-phase8-3*')
               if p != ROOT and p.is_dir() and not p.is_symlink()]
+    return roots
+
+
+def protected_metadata(owner: Path) -> dict:
+    """No credential bytes: track old experiment and production control-file metadata."""
     ledger = original_ledger(owner)
     excluded = {ledger, ledger.with_name(ledger.name + '.lock')}
     rows = {}
-    for root in roots:
+    for root in protected_roots(owner):
         paths = [root, *root.rglob('*')] if root.is_dir() and not root.is_symlink() else [root]
         for path in paths:
             if path in excluded: continue

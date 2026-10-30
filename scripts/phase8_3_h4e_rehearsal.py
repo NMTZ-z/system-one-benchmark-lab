@@ -1,6 +1,6 @@
 """System-level H4E rehearsal: real executors, synthetic data, kernel-denied WAN.
 
-The real CLI never imports this execution boundary. A disposable source snapshot
+The real CLI never enables this execution boundary. A disposable source snapshot
 uses the same runner/children/adjudicator; only the outer Provider is a fixture.
 """
 from __future__ import annotations
@@ -501,7 +501,8 @@ def prepare_case(suite: Path, fault: str, archive: Path, source_files: dict, can
     for file in model_files(MODEL_PATH):
         target = model / file.relative_to(MODEL_PATH)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(file, target)
+        # APFS clone keeps independent files without duplicating large immutable model blocks.
+        subprocess.run(['/bin/cp', '-c', '-p', str(file), str(target)], check=True)
         if digest(target) != digest(file):
             raise c.H4EBlocked('synthetic model mapping differs from the installed artifact')
     raw, prefixes = synthetic_history()
@@ -709,6 +710,30 @@ def reverify(path: Path, *, source_manifest: Path) -> dict:
     return json.loads(output.stdout)
 
 
+def qualify_actual_parent_policy(suite: Path, archive: Path, manifest: Path, *, approval=None, receipt=None) -> dict:
+    from phase8_3_h4e_controller import parent_policy
+    from phase8_3_h4e_launch import parent_environment
+    root = suite / 'actual-parent'; root.mkdir(mode=0o700)
+    (root / 'tmp').mkdir(mode=0o700)
+    policy = parent_policy(manifest=manifest, archive=archive, approval=approval, control_root=root, receipt=receipt)
+    (root / 'policy.sb').write_text(policy)
+    environment = parent_environment(Path.home()); environment['TMPDIR'] = str(root / 'tmp')
+    code = ('import sys,json;sys.path.insert(0,sys.argv[1]);'
+            'from phase8_3_h4e_rehearsal import kernel_probe;'
+            'print(json.dumps(kernel_probe("actual_parent"),sort_keys=True))')
+    result = subprocess.run(['/usr/bin/sandbox-exec', '-p', policy, sys.executable, '-I', '-B', '-c', code,
+                             str(c.ROOT / 'scripts')], env=environment, cwd=c.ROOT,
+                            capture_output=True, text=True, timeout=30)
+    (root / 'qualification.log').write_text(result.stderr)
+    for path in (root / 'policy.sb', root / 'qualification.log'):
+        path.chmod(0o600)
+    if result.returncode:
+        raise c.H4EBlocked('actual production-scope parent profile did not load and enforce network denial')
+    return {'policy_bytes': len(policy.encode()), 'policy_sha256': digest(root / 'policy.sb'),
+            'kernel_log_sha256': digest(root / 'qualification.log'),
+            'kernel_denied': json.loads(result.stdout), 'real_home_or_credential_contents_read': False}
+
+
 def run_suite(archive: Path, report: Path, *, only=None) -> None:
     from build_public_release import load_allowlist, select_source_files
     from phase8_3_h4e_source import verify_archive
@@ -732,6 +757,9 @@ def run_suite(archive: Path, report: Path, *, only=None) -> None:
         'created_at_unix': time.time(), 'scenarios': [], 'real_provider_requests': 0,
         'real_execution_authorized': False, 'status': 'INCOMPLETE'}
     try:
+        manifest = suite / 'candidate.sha256'
+        manifest.write_text(''.join(value + '  ' + name + '\n' for name, value in sorted(source_files.items())))
+        result['actual_parent_policy'] = qualify_actual_parent_policy(suite, archive, manifest)
         for fault in (only,) if only else CASES:
             path = prepare_case(suite, fault, archive, source_files, candidate_sha)
             verdict = run_case(path)
@@ -762,7 +790,8 @@ def internal(role: str, path: Path, arguments: list[str], controller_fd=None) ->
         control_root = path.parent / 'controller'; control_root.mkdir(mode=0o700)
         (control_root / 'tmp').mkdir(mode=0o700)
         controller = Controller(source_sha=context['snapshot_sha'], manifest=path.parent / 'release.sha256',
-            approval=path.parent / 'approval.json', control_root=control_root, boundary=LoopbackBoundary(context, path), execute=True)
+            approval=path.parent / 'approval.json', control_root=control_root, boundary=LoopbackBoundary(context, path),
+            execute=True, source_archive=Path(context['archive']))
         worker_command, environment, policy = worker_launch(context, path)
         raise SystemExit(controller.run(worker_command, environment, c.ROOT, policy))
     elif role == 'worker':

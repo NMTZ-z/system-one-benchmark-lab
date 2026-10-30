@@ -143,7 +143,7 @@ class Client:
 
     def request(self, message, descriptors=()):
         _send(self.channel, message, descriptors)
-        response_timeout = 60 if message.get('op') == 'reverify' else 20 if message.get('op') == 'kernel_admission' else 5
+        response_timeout = {'reverify': 60, 'kernel_admission': 20, 'actual_parent_kernel': 40}.get(message.get('op'), 5)
         response, received = _receive(self.channel, deadline=time.monotonic() + response_timeout)
         for descriptor in received:
             os.close(descriptor)
@@ -168,6 +168,9 @@ class Client:
 
     def kernel_admission(self):
         return self.request({'op': 'kernel_admission'})
+
+    def actual_parent_kernel(self):
+        return self.request({'op': 'actual_parent_kernel'})
 
     def reverify(self, context: Path):
         return self.request({'op': 'reverify', 'scenario': context.parent.name})
@@ -199,10 +202,12 @@ def fixed_plan(role, deadline, upstream_ip, listener_fd, *, source_sha, manifest
 
 class Controller:
     def __init__(self, *, source_sha: str, manifest: Path, approval: Path | None,
-                 control_root: Path, boundary=None, rehearsal_receipt: Path | None = None, execute=False):
+                 control_root: Path, boundary=None, rehearsal_receipt: Path | None = None, execute=False,
+                 source_archive: Path | None = None):
         self.source_sha, self.manifest, self.approval = source_sha, manifest, approval
         self.control_root, self.boundary, self.rehearsal_receipt = control_root, boundary, rehearsal_receipt
         self.execute = execute
+        self.source_archive = source_archive
         self.children, self.identities, self.released = {}, {}, set()
         self.hello = False
 
@@ -290,6 +295,11 @@ class Controller:
             import tempfile
             with tempfile.TemporaryDirectory(prefix='kernel-probe-', dir=self.control_root) as folder:
                 return probe_sandbox_offline(sandbox_root=Path(folder))
+        if op == 'actual_parent_kernel' and request == {'op': op} and self.source_archive is not None:
+            from phase8_3_h4e_rehearsal import qualify_actual_parent_policy
+            root = self.control_root / 'parent-recheck'; root.mkdir(mode=0o700)
+            return qualify_actual_parent_policy(root, self.source_archive, self.manifest,
+                                               approval=self.approval, receipt=self.rehearsal_receipt)
         if op == 'inspect_groups' and request == {'op': op}:
             from phase8_3_h4e_process_identity import group_members
             statuses = {}
@@ -429,11 +439,12 @@ def parent_policy(*, manifest: Path, archive: Path | None, approval: Path | None
     policy = build_policy(owner=owner, readable=readable, mutable=control_root)
     policy += '(allow process-fork)\n(allow process-info-pidinfo)\n(allow process-info-listpids)\n(allow signal)\n'
     directories = {owner, owner / '.hermes', owner / 'Projects'}
-    for name, info in c.protected_metadata(owner).items():
-        if info is not None and stat.S_ISDIR(info[2]):
-            directories.add(owner / name)
     for directory in sorted(directories):
         policy += f'(allow file-read-data (literal {quoted(directory)}))\n'
+    for root in c.protected_roots(owner):
+        if root.is_dir() and not root.is_symlink():
+            # Directory enumeration only; per-directory literals overflow Seatbelt's compiled table.
+            policy += f'(allow file-read-data (require-all (subpath {quoted(root)}) (vnode-type DIRECTORY)))\n'
     policy += f'(allow file-write* (literal {quoted(c.PRIVATE.parent)}))\n'
     policy += f'(allow file-write* (subpath {quoted(c.PRIVATE)}))\n'
     for name in ('state.db', 'state.db-wal', 'state.db-shm', 'state.db.quarantine.lock', 'state.db.fts_rebuild.lock',

@@ -31,7 +31,7 @@ def main():
     environment = parent_environment(Path.home()); environment['TMPDIR'] = str(root / 'tmp')
     controller = Controller(source_sha=args.frozen_sha, manifest=args.release_manifest,
         approval=args.authorization, control_root=root, rehearsal_receipt=args.rehearsal_receipt,
-        execute=args.execute_real_step_plan)
+        execute=args.execute_real_step_plan, source_archive=args.source_archive)
     policy = parent_policy(manifest=args.release_manifest, archive=args.source_archive, approval=args.authorization,
         control_root=root, receipt=args.rehearsal_receipt, real_dns=args.execute_real_step_plan)
     raise SystemExit(controller.run(command(ROOT / 'scripts/phase8_3_h4e_runner.py', sys.argv[1:]),

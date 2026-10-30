@@ -85,10 +85,10 @@
   },
   "verification": "Independent source-derived commands and policies, complete role inventory, kernel-denial probes, HMAC/native/plugin/HTTP/SQLite joins, process groups, budget and restored Home are recomputed.",
   "python": {
-    "main_passed": 1629,
+    "main_passed": 1634,
     "main_skipped": 10,
     "explicit_native_and_auth_passed": 9,
-    "distinct_passed": 1638,
+    "distinct_passed": 1643,
     "remaining_skip": 1,
     "remaining_skip_coverage": "Original historical ledger read-only digest and 8/24 state verified separately."
   },
@@ -130,5 +130,23 @@
     "full_nine_scenario_revalidation": "PASS",
     "earlier_947fd9d_frozen_rehearsal": "BLOCKED on recovery port check; original record preserved and synthetic Home separately restored",
     "earlier_port_race_unique_cause": "UNCONFIRMED; original log did not identify the port"
+  },
+  "actual_parent_profile": {
+    "old_profile_text_bytes": 944791,
+    "old_compiled_data_bytes": 67007,
+    "compiled_data_limit_bytes": 65535,
+    "f4e08ff_canonical_admission": "BLOCKED before worker startup; original record preserved",
+    "directory_scope": "same protected roots; directory vnode only; regular contents and escaping links denied",
+    "new_actual_candidate_profile_bytes": 6316,
+    "candidate_kernel_denials": [
+      "IPv4",
+      "IPv6",
+      "UDP",
+      "unregistered loopback"
+    ],
+    "admission_reexecutes_kernel_probe": true,
+    "fixed_controller_round_trip": "PASS",
+    "source_derived_policy_and_original_proof_verified": true,
+    "forged_self_consistent_proof_cannot_skip_fresh_probe": true
   }
 }

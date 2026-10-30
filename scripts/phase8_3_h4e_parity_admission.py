@@ -4,8 +4,10 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import subprocess
 import sys
+import tempfile
 import time
 
 import phase8_3_h4e_contract as c
@@ -39,6 +41,9 @@ DIFFERENCES = [
     {'id': 'external_fixture', 'real': 'remote Provider exists independently of the five owned roles',
      'synthetic': 'one separately owned loopback fixture; five real executor roles remain exact',
      'uncovered': 'fixture startup and deterministic responses do not test remote concurrency or latency'},
+    {'id': 'production_directory_inventory', 'real': 'existing production and historical directory inventory',
+     'synthetic': 'small disposable inventory; actual owner parent profile is separately compiled and kernel-probed first',
+     'uncovered': 'private file contents are not copied; directory-only selectors preserve content denial'},
 ]
 
 _DEPENDENCIES = r'''
@@ -134,6 +139,37 @@ def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dic
     if (not isinstance(cases, list) or len(cases) != len(CASES)
             or [row.get('verification', {}).get('scenario') for row in cases] != list(CASES)):
         raise c.H4EBlocked('rehearsal fault matrix is incomplete')
+    suite = c.safe_path(Path(report['suite_root']))
+    if (suite.parent != Path('/private/tmp') or not re.fullmatch(r'h4e-parity-[a-z0-9_-]+', suite.name)
+            or suite.stat().st_uid != os.getuid() or suite.stat().st_mode & 0o077):
+        raise c.H4EBlocked('actual parent qualification data root is unsafe')
+    qualification = report.get('actual_parent_policy', {})
+    policy_file, log_file = c.safe_path(suite / 'actual-parent/policy.sb'), c.safe_path(suite / 'actual-parent/qualification.log')
+    from phase8_3_h4e_controller import parent_policy
+    first = json.loads(c.safe_path(Path(cases[0]['context'])).read_text())
+    policy = parent_policy(manifest=suite / 'candidate.sha256', archive=Path(first['archive']), approval=None,
+                           control_root=suite / 'actual-parent')
+    if (digest(suite / 'candidate.sha256') != digest(manifest)
+            or qualification.get('kernel_denied') != dict.fromkeys(('wan_tcp_v4', 'wan_tcp_v6', 'wan_udp', 'unlisted_loopback'), 1)
+            or qualification.get('real_home_or_credential_contents_read') is not False
+            or qualification.get('policy_bytes') != len(policy.encode())
+            or qualification.get('policy_sha256') != hashlib.sha256(policy.encode()).hexdigest()
+            or digest(policy_file) != qualification['policy_sha256']
+            or digest(log_file) != qualification.get('kernel_log_sha256')):
+        raise c.H4EBlocked('actual owner parent policy qualification changed or is missing')
+    proofs = [json.loads(line[len('H4E_KERNEL_PROOF '):]) for line in log_file.read_text().splitlines()
+              if line.startswith('H4E_KERNEL_PROOF ')]
+    if proofs != [{'role': 'actual_parent', 'denied': qualification['kernel_denied']}]:
+        raise c.H4EBlocked('actual parent kernel proof is missing or ambiguous')
+    import phase8_3_h4e_runner as runner
+    if runner.CONTROLLER is not None:
+        current = runner.CONTROLLER.actual_parent_kernel()
+    else:
+        from phase8_3_h4e_rehearsal import qualify_actual_parent_policy
+        with tempfile.TemporaryDirectory(prefix='h4e-parent-recheck-', dir='/private/tmp') as directory:
+            current = qualify_actual_parent_policy(Path(directory), Path(first['archive']), manifest)
+    if current.get('kernel_denied') != qualification['kernel_denied']:
+        raise c.H4EBlocked('actual parent kernel enforcement changed')
     for row in cases:
         context_path = c.safe_path(Path(row['context']))
         context = json.loads(context_path.read_text())
@@ -148,5 +184,6 @@ def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dic
         if verdict != row['verification']:
             raise c.H4EBlocked('rehearsal independent verdict changed')
     return {'status': 'SYSTEM_REHEARSAL_VERIFIED', 'scenario_count': len(cases),
+            'actual_parent_offline_policy_kernel_reverified': True,
             'receipt_sha256': digest(path), 'real_execution_authorized': False,
             'readiness': 'ELIGIBLE_FOR_OWNER_AND_INDEPENDENT_REVIEW_ONLY'}

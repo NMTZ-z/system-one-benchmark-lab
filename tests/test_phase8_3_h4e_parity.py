@@ -302,3 +302,38 @@ def test_snapshot_verifier_is_fully_bound_before_any_execution(tmp_path, monkeyp
     with pytest.raises(c.H4EBlocked, match=reason):
         reverify(context, source_manifest=trusted)
     assert not marker.exists()
+
+
+@pytest.mark.parametrize('tamper', ['policy_and_hash', 'kernel_log_and_hash', 'kernel_not_enforced'])
+def test_actual_parent_qualification_cannot_be_self_certified(tmp_path, monkeypatch, tamper):
+    import tempfile
+    import phase8_3_h4e_controller as control
+    import phase8_3_h4e_parity_admission as admission
+    import phase8_3_h4e_rehearsal as rehearsal
+    monkeypatch.setattr(admission, 'environment_fingerprint', lambda: {})
+    monkeypatch.setattr(control, 'parent_policy', lambda **kwargs: 'trusted policy')
+    def current_probe(*args, **kwargs):
+        raise c.H4EBlocked('fresh kernel probe rejected the forged success proof')
+    monkeypatch.setattr(rehearsal, 'qualify_actual_parent_policy', current_probe)
+    monkeypatch.setattr(runner, 'CONTROLLER', None)
+    monkeypatch.setattr(rehearsal, 'reverify', lambda *a, **k: pytest.fail('tampered parent evidence reached snapshot execution'))
+    with tempfile.TemporaryDirectory(prefix='h4e-parity-', dir='/private/tmp') as directory:
+        root = Path(directory); parent = root / 'actual-parent'; parent.mkdir()
+        manifest = root / 'candidate.sha256'; manifest.write_text('synthetic manifest')
+        context = root / 'context.json'; context.write_text(json.dumps({'archive': str(root / 'archive')}))
+        policy = 'malicious policy' if tamper == 'policy_and_hash' else 'trusted policy'
+        denied = dict.fromkeys(('wan_tcp_v4', 'wan_tcp_v6', 'wan_udp', 'unlisted_loopback'), 1)
+        log = 'H4E_KERNEL_PROOF ' + json.dumps({'role': 'forged' if tamper == 'kernel_log_and_hash' else 'actual_parent', 'denied': denied})
+        (parent / 'policy.sb').write_text(policy); (parent / 'qualification.log').write_text(log)
+        sha = lambda value: hashlib.sha256(value.encode()).hexdigest()
+        report = {'schema': 'local-system-one/h4e-parity-receipt-v1', 'suite_root': str(root),
+            'status': 'SYSTEM_REHEARSAL_PASS', 'candidate_source_clean': True, 'candidate_source_sha': 'a' * 40,
+            'candidate_manifest_sha256': sha('synthetic manifest'), 'differences': admission.DIFFERENCES,
+            'real_provider_requests': 0, 'real_execution_authorized': False, 'created_at_unix': time.time(),
+            'environment': {}, 'scenarios': [{'context': str(context), 'verification': {'scenario': fault}}
+                                             for fault in rehearsal.CASES],
+            'actual_parent_policy': {'policy_bytes': len(policy), 'policy_sha256': sha(policy),
+                'kernel_log_sha256': sha(log), 'kernel_denied': denied, 'real_home_or_credential_contents_read': False}}
+        path = root / 'receipt.json'; c.write_new_json(path, report)
+        with pytest.raises(c.H4EBlocked):
+            admission.verify_receipt(path, source_sha='a' * 40, manifest=manifest)

@@ -70,6 +70,7 @@ def test_one_unknown_process_does_not_skip_other_cleanup_or_closure(tmp_path, mo
     {'op': 'exec', 'argv': ['/bin/sh']},
     {'op': 'spawn', 'role': 'native', 'deadline': 1, 'upstream_ipv4': None, 'plan_sha256': 'a' * 64},
     {'op': 'spawn', 'role': 'preflight', 'argv': ['/bin/sh']},
+    {'op': 'actual_parent_kernel', 'profile': '(allow default)'},
 ])
 def test_controller_rejects_arbitrary_commands_and_out_of_order_roles(tmp_path, message):
     controller = control.Controller(source_sha='a' * 40, manifest=tmp_path / 'manifest',
@@ -131,3 +132,33 @@ def test_recovery_listener_conflict_keeps_exact_port_and_status(monkeypatch):
         tx._no_listeners()
     row = diagnostics.records()[-1]
     assert row['stage'] == 'recovery.port_18794' and row['result'] == 0 and row['event'] == 'failed'
+
+
+def test_parent_directory_inventory_rule_cannot_read_file_contents(tmp_path, monkeypatch):
+    import subprocess
+    if sys.platform != 'darwin':
+        pytest.skip('actual macOS directory selectors required')
+    history = tmp_path / 'history'; (history / 'nested').mkdir(parents=True)
+    (history / 'secret').write_text('synthetic sentinel')
+    (history / 'nested/secret').write_text('synthetic sentinel')
+    outside = tmp_path / 'outside'; outside.mkdir()
+    (history / 'escape').symlink_to(outside, target_is_directory=True)
+    mutable = tmp_path / 'control'; mutable.mkdir()
+    manifest = mutable / 'manifest'; manifest.write_text('synthetic')
+    monkeypatch.setattr(c, 'protected_roots', lambda owner: [history])
+    policy = control.parent_policy(manifest=manifest, archive=None, approval=None, control_root=mutable)
+    code = r'''
+import json,sys
+from pathlib import Path
+p=Path(sys.argv[1]);out={}
+for name,kind in [('.', 'directory'),('nested','directory'),('secret','file'),('nested/secret','file'),('escape','directory')]:
+ try:
+  list((p/name).iterdir()) if kind=='directory' else (p/name).read_bytes()
+  out[name]=True
+ except PermissionError:out[name]=False
+print(json.dumps(out))
+'''
+    result = subprocess.run(['/usr/bin/sandbox-exec', '-p', policy, sys.executable, '-I', '-B', '-c', code, str(history)],
+                            capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {'.': True, 'nested': True, 'secret': False, 'nested/secret': False, 'escape': False}
