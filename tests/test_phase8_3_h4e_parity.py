@@ -336,6 +336,8 @@ def test_actual_parent_qualification_cannot_be_self_certified(tmp_path, monkeypa
         raise c.H4EBlocked('fresh kernel probe rejected the forged success proof')
     monkeypatch.setattr(rehearsal, 'qualify_actual_parent_policy', current_probe)
     monkeypatch.setattr(runner, 'CONTROLLER', None)
+    class Controller:
+        def actual_parent_kernel(self): return current_probe()
     monkeypatch.setattr(rehearsal, 'reverify', lambda *a, **k: pytest.fail('tampered parent evidence reached snapshot execution'))
     with tempfile.TemporaryDirectory(prefix='h4e-receipt-test-', dir='/private/tmp') as directory:
         root = Path(directory) / 'h4e-parity-evidence'; root.mkdir(mode=0o700)
@@ -362,7 +364,8 @@ def test_actual_parent_qualification_cannot_be_self_certified(tmp_path, monkeypa
                   'kernel_log_and_hash': 'actual parent kernel proof',
                   'kernel_not_enforced': 'fresh kernel probe rejected'}[tamper]
         with pytest.raises(c.H4EBlocked, match=reason):
-            admission.verify_receipt(path, source_sha='a' * 40, manifest=manifest)
+            admission.verify_receipt(path, source_sha='a' * 40, manifest=manifest,
+                                     controller=Controller() if tamper == 'kernel_not_enforced' else None)
 
 
 def test_rehearsal_evidence_root_must_be_private_and_next_to_receipt(tmp_path):
@@ -397,3 +400,55 @@ def test_receipt_rejects_mismatched_scenario_context(tmp_path, monkeypatch, mism
             for name, context in zip(CASES, contexts)]})
     with pytest.raises(c.H4EBlocked, match='context does not match declared suite'):
         admission.verify_receipt(receipt, source_sha='a' * 40, manifest=manifest)
+
+
+@pytest.mark.parametrize('via_controller', [False, True])
+def test_receipt_rechecks_with_controller_or_local_fallback(tmp_path, monkeypatch, via_controller):
+    import phase8_3_h4e_controller as control
+    import phase8_3_h4e_parity_admission as admission
+    import phase8_3_h4e_rehearsal as rehearsal
+    suite = tmp_path / 'h4e-parity-current'; suite.mkdir(mode=0o700)
+    parent = suite / 'actual-parent'; parent.mkdir()
+    manifest = suite / 'candidate.sha256'; manifest.write_text('synthetic manifest')
+    policy = 'trusted policy'
+    denied = dict.fromkeys(('wan_tcp_v4', 'wan_tcp_v6', 'wan_udp', 'unlisted_loopback'), 1)
+    log = 'H4E_KERNEL_PROOF ' + json.dumps({'role': 'actual_parent', 'denied': denied})
+    (parent / 'policy.sb').write_text(policy); (parent / 'qualification.log').write_text(log)
+    sha = lambda value: hashlib.sha256(value.encode()).hexdigest()
+    cases = []
+    for name in rehearsal.CASES:
+        context = suite / 'cases' / name / 'context.json'; context.parent.mkdir(parents=True)
+        context.write_text(json.dumps({'archive': str(suite / 'archive'), 'candidate_source_sha': 'a' * 40,
+                                       'manifest_sha256': sha('synthetic manifest')}))
+        cases.append({'context': str(context), 'verification': {'scenario': name}, 'evidence_sha256': {}})
+    receipt = tmp_path / 'receipt.json'
+    c.write_new_json(receipt, {'schema': 'local-system-one/h4e-parity-receipt-v1', 'suite_root': str(suite),
+        'status': 'SYSTEM_REHEARSAL_PASS', 'candidate_source_clean': True, 'candidate_source_sha': 'a' * 40,
+        'candidate_manifest_sha256': sha('synthetic manifest'), 'differences': admission.DIFFERENCES,
+        'real_provider_requests': 0, 'real_execution_authorized': False, 'created_at_unix': time.time(),
+        'environment': {}, 'scenarios': cases, 'actual_parent_policy': {'policy_bytes': len(policy),
+        'policy_sha256': sha(policy), 'kernel_log_sha256': sha(log), 'kernel_denied': denied,
+        'real_home_or_credential_contents_read': False}})
+    monkeypatch.setattr(admission, 'environment_fingerprint', lambda: {})
+    monkeypatch.setattr(admission, 'evidence_files', lambda context: {})
+    monkeypatch.setattr(control, 'parent_policy', lambda **kwargs: policy)
+    checked = []
+    def probe(*args, **kwargs):
+        checked.append('kernel')
+        return {'kernel_denied': denied}
+    def verify(path, **kwargs):
+        checked.append(path)
+        return {'scenario': path.parent.name}
+    class Controller:
+        def actual_parent_kernel(self): return probe()
+        def reverify(self, path): return verify(path)
+    if via_controller:
+        monkeypatch.setattr(rehearsal, 'qualify_actual_parent_policy', lambda *a, **k: pytest.fail('local kernel probe'))
+        monkeypatch.setattr(rehearsal, 'reverify', lambda *a, **k: pytest.fail('local reverify'))
+    else:
+        monkeypatch.setattr(rehearsal, 'qualify_actual_parent_policy', probe)
+        monkeypatch.setattr(rehearsal, 'reverify', verify)
+    controller = Controller() if via_controller else None
+    result = admission.verify_receipt(receipt, source_sha='a' * 40, manifest=manifest, controller=controller)
+    assert result['scenario_count'] == len(rehearsal.CASES)
+    assert checked == ['kernel', *[Path(row['context']) for row in cases]]

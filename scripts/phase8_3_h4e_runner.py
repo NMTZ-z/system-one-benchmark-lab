@@ -90,7 +90,7 @@ def check_offline(source_sha: str, manifest: Path, archive: Path, rehearsal_rece
     ready = _check_inputs(source_sha, manifest, archive)
     with stage('admission.system_rehearsal', 'rehearsal_evidence_verify'):
         from phase8_3_h4e_parity_admission import verify_receipt
-        parity = verify_receipt(rehearsal_receipt, source_sha=source_sha, manifest=manifest)
+        parity = verify_receipt(rehearsal_receipt, source_sha=source_sha, manifest=manifest, controller=CONTROLLER)
     return {**ready, 'system_rehearsal': parity}
 
 

@@ -158,3 +158,20 @@ def test_recovery_missing_process_ledger_never_restores(tmp_path, monkeypatch):
     monkeypatch.setattr(owned, 'LEDGER', tmp_path / 'missing')
     monkeypatch.setattr(tx, 'restore', lambda: pytest.fail('unproved recovery'))
     with pytest.raises(c.H4EBlocked): runner.recover('a' * 40, tmp_path / 'manifest')
+
+
+def test_offline_check_passes_its_controller_to_receipt_verifier(tmp_path, monkeypatch):
+    import runpy
+    import phase8_3_h4e_parity_admission as admission
+    isolated = runpy.run_path(str(Path(runner.__file__)))
+    check = isolated['check_offline']
+    controller = object()
+    monkeypatch.setitem(check.__globals__, 'CONTROLLER', controller)
+    monkeypatch.setitem(check.__globals__, '_check_inputs', lambda *args: {'status': 'READY'})
+    monkeypatch.setattr(runner, 'CONTROLLER', None)
+    def verify(path, *, source_sha, manifest, controller):
+        assert controller is check.__globals__['CONTROLLER']
+        return {'status': 'VERIFIED'}
+    monkeypatch.setattr(admission, 'verify_receipt', verify)
+    result = check('a' * 40, tmp_path / 'manifest', tmp_path / 'archive', tmp_path / 'receipt')
+    assert result['system_rehearsal']['status'] == 'VERIFIED'

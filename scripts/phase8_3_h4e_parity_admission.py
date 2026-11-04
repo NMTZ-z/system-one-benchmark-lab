@@ -114,7 +114,7 @@ def evidence_files(context: dict) -> dict:
     return result
 
 
-def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dict:
+def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path, controller=None) -> dict:
     if path is None:
         raise c.H4EBlocked('complete system rehearsal receipt required')
     c.safe_path(path)
@@ -161,9 +161,8 @@ def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dic
               if line.startswith('H4E_KERNEL_PROOF ')]
     if proofs != [{'role': 'actual_parent', 'denied': qualification['kernel_denied']}]:
         raise c.H4EBlocked('actual parent kernel proof is missing or ambiguous')
-    import phase8_3_h4e_runner as runner
-    if runner.CONTROLLER is not None:
-        current = runner.CONTROLLER.actual_parent_kernel()
+    if controller is not None:
+        current = controller.actual_parent_kernel()
     else:
         from phase8_3_h4e_rehearsal import qualify_actual_parent_policy
         with tempfile.TemporaryDirectory(prefix='h4e-parent-recheck-', dir='/private/tmp') as directory:
@@ -177,8 +176,7 @@ def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dic
                 or evidence_files(context) != row.get('evidence_sha256')):
             raise c.H4EBlocked('rehearsal original evidence changed')
         # Recompute the native/HMAC/model/budget/recovery verdict; a PASS label is insufficient.
-        import phase8_3_h4e_runner as runner
-        verdict = (runner.CONTROLLER.reverify(context_path) if runner.CONTROLLER is not None
+        verdict = (controller.reverify(context_path) if controller is not None
                    else reverify(context_path, source_manifest=manifest))
         if verdict != row['verification']:
             raise c.H4EBlocked('rehearsal independent verdict changed')
