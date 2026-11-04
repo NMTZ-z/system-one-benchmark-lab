@@ -11,6 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 def parent_environment(owner: Path) -> dict:
     return {'HOME': str(owner), 'PATH': '/usr/bin:/bin', 'LANG': 'en_US.UTF-8',
         'PYTHONDONTWRITEBYTECODE': '1', 'GIT_OPTIONAL_LOCKS': '0',
+        'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_COUNT': '4',
+        'GIT_ATTR_NOSYSTEM': '1',
+        'GIT_CONFIG_KEY_0': 'core.fsmonitor', 'GIT_CONFIG_VALUE_0': 'false',
+        'GIT_CONFIG_KEY_1': 'core.hooksPath', 'GIT_CONFIG_VALUE_1': '/dev/null',
+        'GIT_CONFIG_KEY_2': 'core.attributesFile', 'GIT_CONFIG_VALUE_2': '/dev/null',
+        'GIT_CONFIG_KEY_3': 'core.excludesFile', 'GIT_CONFIG_VALUE_3': '/dev/null',
         'HERMES_DISABLE_LAZY_INSTALLS': '1', 'HERMES_PM_AUTO_SYNC': '0'}
 
 

@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 import platform
-import re
 import subprocess
 import sys
 import tempfile
@@ -139,14 +138,15 @@ def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dic
     if (not isinstance(cases, list) or len(cases) != len(CASES)
             or [row.get('verification', {}).get('scenario') for row in cases] != list(CASES)):
         raise c.H4EBlocked('rehearsal fault matrix is incomplete')
-    suite = c.safe_path(Path(report['suite_root']))
-    if (suite.parent != Path('/private/tmp') or not re.fullmatch(r'h4e-parity-[a-z0-9_-]+', suite.name)
-            or suite.stat().st_uid != os.getuid() or suite.stat().st_mode & 0o077):
-        raise c.H4EBlocked('actual parent qualification data root is unsafe')
+    suite = c.validate_rehearsal_root(Path(report['suite_root']), receipt=path)
+    contexts = [c.safe_path(Path(row['context'])) for row in cases]
+    if any(context != suite / 'cases' / scenario / 'context.json'
+           for context, scenario in zip(contexts, CASES)):
+        raise c.H4EBlocked('rehearsal context does not match declared suite')
     qualification = report.get('actual_parent_policy', {})
     policy_file, log_file = c.safe_path(suite / 'actual-parent/policy.sb'), c.safe_path(suite / 'actual-parent/qualification.log')
     from phase8_3_h4e_controller import parent_policy
-    first = json.loads(c.safe_path(Path(cases[0]['context'])).read_text())
+    first = json.loads(contexts[0].read_text())
     policy = parent_policy(manifest=suite / 'candidate.sha256', archive=Path(first['archive']), approval=None,
                            control_root=suite / 'actual-parent')
     if (digest(suite / 'candidate.sha256') != digest(manifest)
@@ -170,8 +170,7 @@ def verify_receipt(path: Path | None, *, source_sha: str, manifest: Path) -> dic
             current = qualify_actual_parent_policy(Path(directory), Path(first['archive']), manifest)
     if current.get('kernel_denied') != qualification['kernel_denied']:
         raise c.H4EBlocked('actual parent kernel enforcement changed')
-    for row in cases:
-        context_path = c.safe_path(Path(row['context']))
+    for row, context_path in zip(cases, contexts):
         context = json.loads(context_path.read_text())
         if (context.get('candidate_source_sha') != source_sha
                 or context.get('manifest_sha256') != digest(manifest)

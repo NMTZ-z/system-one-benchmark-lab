@@ -15,7 +15,6 @@ import json
 import math
 import os
 from pathlib import Path
-import re
 import shutil
 import socket
 import subprocess
@@ -56,8 +55,8 @@ def synthetic_history() -> tuple[bytes, dict]:
 def load_context(path: Path) -> dict:
     c.safe_path(path)
     case, suite = path.parent, path.parents[2]
+    c.validate_rehearsal_root(suite)
     if (path.name != 'context.json' or case.parent.name != 'cases' or case.name not in CASES
-            or suite.parent != Path('/private/tmp') or not re.fullmatch(r'h4e-parity-[a-z0-9_-]+', suite.name)
             or path.stat().st_uid != os.getuid() or path.stat().st_mode & 0o077
             or path.stat().st_size > 250000):
         raise c.H4EBlocked('rehearsal context must be owned disposable data')
@@ -440,9 +439,9 @@ def verify_case(context: dict, path: Path) -> None:
 
 
 def _git(project: Path, *args: str) -> str:
+    from phase8_3_h4e_launch import parent_environment
     return subprocess.check_output(['/usr/bin/git', '-C', str(project), *args], text=True,
-        env={**os.environ, 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null',
-             'GIT_OPTIONAL_LOCKS': '0'}, stderr=subprocess.PIPE).strip()
+        env=parent_environment(Path.home()), stderr=subprocess.PIPE).strip()
 
 
 def prepare_case(suite: Path, fault: str, archive: Path, source_files: dict, candidate_sha: str) -> Path:
@@ -457,6 +456,10 @@ def prepare_case(suite: Path, fault: str, archive: Path, source_files: dict, can
     root = suite / 'cases' / fault
     owner, project = root / 'owner', root / 'owner/Projects/runner'
     project.mkdir(parents=True, mode=0o700)
+    (owner / '.gitconfig').write_text('synthetic invalid global config; execution must not read this file\n')
+    (owner / '.config/git').mkdir(parents=True)
+    (owner / '.config/git/ignore').write_text('*\n')
+    (owner / '.config/git/attributes').write_text('* filter=synthetic_forbidden_global_filter\n')
     for name, expected in source_files.items():
         source, target = c.ROOT / name, project / name
         if digest(source) != expected:
@@ -696,9 +699,6 @@ def reverify(path: Path, *, source_manifest: Path) -> dict:
         raise c.H4EBlocked('rehearsal verification permission inputs differ from trusted dependencies')
     environment = parent_environment(Path(context['owner']))
     environment['TMPDIR'] = str(root / 'tmp')
-    environment.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_COUNT='2',
-        GIT_CONFIG_KEY_0='core.fsmonitor', GIT_CONFIG_VALUE_0='false',
-        GIT_CONFIG_KEY_1='core.hooksPath', GIT_CONFIG_VALUE_1='/dev/null')
     policy = outer_policy(context, verify_only=True)
     for port in (18782, 18793, 18794):
         policy += f'(allow network-bind (local ip "localhost:{port}"))\n'
@@ -748,7 +748,7 @@ def run_suite(archive: Path, report: Path, *, only=None) -> None:
     source_files = {name: digest(c.ROOT / name) for name in files}
     candidate_sha = _git(c.ROOT, 'rev-parse', 'HEAD')
     clean = not _git(c.ROOT, 'status', '--porcelain')
-    suite = Path(tempfile.mkdtemp(prefix='h4e-parity-', dir='/private/tmp'))
+    suite = Path(tempfile.mkdtemp(prefix='h4e-parity-', dir=report.parent))
     suite.chmod(0o700)
     result = {'schema': 'local-system-one/h4e-parity-receipt-v1', 'suite_root': str(suite),
         'candidate_source_sha': candidate_sha, 'candidate_source_clean': clean,

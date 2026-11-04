@@ -414,11 +414,11 @@ def parent_policy(*, manifest: Path, archive: Path | None, approval: Path | None
                   control_root: Path, receipt: Path | None = None, real_dns=False) -> str:
     """Shared executor profile. The controller only enumerates metadata and public dependencies."""
     from phase8_3_init_diagnostic import build_policy, quoted
+    from phase8_3_h4e_launch import parent_environment
     from phase8_3_h4b_direct_child import HERMES_PYTHON
     from phase8_3_prepare_shared_dependency_home import TEST_HOME
     from phase8_3_real_hermes_h2 import MODEL_PATH
     from phase8_3_native_rehearsal import model_files
-    import re
     owner = Path.home()
     ledger = c.original_ledger(owner)
     readable = [c.ROOT, manifest, TEST_HOME, ledger, ledger.with_name(ledger.name + '.lock'),
@@ -426,15 +426,13 @@ def parent_policy(*, manifest: Path, archive: Path | None, approval: Path | None
         HERMES_PYTHON.parent.parent.resolve(), HERMES_PYTHON.resolve().parent.parent,
         MODEL_PATH, *[p.resolve() for p in model_files(MODEL_PATH)]]
     readable += [p for p in (archive, approval) if p is not None]
-    common = subprocess.check_output(['/usr/bin/git', '-C', str(c.ROOT), 'rev-parse', '--git-common-dir'], text=True).strip()
+    common = subprocess.check_output(['/usr/bin/git', '-C', str(c.ROOT), 'rev-parse', '--git-common-dir'],
+                                     env=parent_environment(owner), text=True).strip()
     readable.append((c.ROOT / common).resolve())
     if receipt is not None:
         c.safe_path(receipt)
         data = json.loads(receipt.read_text())
-        suite = c.safe_path(Path(data['suite_root']))
-        if (suite.parent != Path('/private/tmp') or not re.fullmatch(r'h4e-parity-[a-z0-9_-]+', suite.name)
-                or not suite.is_dir() or suite.stat().st_uid != os.getuid() or suite.stat().st_mode & 0o077):
-            raise c.H4EBlocked('rehearsal receipt references an unsafe data root')
+        suite = c.validate_rehearsal_root(Path(data['suite_root']), receipt=receipt)
         readable += [receipt, suite]
     policy = build_policy(owner=owner, readable=readable, mutable=control_root)
     policy += '(allow process-fork)\n(allow process-info-pidinfo)\n(allow process-info-listpids)\n(allow signal)\n'

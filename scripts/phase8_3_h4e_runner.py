@@ -125,11 +125,9 @@ def _make_case(archive: Path, source_sha: str, manifest_sha: str, authorization:
 
 
 def _environment(*, native: bool = False) -> dict:
+    from phase8_3_h4e_launch import parent_environment
     home = Path.home() if native else c.PRIVATE / 'service_home'
-    env = {'HOME': str(home), 'PATH': '/usr/bin:/bin', 'LANG': 'en_US.UTF-8',
-           'NO_PROXY': '127.0.0.1,localhost', 'PYTHONDONTWRITEBYTECODE': '1',
-           'HERMES_DISABLE_LAZY_INSTALLS': '1', 'HERMES_PM_AUTO_SYNC': '0',
-           'GIT_OPTIONAL_LOCKS': '0',
+    env = {**parent_environment(home), 'NO_PROXY': '127.0.0.1,localhost',
            'TMPDIR': str(c.CASE / 'tmp' if native else c.PRIVATE / 'tmp'),
            'PYTHONPATH': str(c.ROOT)}
     if native:

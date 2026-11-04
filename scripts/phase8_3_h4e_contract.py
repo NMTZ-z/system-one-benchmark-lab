@@ -112,6 +112,15 @@ def attest_original_ledger(owner: Path) -> dict:
             'historic_H1_UNKNOWN': 1, 'ledger_sha256': LEDGER_SHA}
 
 
+def validate_rehearsal_root(root: Path, *, receipt: Path | None = None) -> Path:
+    safe_path(root)
+    if (not re.fullmatch(r'h4e-parity-[a-z0-9_-]+', root.name) or not root.is_dir()
+            or root.stat().st_uid != os.getuid() or root.stat().st_mode & 0o077
+            or receipt is not None and root.parent != safe_path(receipt).parent):
+        raise H4EBlocked('rehearsal data must be private and adjacent to its receipt')
+    return root
+
+
 def protected_roots(owner: Path) -> list[Path]:
     roots = [owner / '.hermes' / name for name in ('config.yaml', 'auth.json', '.env', 'plugins')]
     roots += [p / 'private/phase8_3_native_real' for p in (owner / 'Projects').glob('system-one-phase8-3*')
