@@ -104,6 +104,8 @@ The optional MCP server uses the official Python MCP SDK v2 and exposes:
 - notification_gate
 - system_one_health
 
+The Runtime's Completion and Retry / Escalation HTTP endpoints are not exposed as MCP tools in the current main source. MCP parity is part of the v0.2.0 delivery plan for Phase 8.4C; see [product scope](V0_2_PRODUCT_SCOPE.md).
+
 Run manually:
 
 ~~~bash

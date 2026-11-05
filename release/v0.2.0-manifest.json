@@ -1,0 +1,97 @@
+{
+  "schema": "local-system-one/release-plan-v1",
+  "status": "planning",
+  "release_version": "0.2.0",
+  "release_commit": null,
+  "release_tag": null,
+  "snapshot_date": "2026-11-05",
+  "verified_github_main_at_snapshot": "062d52e753e7e00d91a536dc81e9d85b8819cb12",
+  "rc_targets": ["v0.2.0-rc.1", "v0.2.0-rc.2"],
+  "platform": {
+    "os_architecture": "macOS / Apple Silicon",
+    "python_declared": ">=3.11,<3.14",
+    "python_versions_tested_for_release": null,
+    "hermes_declared": ">=0.21.4",
+    "hermes_versions_tested_for_release": null,
+    "dsh_target_versions": [
+      {
+        "version": "0.1.7-rc.2",
+        "source_commit": "477b4f420553e8a52c2fbccc464d7561b239c443"
+      },
+      {
+        "version": "0.2.1-alpha.1",
+        "source_commit": "5badb15009ae1756c3afe0ae0cef1faafc290ccc"
+      }
+    ],
+    "dsh_versions_tested_for_release": null,
+    "node_declared": ">=22.19.0"
+  },
+  "components": {
+    "runtime": {
+      "target_version": "0.2.0",
+      "python_rc1_version": "0.2.0rc1",
+      "observed_main_version": "0.1.0",
+      "release_source_commit": null,
+      "artifacts": null,
+      "default_backend": "mlx",
+      "declared_laya_mlx_version": "0.2.0"
+    },
+    "hermes_plugin": {
+      "target_version": "0.10.0",
+      "observed_main_version": "0.9.0",
+      "release_source_commit": null,
+      "artifacts": null,
+      "catalog_version_at_snapshot": "0.6.0",
+      "catalog_source_commit_at_snapshot": "1095495019b2dff2b4231ed70ec23a3ea716e2f6",
+      "catalog_update_phase": "8.4D"
+    },
+    "dsh_plugin": {
+      "target_version": "0.7.0",
+      "observed_main_version": "0.6.0",
+      "release_source_commit": null,
+      "install_source_commit": null,
+      "artifacts": null,
+      "install_branch_version_at_snapshot": "0.3.0",
+      "install_branch_commit_at_snapshot": "217cf89b3c9d17eb5f3178ec0de31b530f834a96"
+    }
+  },
+  "model": {
+    "id": "convaiinnovations/laya-typed-decisions",
+    "revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+    "file_sha256": null,
+    "license_verified_for_release": null,
+    "optional_ane": {
+      "repository": "NMTZ/laya-typed-decisions-421m-coreml-ane",
+      "artifact_revision": null,
+      "file_sha256": null,
+      "license_verified_for_release": null,
+      "laya_coreml_source_commit": "4619e0483f07adf39068532e85b42ec2347edb83"
+    }
+  },
+  "target_defaults": {
+    "service_url": "http://127.0.0.1:8787",
+    "hermes_mode": "off",
+    "first_shadow_gates": ["search"],
+    "other_gates": "explicit_opt_in",
+    "cloud_decision_provider": "disabled",
+    "persistent_service": "opt_in",
+    "production_active": "not_authorized"
+  },
+  "target_capabilities": {
+    "gates": ["search", "model_tier", "notification", "completion", "retry_escalation"],
+    "http": "five_gates_and_health",
+    "mcp": "five_gates_and_health_by_8.4C",
+    "hermes": "shadow_without_agent_mutation",
+    "dsh": "verified_versions_only",
+    "stop_and_uninstall": "reversible_owned_resources"
+  },
+  "unauthorized_capabilities": [
+    "production_active_or_canary",
+    "automatic_tool_retry",
+    "automatic_agent_termination",
+    "automatic_paid_model_escalation",
+    "automatic_remote_provider_fallback"
+  ],
+  "artifact_record_requirements": ["name", "url", "sha256", "source_commit", "version"],
+  "final_release_ready": false
+}
