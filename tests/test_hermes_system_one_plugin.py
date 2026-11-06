@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -28,6 +29,14 @@ def load_plugin():
 class FakeState:
     def __init__(self):
         self.values = {}
+        self._tmp = tempfile.TemporaryDirectory()
+        self.data_dir = Path(self._tmp.name) / "plugin-data" / "agent-plugin-test"
+        self.data_dir.parent.mkdir(parents=True)
+        control = self.data_dir.parent / "local-system-one-hermes.control"
+        control.write_text(
+            '{"schema":"local-system-one/control-v1","mode":"on","epoch":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}', encoding="utf-8"
+        )
+        control.chmod(0o600)
 
     def get(self, key, default=None):
         return self.values.get(key, default)
@@ -59,6 +68,7 @@ class FakeContext:
         self.hooks = {}
         self.hook_callbacks = {}
         self.middleware = {}
+        self.unload_callbacks = []
 
     def get_config(self, key, default=None):
         return self.settings.get(key, default)
@@ -79,6 +89,9 @@ class FakeContext:
 
     def register_middleware(self, name, callback):
         self.middleware[name] = callback
+
+    def on_unload(self, callback):
+        self.unload_callbacks.append(callback)
 
 
 def test_off_mode_registers_inert_declared_surfaces(monkeypatch):
@@ -703,11 +716,11 @@ def test_session_end_clears_unconsumed_canary_state(monkeypatch):
         platform="cli",
         turn_id="turn-cleanup",
     )
-    assert "turn-cleanup" in ctx.state.values["canary_pending"]
+    assert plugin._opaque_id("turn-cleanup") in ctx.state.values["canary_pending"]
     ctx.hooks["on_session_end"](
         turn_id="turn-cleanup", completed=True, failed=False, interrupted=False
     )
-    assert "turn-cleanup" not in ctx.state.values["canary_pending"]
+    assert plugin._opaque_id("turn-cleanup") not in ctx.state.values["canary_pending"]
 
 
 def test_reasoning_canary_is_disabled_by_feature_switch(monkeypatch):
@@ -1297,7 +1310,7 @@ def test_plugin_manifest_has_safe_product_defaults():
 
     manifest = yaml.safe_load((PLUGIN_PATH.parent / "plugin.yaml").read_text())
     assert manifest["manifest_version"] == 2
-    assert manifest["version"] == "0.9.0"
+    assert manifest["version"] == "0.10.0"
     assert manifest["provides_tools"] == []
     assert manifest["provides_hooks"] == [
         "pre_llm_call", "post_llm_call", "post_tool_call", "on_session_end"
@@ -1308,9 +1321,221 @@ def test_plugin_manifest_has_safe_product_defaults():
     schema = manifest["config_schema"]
     assert schema["mode"]["default"] == "off"
     assert schema["mode"]["choices"] == ["off", "shadow", "canary"]
-    assert schema["notification_gate_enabled"]["default"] is True
-    assert schema["completion_gate_enabled"]["default"] is True
+    assert schema["search_gate_enabled"]["default"] is True
+    assert schema["model_tier_gate_enabled"]["default"] is False
+    assert schema["notification_gate_enabled"]["default"] is False
+    assert schema["completion_gate_enabled"]["default"] is False
     assert schema["completion_loop_probe_enabled"]["default"] is False
     assert schema["canary_acknowledged"]["default"] is False
     assert schema["canary_web_filter_enabled"]["default"] is True
     assert schema["canary_reasoning_downgrade_enabled"]["default"] is False
+
+
+def test_off_drains_observation_and_old_session_stays_off_after_reenable(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("shadow", model_tier_gate_enabled=False)
+    profile_home = ctx.state.data_dir.parent.parent
+    started = threading.Event()
+    release = threading.Event()
+    completed = threading.Event()
+    calls = []
+
+    def delayed(*args, **kwargs):
+        calls.append(1)
+        started.set()
+        assert release.wait(2)
+        return {"ok": True, "search": None, "model_tier": None,
+                "error": None, "shadow_latency_ms": 1}
+
+    monkeypatch.setattr(plugin, "_safe_recommendations", delayed)
+    plugin.register(ctx)
+    hook = lambda: ctx.hooks["pre_llm_call"](user_message="example", turn_id="t")
+    worker = threading.Thread(target=hook)
+    worker.start()
+    assert started.wait(1)
+    off = threading.Thread(target=lambda: (plugin._set_control(profile_home, False), completed.set()))
+    off.start()
+    assert not completed.wait(0.1)
+    release.set()
+    worker.join(2)
+    off.join(2)
+    assert completed.is_set()
+    hook()
+    plugin._set_control(profile_home, False)
+    plugin._set_control(profile_home, True)
+    hook()
+    assert len(calls) == 1
+    reloaded = FakeContext("shadow", model_tier_gate_enabled=False)
+    reloaded.state = ctx.state
+    plugin.register(reloaded)
+    reloaded.hooks["pre_llm_call"](user_message="example", turn_id="new")
+    assert len(calls) == 2
+
+
+def test_sidecar_requires_explicit_https_for_remote_and_rejects_credentials():
+    plugin = load_plugin()
+    assert plugin._sidecar_url_allowed("http://127.0.0.1:8787")
+    assert not plugin._sidecar_url_allowed("https://example.org")
+    assert plugin._sidecar_url_allowed("https://example.org", True)
+    assert not plugin._sidecar_url_allowed("http://example.org", True)
+    assert not plugin._sidecar_url_allowed("https://user:secret@example.org", True)
+    assert plugin._as_bool("not-approved", False) is False
+    assert plugin._as_bool("not-approved", True) is False
+
+
+def test_status_reads_live_registered_session_and_off_fence(tmp_path, monkeypatch, capsys):
+    from local_system_one import first_run
+
+    root = tmp_path / "hermes"
+    home = root / "profiles/demo"
+    (home / "plugin-data").mkdir(parents=True)
+    (home / "config.yaml").write_text(
+        "plugins:\n  entries:\n    local-system-one-hermes:\n      settings:\n        mode: shadow\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_HERMES_ROOT", str(root))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_STATE_HOME", str(tmp_path / "runtime"))
+    plugin = load_plugin()
+    plugin._set_control(home, True)
+    ctx = FakeContext("shadow", model_tier_gate_enabled=False, notification_gate_enabled=False)
+    ctx.state.data_dir = home / "plugin-data/agent-plugin-local-system-one-hermes-test"
+    plugin.register(ctx)
+    assert first_run.status("demo") == 0
+    output = capsys.readouterr().out
+    assert "EFFECTIVE mode of registered v0.10 sessions: shadow (1 session(s))" in output
+    assert "EFFECTIVE search: true" in output and "EFFECTIVE model_tier: false" in output
+    plugin._set_control(home, False)
+    assert first_run.status("demo") == 0
+    assert "EFFECTIVE mode of registered v0.10 sessions: off (1 session(s))" in capsys.readouterr().out
+    for callback in ctx.unload_callbacks:
+        callback()
+    assert not list((home / "plugin-data/local-system-one-hermes.sessions").iterdir())
+    assert first_run.status("demo") == 0
+    assert "EFFECTIVE mode: PENDING_RELOAD" in capsys.readouterr().out
+
+
+def test_untrusted_response_and_native_ids_are_not_persisted(monkeypatch):
+    plugin = load_plugin()
+    secret = "example-private-prompt-and-credential"
+    ctx = FakeContext("shadow", model_tier_gate_enabled=False)
+    request_ids = []
+    def fake(*args, **kwargs):
+        request_ids.append(args[4])
+        return {"ok": True, "search": {"decision": secret, "reason": secret, "backend": secret,
+                                       "decision_source": "model"},
+                "model_tier": None, "error": None, "shadow_latency_ms": 1}
+    monkeypatch.setattr(plugin, "_safe_recommendations", fake)
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](user_message=secret, turn_id=secret, model=secret, platform=secret)
+    assert secret not in str(ctx.state.values)
+    assert ctx.state.values["last_shadow"]["search"]["decision_source"] == "model"
+    assert ctx.state.values["last_shadow"]["search"]["reason"] == "redacted"
+    assert request_ids[0].startswith("opaque:") and secret not in request_ids[0]
+
+
+def test_off_refuses_unknown_or_hardlinked_control_file(tmp_path):
+    import os
+    import pytest
+
+    plugin = load_plugin()
+    data = tmp_path / "plugin-data"
+    data.mkdir()
+    control = data / "local-system-one-hermes.control"
+    control.write_text("user content", encoding="utf-8")
+    control.chmod(0o600)
+    with pytest.raises(ValueError):
+        plugin._set_control(tmp_path, False)
+    assert control.read_text(encoding="utf-8") == "user content"
+    control.unlink()
+    original = tmp_path / "user-file"
+    original.write_text("keep this", encoding="utf-8")
+    original.chmod(0o600)
+    os.link(original, control)
+    with pytest.raises(OSError):
+        plugin._set_control(tmp_path, False)
+    assert original.read_text(encoding="utf-8") == "keep this"
+
+
+def test_sidecar_redirect_does_not_forward_task():
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import urllib.error
+    import pytest
+
+    received = []
+
+    class Destination(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_POST(self):
+            received.append(True)
+            self.send_response(204)
+            self.end_headers()
+
+    destination = ThreadingHTTPServer(("127.0.0.1", 0), Destination)
+
+    class Redirect(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_POST(self):
+            self.send_response(307)
+            self.send_header("Location", f"http://127.0.0.1:{destination.server_address[1]}/")
+            self.end_headers()
+
+    redirect = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+    threads = [threading.Thread(target=server.serve_forever) for server in (destination, redirect)]
+    for thread in threads:
+        thread.start()
+    try:
+        with pytest.raises(urllib.error.HTTPError):
+            load_plugin()._post_json(f"http://127.0.0.1:{redirect.server_address[1]}", "/gate", {"task": "private"}, 1)
+        assert received == []
+    finally:
+        for server in (redirect, destination):
+            server.shutdown()
+            server.server_close()
+        for thread in threads:
+            thread.join(timeout=2)
+
+
+def test_background_observation_keeps_its_registration_profile(tmp_path, monkeypatch):
+    import contextvars
+
+    profile_context = contextvars.ContextVar("_HERMES_HOME_OVERRIDE")
+    profile_context.set("profile-a")
+    plugin = load_plugin()
+    ctx = FakeContext("shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+                      notification_gate_enabled=False, completion_gate_enabled=True,
+                      completion_loop_probe_enabled=True)
+    profile_home = tmp_path / "profile-a"
+    (profile_home / "plugin-data").mkdir(parents=True)
+    plugin._set_control(profile_home, True)
+
+    class ProfileState:
+        data_dir = profile_home / "plugin-data/agent-plugin-test"
+
+        def __init__(self):
+            self.by_profile = {}
+
+        def get(self, key, default=None):
+            return self.by_profile.get(profile_context.get(), {}).get(key, default)
+
+        def set(self, key, value):
+            self.by_profile.setdefault(profile_context.get(), {})[key] = value
+
+    ctx.state = ProfileState()
+    monkeypatch.setattr(plugin, "_safe_completion", lambda *_args: {
+        "ok": False, "completion": None, "error": "URLError", "shadow_latency_ms": 1,
+    })
+    plugin.register(ctx)
+    profile_context.set("profile-b")
+    common = {"turn_id": "turn", "session_id": "session"}
+    ctx.hooks["pre_llm_call"](**common, user_message="test")
+    ctx.hooks["post_tool_call"](**common, status="success", result={"success": True})
+    for _ in range(100):
+        if "last_completion_loop_probe" in ctx.state.by_profile.get("profile-a", {}):
+            break
+        time.sleep(0.01)
+    assert "last_completion_loop_probe" in ctx.state.by_profile["profile-a"]
+    assert "profile-b" not in ctx.state.by_profile

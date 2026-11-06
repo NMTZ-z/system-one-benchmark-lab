@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -20,9 +21,12 @@ def _fake_env(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
         'echo "HERMES_HOME=${HERMES_HOME:-} :: $*" >> "$FAKE_HERMES_LOG"\n'
-        'if [[ "${1:-}" == plugins && "${2:-}" == validate ]]; then exit 0; fi\n'
+        'if [[ "${1:-}" == plugins && "${2:-}" == validate ]]; then '
+        '[[ "${FAKE_FAIL_TARGET:-}" != "${3:-}" ]] || exit 1; exit 0; fi\n'
         'if [[ "${1:-}" == plugins && "${2:-}" == show ]]; then echo "fake plugin show"; exit 0; fi\n'
-        'if [[ "${1:-}" == config && "${2:-}" == get ]]; then exit 1; fi\n'
+        'if [[ "${1:-}" == config && "${2:-}" == get ]]; then '
+        'if [[ "${3:-}" == *.service_url && -n "${FAKE_SERVICE_URL:-}" ]]; then '
+        'printf "%s\\n" "$FAKE_SERVICE_URL"; exit 0; fi; exit 1; fi\n'
         "exit 0\n"
     )
     fake.chmod(0o755)
@@ -63,9 +67,7 @@ def test_install_default_is_off_and_excludes_bytecode(tmp_path):
     assert (target / "plugin.yaml").is_file()
     assert not (target / "__pycache__").exists()
     commands = log.read_text()
-    assert (
-        "config unset plugins.entries.local-system-one-hermes.settings.mode" in commands
-    )
+    assert "settings.mode false --force" in commands
     assert "settings.canary_acknowledged false --force" in commands
     assert "plugins enable local-system-one-hermes --no-allow-tool-override" in commands
 
@@ -118,9 +120,10 @@ def test_uninstall_cleans_code_config_and_plugin_state(tmp_path):
     env, root, log = _fake_env(tmp_path)
     profile = root / "profiles/demo"
     target = profile / "plugins/local-system-one-hermes"
-    target.mkdir(parents=True)
-    (target / "plugin.yaml").write_text("name: local-system-one-hermes\n")
-    state = profile / "plugin-data/agent-plugin-local-system-one-hermes-deadbeef"
+    profile.mkdir(parents=True)
+    assert _run("install_hermes_system_one_plugin.sh", "demo", env=env).returncode == 0
+    suffix = hashlib.sha256(b"local-system-one-hermes").hexdigest()[:8]
+    state = profile / f"plugin-data/agent-plugin-local-system-one-hermes-{suffix}"
     state.mkdir(parents=True)
     (state / "state.json").write_text("{}")
     result = _run("uninstall_hermes_system_one_plugin.sh", "demo", env=env)
@@ -128,21 +131,19 @@ def test_uninstall_cleans_code_config_and_plugin_state(tmp_path):
     assert not target.exists()
     assert not state.exists()
     commands = log.read_text()
-    assert "plugins disable local-system-one-hermes" in commands
     assert "plugins remove local-system-one-hermes" in commands
-    assert "config unset plugins.entries.local-system-one-hermes" in commands
+    assert "plugins disable local-system-one-hermes" not in commands
 
 
-def test_off_mode_unsets_string_mode_and_revokes_ack(tmp_path):
+def test_off_mode_masks_legacy_mode_and_revokes_ack(tmp_path):
     env, root, log = _fake_env(tmp_path)
     (root / "profiles/demo/plugins/local-system-one-hermes").mkdir(parents=True)
     result = _run("set_hermes_system_one_mode.sh", "demo", "off", env=env)
     assert result.returncode == 0
     commands = log.read_text()
-    assert (
-        "config unset plugins.entries.local-system-one-hermes.settings.mode" in commands
-    )
+    assert "settings.mode false --force" in commands
     assert "settings.canary_acknowledged false --force" in commands
+    assert "EFFECTIVE: UNKNOWN" in result.stdout
 
 
 def test_default_profile_canary_ack_short_form(tmp_path):
@@ -153,3 +154,39 @@ def test_default_profile_canary_ack_short_form(tmp_path):
     commands = log.read_text()
     assert f"HERMES_HOME={root} :: config set" in commands
     assert "settings.mode canary --force" in commands
+
+
+def test_upgrade_validation_failure_restores_exact_previous_files(tmp_path):
+    env, root, _ = _fake_env(tmp_path)
+    profile = root / "profiles/demo"
+    profile.mkdir(parents=True)
+    assert _run("install_hermes_system_one_plugin.sh", "demo", env=env).returncode == 0
+    target = profile / "plugins/local-system-one-hermes"
+    before = {p.name: p.read_bytes() for p in target.iterdir()}
+    env["FAKE_FAIL_TARGET"] = str(target)
+    failed = _run("install_hermes_system_one_plugin.sh", "demo", env=env)
+    assert failed.returncode != 0
+    assert {p.name: p.read_bytes() for p in target.iterdir()} == before
+
+
+def test_refuses_unknown_plugin_and_profile_traversal(tmp_path):
+    env, root, _ = _fake_env(tmp_path)
+    target = root / "profiles/demo/plugins/local-system-one-hermes"
+    target.mkdir(parents=True)
+    (target / "plugin.yaml").write_text("name: local-system-one-hermes\n")
+    (target / "private.txt").write_text("keep")
+    assert _run("install_hermes_system_one_plugin.sh", "demo", env=env).returncode != 0
+    assert _run("uninstall_hermes_system_one_plugin.sh", "demo", env=env).returncode != 0
+    assert (target / "private.txt").read_text() == "keep"
+    assert _run("install_hermes_system_one_plugin.sh", "../demo", env=env).returncode != 0
+
+
+def test_remote_shadow_needs_explicit_approval(tmp_path):
+    env, root, _ = _fake_env(tmp_path)
+    (root / "profiles/demo/plugins/local-system-one-hermes").mkdir(parents=True)
+    env["FAKE_SERVICE_URL"] = "https://sidecar.example"
+    denied = _run("set_hermes_system_one_mode.sh", "demo", "shadow", env=env)
+    assert denied.returncode != 0
+    allowed = _run("set_hermes_system_one_mode.sh", "demo", "shadow", "--allow-remote", env=env)
+    assert allowed.returncode == 0
+    assert "YES (explicitly approved)" in allowed.stdout
