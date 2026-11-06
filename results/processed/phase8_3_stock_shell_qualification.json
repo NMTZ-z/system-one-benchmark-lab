@@ -1,0 +1,45 @@
+{
+  "active_canary_authority": "NOT_AUTHORIZED",
+  "agent_value_or_cost_savings": "NOT_ESTABLISHED",
+  "auto_retries_or_active_actions": 0,
+  "case": "off_stock_shell",
+  "completion_or_retry_model_inferences": 0,
+  "date_local": "2026-10-26",
+  "external_stepfun_or_other_provider_requests": 0,
+  "global_historical_request_cap": 24,
+  "independent_read_only_readjudication": "PASS",
+  "initial_frozen_source_commit": "da998de1601155f7f2bc47185768dea612b0642a",
+  "limitations": [
+    "Real stock shell transport was tested only within a disposable local OFF native Agent with a synthetic main Provider.",
+    "The named stock-source SHA allowlist is only part of the source export, not an independent full-tree attestation.",
+    "The original H1 physical request without terminal evidence remains UNKNOWN; global Provider budget reconciliation blocked.",
+    "No real StepFun H4D, no DSH real-provider E2E, no new independent Agent decision benchmark, and no actual savings measurement."
+  ],
+  "main_provider": "synthetic two-response in-memory HTTP fixture",
+  "native_missing_file_error_independently_verified": true,
+  "native_stock_support_spawns": 5,
+  "original_frozen_harness_hashes": {
+    "__init__.py": "23571e6d457c711256c7e628c19c99b1e13ed048ce97bc281b08e022d7c5a79a",
+    "phase8_3_init_diagnostic.py": "0f26cc27910c692225ae4c9f785fea2d8cb99754127295f8ea909d2089cad44b",
+    "phase8_3_native_rehearsal.py": "ce7ac69c5e942e6a0c17c87bd39d2a97a5fa3adcaa28a482f3a29081f8d67538",
+    "phase8_3_rehearsal_child.py": "5ff75b036fb8046280a10aeb9dcee8673067960a94b46b0bc9f89812a2148d43",
+    "plugin.yaml": "3beed4fea99e526f73c0acf9d4b7f92ec8aa5f795b9e151f60fa066f4e734a1d"
+  },
+  "original_frozen_upstream_source_hashes": {
+    "agent/tool_executor.py": "1b1b67d4b88f73c51dc147d0e0383b36c561d921d278d801326de5ba24b29702",
+    "hermes_bootstrap.py": "f242036b2d35b92283b9a7e97c7059e537607fc4b02026f657a6d00cb4683f69",
+    "hermes_cli/oneshot.py": "ebd2bc6a320f24fa94249dab37a0776f4d32c92bb7ac3f6c7193f14eefecfdc9",
+    "run_agent.py": "33c7195fc6efa9122f1a6700d416fd283f9634712189af3fd72feb01bcea054f"
+  },
+  "original_h1_provider_unknown": 1,
+  "original_historical_stepfun_requests_attempted": 8,
+  "original_verdict": "PASS_OFFLINE_NATIVE_REHEARSAL",
+  "owned_process_and_disposable_home_restoration": "PASS",
+  "public_original_provider_ledger_sha256": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+  "qualification_scope": "disposable OFF native Hermes stock shell, synthetic main Provider",
+  "real_h4d_provider_e2e": "NOT_RUN",
+  "real_stock_shell_bash_spawns": 3,
+  "schema": "local-system-one/phase8_3-stock-shell-offline-v1",
+  "shadow_http_observations": 0,
+  "upstream_hermes_pinned_revision": "4d04303818b61bf3aa09278af48356315515965b"
+}

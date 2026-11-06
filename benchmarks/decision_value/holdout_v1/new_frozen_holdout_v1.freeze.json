@@ -1,0 +1,23 @@
+{
+  "baseline_sha": "65c73bd4d6e5919820ba5aefda399fce375096b0",
+  "case_count": 80,
+  "hashes": {
+    "benchmarks/completion/phase8b_contract.py": "e893b2f8ddd5c77446014c8ba02a684a106194a32ee406722ee2b2f5bd20fba0",
+    "benchmarks/decision_value/capture.py": "d436778d8aa937adabdadb4a530247f944a1b65fe33f1708676b0a869073c3a4",
+    "benchmarks/decision_value/evaluate.py": "513723f6c848d1eb2236cc3e5b9409ee0dbda7b106cbb4740c0f4f2d9fd5c45f",
+    "benchmarks/decision_value/holdout_v1/build_frozen.py": "d0abcfaa757361beb4ff90881805ab480e14b3057821bde150aedf59bb120af1",
+    "benchmarks/decision_value/holdout_v1/new_frozen_holdout_v1.jsonl": "456326d1962b915aa1cb4db1df00831a7c14b9503dc11a5c81df9a08e1a491d8",
+    "benchmarks/decision_value/holdout_v1/replay.py": "ce33e830969f9ee33850eb9f8877d0d8abd03c6ce641d32e2a9cdfb1d2e54c08",
+    "benchmarks/retry/evaluate.py": "2bc11dff44ff0a37cb2e6d16380b012b384b9412bc03c19ba09708df1b47ce5a",
+    "docs/PHASE8_3_NEW_HOLDOUT_PROTOCOL.md": "6d8e86e49f8448e8a61627d5c250656e1566c6b825d0d0f6d5190a9e77e89eda",
+    "local_system_one/decision_opportunity.py": "95c775d2291caf91de7b4576551d63997294de0cb0a0f8b6e1692b482066f19a",
+    "local_system_one/workflows/completion_gate.py": "8e7e8720074a78b138dccfeba43e9830bf0e1af2f048111f81049d9a9562ad05",
+    "local_system_one/workflows/retry_escalation_gate.py": "683692b2ac65ab628257b1eaf895c2e4e426c89067e3b4ebe8ed84f20c52b7fb"
+  },
+  "labels_origin": "human-authored-synthetic-before-inference",
+  "model_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+  "native_outcomes": "NOT_MEASURED",
+  "paid_provider_requests": 0,
+  "schema": "local-system-one/preregistered-holdout-freeze-v1",
+  "split": "frozen_holdout"
+}
