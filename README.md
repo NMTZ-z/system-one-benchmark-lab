@@ -15,6 +15,8 @@ Local System One is not another chatbot and does not replace your LLM. It sits *
 
 The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes adapter**, and a native **DeepSeek Harness adapter**. The Runtime is the platform-independent decision plane; each Adapter owns how an abstract decision is safely mapped onto its platform.
 
+**Release baseline:** this branch is preparing v0.2.0; its First-Run MVP is not yet released. The current Hermes plugin starts OFF, but switching the current `0.9.0` plugin to Shadow enables Search, Model Tier, Notification and Completion by default. Search-only first Shadow is an 8.4B requirement, not the current default. Canary can mutate requests and production Active is not authorized. See the [v0.2.0 scope](docs/V0_2_PRODUCT_SCOPE.md) and [release baseline](docs/PHASE8_4A_RELEASE_BASELINE.md).
+
 ## Why this exists
 
 Large language models are good at generating and reasoning, but agents repeatedly spend those expensive calls on tiny routing decisions.
@@ -45,6 +47,7 @@ The goal is not "use a small model for everything". The goal is to use a small l
 | **Model Tier Gate** | Can a bounded task use a faster reasoning tier? | Functional, but broad model-based routing remains experimental. |
 | **Notification Gate** | silent / digest / notify_now? | Functional MVP. |
 | **Completion Gate** | complete / continue / verify? | **Shadow-only in Phase 8A.** Conservative benchmark completed; Active auto-stop is NO-GO. |
+| **Retry / Escalation Gate** | How should a failed tool operation be assessed? | Shadow-only advisory; no automatic retry or model escalation. |
 | **Choice / Score / Noul** | Generic typed decisions for your own control logic | Available through the HTTP API. |
 
 This distinction matters: the project deliberately separates **technical capability** from **what has enough evidence to activate automatically**.
@@ -336,9 +339,12 @@ POST /v1/workflows/search-gate
 POST /v1/workflows/model-tier-gate
 POST /v1/workflows/notification-gate
 POST /v1/workflows/completion-gate
+POST /v1/workflows/retry-escalation-gate
 GET  /health
 GET  /metrics
 ```
+
+The current MCP proxy exposes Search, Model Tier, Notification and health; it does not yet expose Completion or Retry. See [MCP deployment](docs/MCP_DEPLOYMENT.md).
 
 The service binds to loopback by default and does not persist raw task text.
 
@@ -350,7 +356,7 @@ Install the ANE dependencies:
 python -m pip install -e '.[ane]'
 ```
 
-Download the validated fixed-shape L512 Core ML package from Hugging Face:
+The following historical convenience command downloads L512 from Hugging Face. It does not pin the artifact revision or verify its digest; the reproducible v0.2.0 ANE recipe is still pending:
 
 ```bash
 hf download NMTZ/laya-typed-decisions-421m-coreml-ane \
@@ -425,7 +431,7 @@ off -> shadow -> canary
 
 First install is inert by default.
 
-For an evaluation profile:
+For an evaluation profile, inspect the current per-Gate settings before enabling Shadow. The existing mode command alone enables every Gate whose setting is true, including Model Tier, Notification and Completion by default:
 
 ```bash
 scripts/install_hermes_system_one_plugin.sh systemoneeval
@@ -433,7 +439,9 @@ scripts/set_hermes_system_one_mode.sh systemoneeval shadow
 scripts/hermes_system_one_status.sh systemoneeval
 ```
 
-Shadow mode observes decisions without changing the provider request. Canary requires explicit acknowledgement and remains deliberately narrow.
+Shadow mode observes decisions without changing the provider request. The configured sidecar receives task text and, for some enabled Gates, bounded response or failure context; its default address is loopback. A remote `service_url` sends those inputs to that remote endpoint. Canary requires explicit acknowledgement and may mutate requests; production Active is not authorized.
+
+The [official Hermes catalog entry](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) currently installs plugin `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`; the main source manifest is `0.9.0`. The catalog re-pin is planned for 8.4D.
 
 Rollback is built in:
 
@@ -447,7 +455,7 @@ See [Hermes plugin documentation](integrations/hermes/local-system-one-hermes/RE
 
 ## DeepSeek Harness integration
 
-The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. It now covers **Search Gate + Model Tier Gate + Notification Gate (Shadow) + Completion Gate (Shadow)** alongside Hermes; Unified Adapter Contract v1 gives both platforms one versioned semantic contract while preserving platform-specific execution and reversible, fail-open behavior.
+The repository includes `local-system-one-dsh`, a native adapter for the official DeepSeek Harness plugin lifecycle. Main source covers **Search, Model Tier, Notification, Completion and Retry / Escalation**; the latter three are Shadow-only. Unified Adapter Contract v1 gives both platforms one versioned semantic contract while preserving platform-specific execution and reversible, fail-open behavior.
 
 Validated DSH targets are deliberately exact:
 
@@ -456,7 +464,7 @@ Validated DSH targets are deliberately exact:
 0.2.1-alpha.1 @ 5badb15009ae1756c3afe0ae0cef1faafc290ccc
 ```
 
-The adapter supports independent Search, Model Tier, Notification, and Completion observation. Search and Model Tier run at turn start; Notification and Completion observe the completed Agent turn and remain Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
+The adapter supports independent Search, Model Tier, Notification, Completion, and Retry / Escalation observation. Search and Model Tier run at turn start; Notification and Completion observe the completed Agent turn, and Retry can observe an eligible failed tool result. Notification, Completion, and Retry remain Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
 
 Real provider-wire validation paths include:
 
@@ -469,7 +477,7 @@ The StepFun route completed native high/low requests and an automatic Local Syst
 
 The installation bundle remains inert in `off` mode. Connection errors, timeouts, malformed gate responses, unsupported provider/model routes, and any missing Canary authority fail open to native DSH behavior. Turn-scoped Search and Model Tier state is cleared at turn end.
 
-Community bundle install for a supported `headless` profile:
+The following community bundle is the older `0.3.0` install branch at `217cf89b3c9d17eb5f3178ec0de31b530f834a96`, not the main-source `0.6.0` adapter; it does not provide the current five-Gate feature set. Aligning the install artifact is planned for 8.4C:
 
 ```bash
 dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
@@ -566,6 +574,10 @@ Conservative defaults are intentional. A wrong routing decision can be more expe
 
 Start here depending on what you want to do:
 
+- [Phase 8.4A release baseline and component matrix](docs/PHASE8_4A_RELEASE_BASELINE.md)
+- [v0.2.0 product scope](docs/V0_2_PRODUCT_SCOPE.md)
+- [Phase 8.3 archive index](docs/PHASE8_3_ARCHIVE_INDEX.md)
+- [Phase 8.4B implementation handoff](docs/PHASE8_4B_IMPLEMENTATION_HANDOFF.md)
 - [Local System One product and API](docs/LOCAL_SYSTEM_ONE_MVP.md)
 - [Unified Adapter Contract v1](docs/ADAPTER_CONTRACT.md)
 - [Phase 8.2B Evidence Contract and privacy-safe native correlation](docs/PHASE8_2B_EVIDENCE_CONTRACT.md)

@@ -7,6 +7,7 @@ pyproject.toml
 pytest.ini
 requirements-mcp.txt
 release/public-files.txt
+release/v0.2.0-manifest.json
 
 local_system_one/
 local_system_one/runtime/sources.py
@@ -65,6 +66,10 @@ docs/HERMES_MODEL_TIER_PAIRED_32.md
 docs/HERMES_PUBLIC_WEB_GOLD_100.md
 docs/HERMES_PLUGIN_PRODUCTIZATION.md
 docs/PUBLIC_RELEASE.md
+docs/PHASE8_4A_RELEASE_BASELINE.md
+docs/PHASE8_3_ARCHIVE_INDEX.md
+docs/V0_2_PRODUCT_SCOPE.md
+docs/PHASE8_4B_IMPLEMENTATION_HANDOFF.md
 references/UPSTREAM.md
 references/JEV_TYPED_DECISIONS.md
 
