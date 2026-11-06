@@ -48,8 +48,8 @@ class AdjudicationBlocked(ValueError):
 def configure_for_case(case_id: str) -> None:
     """One H4C independent verifier process; NEVER read H4B postrun by default."""
     global RUN_ID, CASE_DIR, POST_DB, PRE_STATE, POST_STATE
-    global FINAL_REPORT, HMAC_FILE, OBSERVER, PUBLIC
-    if case_id!="h4c_missing_read":
+    global FINAL_REPORT, HMAC_FILE, OBSERVER, PUBLIC, PROVIDER_LEDGER
+    if case_id not in {"h4c_missing_read","h4d_missing_read"}:
         raise AdjudicationBlocked("only the new H4C private evidence scope is accepted")
     import phase8_3_h4b_transaction as tx
     tx.bind_case(case_id)
@@ -59,9 +59,13 @@ def configure_for_case(case_id: str) -> None:
     PRE_STATE=tx.PRE_STATE
     POST_STATE=tx.POST_STATE
     FINAL_REPORT=tx.FINAL_REPORT
-    HMAC_FILE=PRIVATE/"h4c_correlation_key.private.bin"
-    OBSERVER=PRIVATE/"h4c_http.private.jsonl"
-    PUBLIC=ROOT/"results/processed/phase8_3_h4c_real_native_adjudicated.json"
+    short=case_id.split("_")[0]
+    HMAC_FILE=PRIVATE/f"{short}_correlation_key.private.bin"
+    OBSERVER=PRIVATE/f"{short}_http.private.jsonl"
+    PUBLIC=ROOT/f"results/processed/phase8_3_{short}_real_native_adjudicated.json"
+    if short=="h4d":
+        PROVIDER_LEDGER=(Path.home()/"Projects/system-one-phase8-3/private/phase8_3_native_real"
+                         /"provider_real_ledger.private.jsonl")
 
 
 def _read_json(path: Path) -> dict:
@@ -154,7 +158,7 @@ def adjudicate(*, frozen_sha: str) -> dict:
             or history.get("reserved_h2")!=3
             or history.get("reserved_h3")!=2
             or history.get("reserved_original_h4")!=0
-            or (RUN_ID=="h4c_missing_read"
+            or (RUN_ID in {"h4c_missing_read","h4d_missing_read"}
                 and history.get("reserved_original_h4b")!=0)
             or history.get("historic_h1_unresolved")!=1
             or not 8<=history.get("reserved_global",0)<=11
