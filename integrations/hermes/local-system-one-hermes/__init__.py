@@ -17,17 +17,24 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import contextvars
+import fcntl
+import ipaddress
 import json
 import math
 import os
+from pathlib import Path
+import secrets
+import stat
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
-_PLUGIN_VERSION = "0.9.0"
+_PLUGIN_VERSION = "0.10.0"
 _ADAPTER_CONTRACT_VERSION = "1.0"
 _MAX_TASK_CHARS = 4000
 _MAX_CONTEXT_CHARS = 2000
@@ -36,6 +43,198 @@ _MAX_NOTIFICATION_CHARS = 6000
 _MAX_COMPLETION_RESULT_CHARS = 6000
 _COMPLETION_DECISIONS = frozenset({"complete", "continue", "verify"})
 _COMPLETION_SOURCES = frozenset({"rule", "model"})
+_CONTROL_NAME = "local-system-one-hermes.control"
+_CONTROL_SCHEMA = "local-system-one/control-v1"
+_SESSIONS_NAME = "local-system-one-hermes.sessions"
+_TELEMETRY_KEY = os.urandom(32)
+_SAFE_TEXT = frozenset({
+    "hermes", "off", "shadow", "canary", "shadow_canary_ack_required", "rule", "model", "mlx", "ane",
+    "search", "no_search", "fast", "strong", "complete", "continue", "verify", "notify_now", "digest", "silent",
+    "retry_same", "try_alternative", "escalate_model", "verify_state", "ask_user", "abort",
+    "observed", "failed_open", "unsupported", "applied", "skipped", "true", "false", "high", "low",
+    "bounded_transform_task", "connected_app_data", "local_file_or_repo", "bounded_transform",
+    "bounded_structured_transform", "model_confident_local_answer", "model_requires_external_information",
+    "model_uncertain_conservative_search", "blocking_failure", "model_priority_digest", "model_priority_notify",
+    "model_priority_silent", "model_complete", "candidate_result_needs_validation", "needs_verification",
+    "shadow_or_pre_action_observation", "notification_shadow_only", "completion_shadow_only",
+    "completion_loop_probe_shadow_only", "retry_shadow_advisory_only", "probe_capacity_exhausted",
+    "probe_dispatch_failed", "probe_exception", "retry_runtime_unavailable", "retry_observer_exception",
+    "retry_dispatch_failed", "retry_capacity_exhausted", "retry_turn_capacity_exhausted", "operation_unverified",
+    "tool_identity_unverified", "task_unavailable_at_session_boundary", "no_eligible_decision", "mutation_exception",
+    "verified_public_web_tools_filtered", "no_matching_web_tool", "verified_reasoning_mapping",
+    "unsupported_provider_or_model", "original_reasoning_not_high", "web_search", "web_extract",
+    "tool_result", "turn_end", "post_tool_call", "invalid_response", "URLError", "TimeoutError", "OSError", "ValueError", "TypeError",
+    "runtime_URLError", "runtime_TimeoutError", "runtime_OSError", "runtime_ValueError", "runtime_TypeError",
+    "runtime_invalid_response", "1.0", "0.10.0",
+})
+
+
+def _opaque_id(value: str) -> str:
+    if value.startswith("opaque:") and len(value) == 39 and all(c in "0123456789abcdef" for c in value[7:]):
+        return value
+    return "opaque:" + hmac.new(_TELEMETRY_KEY, value.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _safe_telemetry(value: Any, key: str = "") -> Any:
+    if isinstance(value, dict):
+        return {name: _safe_telemetry(item, name) for name, item in value.items()}
+    if isinstance(value, list):
+        return [_safe_telemetry(item, key) for item in value]
+    if value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value if abs(value) <= 10**12 else None
+    if isinstance(value, float):
+        return value if math.isfinite(value) and abs(value) <= 10**12 else None
+    if isinstance(value, str):
+        if key in {"request_id", "turn_id"}:
+            if (key == "request_id" and os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE") == "isolated-shadow-test-v1"
+                    and len(value) in (24, 32) and all(c in "0123456789abcdef" for c in value)):
+                return value
+            return _opaque_id(value)
+        if key.endswith("_ref") and len(value) == 32 and all(c in "0123456789abcdef" for c in value):
+            return value
+        return value if value in _SAFE_TEXT else "redacted"
+    return None
+
+
+def _sidecar_url_allowed(url: str, allow_remote: bool = False) -> bool:
+    try:
+        parts = urllib.parse.urlsplit(url)
+        if (parts.scheme not in {"http", "https"} or not parts.hostname
+                or parts.username is not None or parts.password is not None
+                or parts.path not in {"", "/"} or parts.query or parts.fragment):
+            return False
+        _ = parts.port
+        try:
+            local = ipaddress.ip_address(parts.hostname).is_loopback
+        except ValueError:
+            local = parts.hostname.lower() == "localhost"
+        return local or (allow_remote and parts.scheme == "https")
+    except ValueError:
+        return False
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _control_path(ctx) -> Path | None:
+    try:
+        directory = Path(ctx.state.data_dir).parent
+        return None if directory.is_symlink() else directory / _CONTROL_NAME
+    except (AttributeError, TypeError):
+        return None
+
+
+def _valid_control(value):
+    return (isinstance(value, dict) and value.get("schema") == _CONTROL_SCHEMA
+            and value.get("mode") in ("on", "off") and isinstance(value.get("epoch"), str)
+            and len(value["epoch"]) == 32 and all(c in "0123456789abcdef" for c in value["epoch"]))
+
+
+def _open_control(path, flags):
+    fd = os.open(path, flags | getattr(os, "O_NOFOLLOW", 0))
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or info.st_mode & 0o077:
+        os.close(fd)
+        raise OSError("control file is not a private, singly linked regular file")
+    return fd
+
+
+def _control_call(path, epoch, function, *args, **kwargs):
+    """Hold a shared fence until an observation or request mutation finishes."""
+    if not path or not epoch:
+        return None
+    try:
+        fd = _open_control(path, os.O_RDONLY)
+        with os.fdopen(fd, "r", encoding="utf-8") as handle:
+            fcntl.flock(handle, fcntl.LOCK_SH)
+            control = json.load(handle)
+            if not _valid_control(control) or control.get("mode") != "on" or control.get("epoch") != epoch:
+                return None
+            return function(*args, **kwargs)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def _control_epoch(path):
+    if not path:
+        return None
+    try:
+        fd = _open_control(path, os.O_RDONLY)
+        with os.fdopen(fd, "r", encoding="utf-8") as handle:
+            fcntl.flock(handle, fcntl.LOCK_SH)
+            data = json.load(handle)
+            epoch = data.get("epoch")
+            return epoch if _valid_control(data) and data.get("mode") == "on" else None
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def _register_instance(path, mode, epoch, gates):
+    if not path:
+        return None
+    directory = path.parent / _SESSIONS_NAME
+    try:
+        if directory.is_symlink():
+            return None
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        filename = directory / f"session-{os.getpid()}-{secrets.token_hex(16)}.json"
+        fd = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        handle = os.fdopen(fd, "w", encoding="utf-8")
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        json.dump({"version": _PLUGIN_VERSION, "mode": mode, "epoch": epoch, "gates": gates}, handle)
+        handle.flush()
+        return handle, filename
+    except OSError:
+        return None
+
+
+def _close_instance(handle, path):
+    try:
+        opened = os.fstat(handle.fileno())
+        current = path.lstat()
+        if (stat.S_ISREG(current.st_mode) and current.st_nlink == 1
+                and (current.st_dev, current.st_ino) == (opened.st_dev, opened.st_ino)):
+            path.unlink()
+    except OSError:
+        pass
+    finally:
+        handle.close()
+
+
+def _set_control(profile_home: Path, enabled: bool, timeout: float = 12.0) -> None:
+    data_dir = profile_home / "plugin-data"
+    if data_dir.is_symlink():
+        raise OSError("plugin-data must not be a symbolic link")
+    data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path = data_dir / _CONTROL_NAME
+    try:
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        created = True
+    except FileExistsError:
+        fd = _open_control(path, os.O_RDWR)
+        created = False
+    with os.fdopen(fd, "r+", encoding="utf-8") as handle:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("in-flight observations did not drain")
+                time.sleep(0.05)
+        handle.seek(0)
+        if not created and not _valid_control(json.load(handle)):
+            raise ValueError("existing control file is not owned by Local System One")
+        handle.seek(0)
+        json.dump({"schema": _CONTROL_SCHEMA, "mode": "on" if enabled else "off", "epoch": secrets.token_hex(16)}, handle)
+        handle.truncate()
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _text_from_content(content: Any) -> str:
@@ -77,8 +276,12 @@ def _post_json(
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        value = json.loads(response.read().decode("utf-8"))
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+    with opener.open(request, timeout=timeout) as response:
+        data = response.read(1_048_577)
+    if len(data) > 1_048_576:
+        raise ValueError("Local System One response is too large")
+    value = json.loads(data.decode("utf-8"))
     if not isinstance(value, dict):
         raise TypeError("Local System One response must be a JSON object")
     return value
@@ -471,6 +674,8 @@ def _profile_name(ctx) -> str:
 
 def _state_set(ctx, key: str, value: Any) -> None:
     try:
+        if key.startswith("last_") or key.endswith("_history"):
+            value = _safe_telemetry(value)
         ctx.state.set(key, value)
     except Exception:  # noqa: BLE001 - state is optional in validator stubs
         return
@@ -537,7 +742,7 @@ def _as_bool(value: Any, default: bool) -> bool:
             return True
         if normalized in {"0", "false", "no", "off"}:
             return False
-    return bool(value)
+    return False
 
 
 def _private_evidence_refs(
@@ -594,13 +799,14 @@ def register(ctx):
     else:
         mode = str(raw_mode).strip().lower()
     base_url = str(ctx.get_config("service_url", "http://127.0.0.1:8787"))
+    allow_remote = _as_bool(ctx.get_config("allow_remote_sidecar", False), False)
     timeout_ms = int(ctx.get_config("timeout_ms", 500))
     timeout = max(0.05, min(timeout_ms / 1000.0, 5.0))
     profile = _profile_name(ctx)
     search_enabled = _as_bool(ctx.get_config("search_gate_enabled", True), True)
-    model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", True), True)
-    notification_enabled = _as_bool(ctx.get_config("notification_gate_enabled", True), True)
-    completion_enabled = _as_bool(ctx.get_config("completion_gate_enabled", True), True)
+    model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", False), False)
+    notification_enabled = _as_bool(ctx.get_config("notification_gate_enabled", False), False)
+    completion_enabled = _as_bool(ctx.get_config("completion_gate_enabled", False), False)
     retry_escalation_enabled = _as_bool(
         ctx.get_config("retry_escalation_gate_enabled", False), False
     )
@@ -616,7 +822,9 @@ def register(ctx):
         ctx.get_config("canary_reasoning_downgrade_enabled", False), False
     )
 
-    if mode not in {"off", "shadow", "canary"}:
+    if not _sidecar_url_allowed(base_url, allow_remote):
+        effective_mode = "off_unapproved_sidecar"
+    elif mode not in {"off", "shadow", "canary"}:
         effective_mode = "off_invalid_requested_mode"
     elif mode == "canary" and not canary_acknowledged:
         # Safer than turning the plugin fully off: keep observing, never mutate.
@@ -624,28 +832,80 @@ def register(ctx):
     else:
         effective_mode = mode
 
-    _state_set(
-        ctx,
-        "status",
-        {
-            "version": _PLUGIN_VERSION,
-            "requested_mode": mode,
-            "mode": effective_mode,
-            "profile": profile,
-            "service_url": base_url,
-            "timeout_ms": timeout_ms,
-            "search_gate_enabled": search_enabled,
-            "model_tier_gate_enabled": model_tier_enabled,
-            "notification_gate_enabled": notification_enabled,
-            "completion_gate_enabled": completion_enabled,
-            "retry_escalation_gate_enabled": retry_escalation_enabled,
-            "completion_loop_probe_enabled": completion_loop_probe_enabled,
-            "canary_acknowledged": canary_acknowledged,
-            "canary_web_filter_enabled": canary_web_filter_enabled,
-            "canary_reasoning_downgrade_enabled": canary_reasoning_downgrade_enabled,
-            "registered_at": time.time(),
-        },
-    )
+    control_path = _control_path(ctx)
+    registration_epoch = _control_epoch(control_path)
+    control_epoch = registration_epoch if not effective_mode.startswith("off") else None
+    if not effective_mode.startswith("off") and not control_epoch:
+        effective_mode = "off_control_not_armed"
+
+    def record_registration():
+        registration = _register_instance(control_path, effective_mode, control_epoch, {
+            "search": search_enabled, "model_tier": model_tier_enabled,
+            "notification": notification_enabled, "completion": completion_enabled,
+            "retry_escalation": retry_escalation_enabled, "completion_loop_probe": completion_loop_probe_enabled,
+        })
+        handle, filename = registration or (None, None)
+        if handle:
+            try:
+                ctx.on_unload(lambda: _close_instance(handle, filename))
+            except Exception:  # older Hermes cannot attest instance lifetime
+                _close_instance(handle, filename)
+                handle = None
+        _state_set(
+            ctx,
+            "status",
+            {
+                "version": _PLUGIN_VERSION,
+                "requested_mode": mode,
+                "mode": effective_mode,
+                "profile": profile,
+                "service_url": base_url if _sidecar_url_allowed(base_url, allow_remote) else "invalid_or_unapproved",
+                "allow_remote_sidecar": allow_remote,
+                "timeout_ms": timeout_ms,
+                "search_gate_enabled": search_enabled,
+                "model_tier_gate_enabled": model_tier_enabled,
+                "notification_gate_enabled": notification_enabled,
+                "completion_gate_enabled": completion_enabled,
+                "retry_escalation_gate_enabled": retry_escalation_enabled,
+                "completion_loop_probe_enabled": completion_loop_probe_enabled,
+                "control_ready": bool(control_epoch),
+                "canary_acknowledged": canary_acknowledged,
+                "canary_web_filter_enabled": canary_web_filter_enabled,
+                "canary_reasoning_downgrade_enabled": canary_reasoning_downgrade_enabled,
+                "registered_at": time.time(),
+            },
+        )
+        return handle
+
+    instance = _control_call(control_path, registration_epoch, record_registration)
+    home_binding = next(((key, value) for key, value in contextvars.copy_context().items()
+                         if key.name == "_HERMES_HOME_OVERRIDE"), None)
+
+    def guarded(function):
+        def run(*args, **kwargs):
+            _ = instance  # Keep the kernel-held liveness lock while hooks are registered.
+            current = contextvars.copy_context()
+            if home_binding:
+                current.run(home_binding[0].set, home_binding[1])
+            return current.run(_control_call, control_path, control_epoch, function, *args, **kwargs)
+        return run
+
+    def guarded_worker(function, slots):
+        current = contextvars.copy_context()
+        def run():
+            started = False
+
+            def execute():
+                nonlocal started
+                started = True
+                function()
+
+            try:
+                current.run(_control_call, control_path, control_epoch, execute)
+            finally:
+                if not started:
+                    slots.release()
+        return run
 
     # Raw tasks are never persisted. Canary state stores only turn ids and rule reasons.
     # Final assistant text for Notification Shadow lives only in this bounded process-local map
@@ -766,6 +1026,8 @@ def register(ctx):
             kwargs, request_id, "tool_result"
         ):
             request_id = os.urandom(16).hex()
+        else:
+            request_id = _opaque_id(request_id)
         event: dict[str, Any] = {
             "ts": time.time(),
             "request_id": request_id,
@@ -839,7 +1101,7 @@ def register(ctx):
         try:
             # Daemon threads do not extend the Hermes process lifetime.
             threading.Thread(
-                target=_observe_completion_probe,
+                target=guarded_worker(_observe_completion_probe, completion_probe_slots),
                 name="system-one-completion-observer",
                 daemon=True,
             ).start()
@@ -862,6 +1124,8 @@ def register(ctx):
             kwargs, request_id, "turn_end"
         ):
             request_id = os.urandom(16).hex()
+        else:
+            request_id = _opaque_id(request_id)
         task = str(record.get("task") or "") if record else ""
         current_result = str(record.get("current_result") or "") if record else ""
         execution_state = {
@@ -928,10 +1192,10 @@ def register(ctx):
         _state_set(ctx, "last_completion_shadow", event)
         _completion_cleanup(record)
 
-    ctx.register_hook("pre_llm_call", _completion_pre_llm)
-    ctx.register_hook("post_llm_call", _completion_post_llm)
-    ctx.register_hook("post_tool_call", _completion_post_tool)
-    ctx.register_hook("on_session_end", _completion_session_end)
+    ctx.register_hook("pre_llm_call", guarded(_completion_pre_llm))
+    ctx.register_hook("post_llm_call", guarded(_completion_post_llm))
+    ctx.register_hook("post_tool_call", guarded(_completion_post_tool))
+    ctx.register_hook("on_session_end", guarded(_completion_session_end))
 
     # Independent Phase 8C observer. This never reads Completion's loop state,
     # never writes to native tool controls and is disabled by default.
@@ -1051,7 +1315,7 @@ def register(ctx):
 
             try:
                 threading.Thread(
-                    target=_observe, daemon=True, name="system-one-retry-shadow",
+                    target=guarded_worker(_observe, retry_slots), daemon=True, name="system-one-retry-shadow",
                 ).start()
             except Exception:  # noqa: BLE001 - thread dispatch fail-open
                 retry_slots.release()
@@ -1076,8 +1340,8 @@ def register(ctx):
                     retry_seen.pop(identity, None)
         return None
 
-    ctx.register_hook("post_tool_call", _retry_post_tool)
-    ctx.register_hook("on_session_end", _retry_session_end)
+    ctx.register_hook("post_tool_call", guarded(_retry_post_tool))
+    ctx.register_hook("on_session_end", guarded(_retry_session_end))
 
     def _observe_post_llm_call(**kwargs):
         if effective_mode.startswith("off") or not notification_enabled:
@@ -1094,14 +1358,14 @@ def register(ctx):
         while len(pending_notification_events) > 32:
             pending_notification_events.pop(next(iter(pending_notification_events)))
 
-    ctx.register_hook("post_llm_call", _observe_post_llm_call)
+    ctx.register_hook("post_llm_call", guarded(_observe_post_llm_call))
 
     def _observe_session_end(**kwargs):
         turn_id = str(kwargs.get("turn_id") or "")
         if turn_id:
             pending = _state_get(ctx, "canary_pending", {})
-            if isinstance(pending, dict) and turn_id in pending:
-                pending.pop(turn_id, None)
+            if isinstance(pending, dict) and _opaque_id(turn_id) in pending:
+                pending.pop(_opaque_id(turn_id), None)
                 _state_set(ctx, "canary_pending", pending)
         if effective_mode.startswith("off") or not notification_enabled:
             return
@@ -1128,13 +1392,14 @@ def register(ctx):
             "interrupted": interrupted,
             "turn_exit_reason": str(kwargs.get("turn_exit_reason") or ""),
         }
+        notification_request_id = _opaque_id(turn_id or "notification-shadow")
         decision = _safe_notification(
-            base_url, str(candidate["event"]), context, timeout, turn_id or "notification-shadow",
+            base_url, str(candidate["event"]), context, timeout, notification_request_id,
             blocking_failure=failed,
         )
         event: dict[str, Any] = {
             "ts": time.time(),
-            "request_id": turn_id or "notification-shadow",
+            "request_id": notification_request_id,
             "adapter_contract_version": _ADAPTER_CONTRACT_VERSION,
             "platform": "hermes",
             "adapter_version": _PLUGIN_VERSION,
@@ -1171,7 +1436,7 @@ def register(ctx):
         _state_set(ctx, "notification_shadow_history", history[-_MAX_HISTORY:])
         _state_set(ctx, "last_notification_shadow", event)
 
-    ctx.register_hook("on_session_end", _observe_session_end)
+    ctx.register_hook("on_session_end", guarded(_observe_session_end))
 
     def _observe_pre_llm_call(**kwargs):
         if effective_mode.startswith("off"):
@@ -1184,7 +1449,7 @@ def register(ctx):
             kwargs.get("conversation_history"), original_user_message
         )
 
-        request_id = str(kwargs.get("turn_id") or kwargs.get("task_id") or "shadow")
+        request_id = _opaque_id(str(kwargs.get("turn_id") or kwargs.get("task_id") or "shadow"))
         decision = _safe_recommendations(
             base_url,
             task,
@@ -1288,7 +1553,7 @@ def register(ctx):
             pending = _state_get(ctx, "canary_pending", {})
             if not isinstance(pending, dict):
                 pending = {}
-            pending[request_id] = {
+            pending[_opaque_id(request_id)] = {
                 "search_reason": search_reason,
                 "model_tier_reason": model_tier_reason,
                 "created_at": time.time(),
@@ -1299,7 +1564,7 @@ def register(ctx):
             _state_set(ctx, "canary_pending", pending)
         return
 
-    ctx.register_hook("pre_llm_call", _observe_pre_llm_call)
+    ctx.register_hook("pre_llm_call", guarded(_observe_pre_llm_call))
 
     def _canary_llm_request(**kwargs):
         if effective_mode != "canary":
@@ -1311,7 +1576,7 @@ def register(ctx):
         pending = _state_get(ctx, "canary_pending", {})
         if not isinstance(pending, dict):
             pending = {}
-        candidate = pending.pop(turn_id, None)
+        candidate = pending.pop(_opaque_id(turn_id), None)
         _state_set(ctx, "canary_pending", pending)
         request = kwargs.get("request")
         tools = request.get("tools") if isinstance(request, dict) else None
@@ -1417,4 +1682,17 @@ def register(ctx):
             "reason": "+".join(reasons),
         }
 
-    ctx.register_middleware("llm_request", _canary_llm_request)
+    ctx.register_middleware("llm_request", guarded(_canary_llm_request))
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Update the profile's observation fence")
+    parser.add_argument("profile_home", type=Path)
+    parser.add_argument("mode", choices=("on", "off"))
+    arguments = parser.parse_args()
+    try:
+        _set_control(arguments.profile_home, arguments.mode == "on")
+    except (OSError, TimeoutError, ValueError) as error:
+        parser.exit(1, f"Could not update observation fence: {type(error).__name__}\n")

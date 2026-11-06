@@ -1,6 +1,6 @@
 manifest_version: 2
 name: local-system-one-hermes
-version: 0.9.0
+version: 0.10.0
 description: >-
   Local System One / Laya Typed Decisions control plane for Hermes Agent.
   Reversible OFF/Shadow/Canary modes, explicit Canary acknowledgement,
@@ -39,6 +39,11 @@ config_schema:
     default: http://127.0.0.1:8787
     label: Local System One URL
     description: Loopback Local System One HTTP service endpoint.
+  allow_remote_sidecar:
+    type: bool
+    default: false
+    label: Allow HTTPS remote sidecar
+    description: Explicitly allow task context to be sent to a non-loopback HTTPS sidecar.
   timeout_ms:
     type: int
     default: 500
@@ -53,19 +58,19 @@ config_schema:
     description: Observe Search Gate decisions in Shadow/Canary mode.
   model_tier_gate_enabled:
     type: bool
-    default: true
+    default: false
     label: Model Tier Gate
     description: Observe Model Tier decisions in Shadow/Canary mode.
   notification_gate_enabled:
     type: bool
-    default: true
+    default: false
     label: Notification Gate (Shadow)
     description: >-
       Observe whether a completed Agent turn should be silent, digested, or notified.
       Notification is observation-only and never sends a notification itself.
   completion_gate_enabled:
     type: bool
-    default: true
+    default: false
     label: Completion Gate (Shadow)
     description: >-
       Observe whether a turn appears complete, should continue, or needs verification.
