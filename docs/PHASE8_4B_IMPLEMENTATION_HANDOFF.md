@@ -1,9 +1,10 @@
 # Phase 8.4B — Hermes First-Run MVP handoff
 
-Start from the exact reviewed **8.4A research-integration Draft PR head**, not
-the older #14 head. The integration PR records its head SHA externally because
-a commit cannot embed its own SHA. Create a separate worktree at that SHA and
-distinguish it from public main; no formal merge is authorized yet. Preserve all
+Start from the reviewed **8.4A research-integration baseline**, not the older
+#14 head. While the integration PR is Draft, use its exact reviewed head in a
+separate worktree. If it has been merged, verify the new main contains that
+head and use the current reviewed main commit. The integration PR records its
+head SHA externally because a commit cannot embed its own SHA. Preserve all
 existing Gates and the existing Agent's configuration and behavior.
 
 ## Fixed scope and code entry points
@@ -73,11 +74,12 @@ configuration on failure. Do not silently overwrite a nonmatching plugin.
 ```text
 开始 Local System One Phase 8.4B — Hermes First-Run MVP。
 
-先核对 GitHub main 和 8.4A 集成 Draft PR 的精确 head SHA，基于该集成
-head 建立独立 worktree；旧的 #14 head 不含本次研究集成。以
+先核对 GitHub main 和 8.4A 集成 PR 的精确 head SHA：如仍为 Draft，
+基于该 head 建立独立 worktree；如已合并，核实 main 包含该 head 后以
+当前审阅过的 main 建立 worktree。旧的 #14 head 不含本次研究集成。以
 docs/V0_2_PRODUCT_SCOPE.md、docs/PHASE8_4A_RELEASE_BASELINE.md、
 docs/PHASE8_4B_IMPLEMENTATION_HANDOFF.md 和 release/v0.2.0-manifest.json
-为已冻结契约。此前的 #9～#14 保持 Draft；正式合并需主人确认。
+为已冻结契约。以 GitHub 实际状态为准；正式合并需主人确认。
 
 目标：让用户在指定的独立 Hermes Profile 中完成 doctor、start、shadow、
 status、off、stop、uninstall。默认本地 Laya/MLX 和回环地址，安装后 OFF，

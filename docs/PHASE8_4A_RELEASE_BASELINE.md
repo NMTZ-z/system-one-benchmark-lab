@@ -97,7 +97,7 @@ notice and license verification remains pending with the artifact revision.
 
 | Item | Status | Meaning |
 |---|---|---|
-| Main baseline | VERIFIED | GitHub main and stacked PR heads checked on 2026-11-06; integration is still a Draft. |
+| Main baseline | VERIFIED | GitHub main and stacked PR heads checked on 2026-11-06; integration was Draft at that snapshot. |
 | Phase 8.3 archive | PARTIAL | Public frozen code and reports are indexed; completeness of all private raw evidence was not re-audited. |
 | Legacy PR disposition | DOCUMENTED | Research ancestry retained in the candidate; formal mainline integration needs maintainer confirmation. |
 | Release scope | FROZEN | [Product scope](V0_2_PRODUCT_SCOPE.md). |

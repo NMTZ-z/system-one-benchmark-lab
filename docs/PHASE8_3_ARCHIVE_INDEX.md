@@ -2,8 +2,8 @@
 
 Phase 8.3 is **CLOSED_LIMITED**. The 8.4A integration candidate retains the
 frozen research source and commit ancestry of PRs #9–#13, plus the release
-baseline from #14. This candidate is a Draft; GitHub main and all six original
-PRs remain unchanged until a maintainer explicitly approves a merge.
+baseline from #14. At the 2026-11-06 audit, the candidate and all six
+original PRs were Draft and unmerged; check GitHub for their current status.
 
 The code and sanitized evidence are available for study in the candidate.
 H4D/H4E programs remain historical research tools: keeping source does not
@@ -21,8 +21,10 @@ the Phase 8.3 opportunity module and H4 experiment programs.
 All were open, Draft and unmerged when rechecked on 2026-11-06. The PRs are
 stacked; integrating them individually later without reconciling their shared
 history can duplicate work or reintroduce conflicting README/release changes.
-The proposed integration preserves their original commits as ancestors and
-must itself be reviewed before any formal mainline merge.
+The integration preserves their original commits as ancestors and requires
+maintainer approval before formal mainline merge. When their head commits
+reach their respective bases through another PR, GitHub may mark the original
+PRs as merged indirectly.
 The [complete pre-integration README](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/b0ea294ab74f35b99e780eaf29aab2b36d205168/README.md)
 remains available at the frozen #13 commit; the product-facing README links
 here to keep first-run guidance concise.

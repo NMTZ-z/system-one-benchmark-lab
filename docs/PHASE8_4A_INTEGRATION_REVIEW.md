@@ -3,8 +3,10 @@
 Snapshot: 2026-11-06. GitHub main was
 `062d52e753e7e00d91a536dc81e9d85b8819cb12`. This integration candidate
 incorporates the frozen heads of #9–#13 in their dependency order, then #14.
-The original Git commits and their authors remain ancestors. It is a Draft
-candidate for review; no formal mainline merge is authorized by this document.
+The original Git commits and their authors remain ancestors. At this snapshot
+the candidate was Draft; no formal mainline merge is authorized by this document.
+GitHub may later mark original PRs merged indirectly if their head commits
+become reachable from their respective base branches.
 
 ## Disposition and prior evidence
 
