@@ -37,7 +37,7 @@ def verify_retry_exact(
     if (not isinstance(key,bytes) or len(key)!=32 or
             db_path.is_symlink() or not db_path.is_file()
             or not run_directory.is_dir() or run_directory.is_symlink()
-            or expected_case not in {"h4_missing_read","h4b_missing_read","h4c_missing_read","h4d_missing_read"}
+            or expected_case not in {"h4_missing_read","h4b_missing_read","h4c_missing_read","h4d_missing_read","h4e_missing_read"}
             or run_directory.name!=expected_case):
         raise RetryEvidenceBlocked("not the isolated H4/H4B native source and evidence key")
     if not isinstance(retry_adapter,list) or len(retry_adapter)!=1:

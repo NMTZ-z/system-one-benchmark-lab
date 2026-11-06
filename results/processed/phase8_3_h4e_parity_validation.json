@@ -1,0 +1,152 @@
+{
+  "status": "CANDIDATE_SYSTEM_REHEARSAL_PASS",
+  "baseline_sha": "40d49fc1dd480a4d77aa94a84193d52db1dd4054",
+  "final_source_binding": "Exact frozen SHA, manifest, final clean-source matrix, and canonical offline admission are bound in the external delivery receipt.",
+  "third_failure": {
+    "reproduced_entrypoint": "actual proxy.main",
+    "system_call": "os.open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)",
+    "errno": 1,
+    "minimal_fix": "literal log-directory file-read-data only",
+    "unregistered_log_content": "DENIED",
+    "historical_unique_cause": "UNPROVEN; historical exception chain unavailable"
+  },
+  "matrix": [
+    {
+      "scenario": "success",
+      "verdict": "SYNTHETIC_E2E_PASS",
+      "synthetic_requests": 2,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "directory_denied",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "port_busy",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "proxy_exit",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "invalid_fd",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "ledger_busy",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "missing_input",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "target_exists",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 0,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    },
+    {
+      "scenario": "upstream_failure",
+      "verdict": "EXPECTED_BLOCK_WITH_RECOVERY",
+      "synthetic_requests": 1,
+      "all_owned_stopped": true,
+      "test_home": "OFF"
+    }
+  ],
+  "success": {
+    "native_read_file_calls": 1,
+    "completion_mlx_inferences": 2,
+    "rule_retry_observations": 1,
+    "synthetic_provider_requests": 2,
+    "owned_roles": 5,
+    "sdk_automatic_retries": 0
+  },
+  "verification": "Independent source-derived commands and policies, complete role inventory, kernel-denial probes, HMAC/native/plugin/HTTP/SQLite joins, process groups, budget and restored Home are recomputed.",
+  "python": {
+    "main_passed": 1634,
+    "main_skipped": 10,
+    "explicit_native_and_auth_passed": 9,
+    "distinct_passed": 1643,
+    "remaining_skip": 1,
+    "remaining_skip_coverage": "Original historical ledger read-only digest and 8/24 state verified separately."
+  },
+  "dsh": {
+    "passed": 64,
+    "typecheck": "PASS",
+    "build": "PASS"
+  },
+  "protected_state": {
+    "prior_attempt_file_counts": [
+      20709,
+      20713,
+      20721
+    ],
+    "all_prior_file_hashes_unchanged": true,
+    "original_ledger_unchanged": true,
+    "original_reservations": 8,
+    "global_limit": 24,
+    "historic_H1_UNKNOWN": 1,
+    "production_metadata_unchanged": true
+  },
+  "controller_exception": "Explicitly owner-approved fixed-role controller outside Seatbelt; controller itself has no kernel WAN guarantee. Executor and each service apply separate constrained profiles.",
+  "real_provider_requests": 0,
+  "new_real_case_created": false,
+  "real_execution_authorized": false,
+  "uncovered": [
+    "Real DNS and TLS",
+    "Real credential validity",
+    "StepFun availability and model behavior",
+    "Subscription debit"
+  ],
+  "admission": "Full exact-source frozen revalidation plus Coco Chat review and new exact-source owner authorization still required.",
+  "exit_confirmation": {
+    "all_owned_children_waited_with_4_second_bound": true,
+    "confirmed_exit_before_restore_independently_verified": true,
+    "port_conflict_condition_unchanged": true,
+    "fixed_port_and_connect_status_logged": true,
+    "new_counterexamples": 3,
+    "full_nine_scenario_revalidation": "PASS",
+    "earlier_947fd9d_frozen_rehearsal": "BLOCKED on recovery port check; original record preserved and synthetic Home separately restored",
+    "earlier_port_race_unique_cause": "UNCONFIRMED; original log did not identify the port"
+  },
+  "actual_parent_profile": {
+    "old_profile_text_bytes": 944791,
+    "old_compiled_data_bytes": 67007,
+    "compiled_data_limit_bytes": 65535,
+    "f4e08ff_canonical_admission": "BLOCKED before worker startup; original record preserved",
+    "directory_scope": "same protected roots; directory vnode only; regular contents and escaping links denied",
+    "new_actual_candidate_profile_bytes": 6316,
+    "candidate_kernel_denials": [
+      "IPv4",
+      "IPv6",
+      "UDP",
+      "unregistered loopback"
+    ],
+    "admission_reexecutes_kernel_probe": true,
+    "fixed_controller_round_trip": "PASS",
+    "source_derived_policy_and_original_proof_verified": true,
+    "forged_self_consistent_proof_cannot_skip_fresh_probe": true
+  }
+}
