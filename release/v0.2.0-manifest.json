@@ -6,6 +6,17 @@
   "release_tag": null,
   "snapshot_date": "2026-11-05",
   "verified_github_main_at_snapshot": "062d52e753e7e00d91a536dc81e9d85b8819cb12",
+  "integration_snapshot_date": "2026-11-06",
+  "integration_sources": {
+    "phase_8_3_stack_head": "b0ea294ab74f35b99e780eaf29aab2b36d205168",
+    "phase_8_4a_baseline_head": "0439777e0c42046316165558bd675013d3138ac9",
+    "development_baseline": "reviewed_integration_pr_head"
+  },
+  "source_exports": {
+    "product_allowlist": "release/product-files.txt",
+    "research_allowlist": "release/public-files.txt",
+    "research_opportunity_in_runtime_wheel_or_sdist": false
+  },
   "rc_targets": ["v0.2.0-rc.1", "v0.2.0-rc.2"],
   "platform": {
     "os_architecture": "macOS / Apple Silicon",

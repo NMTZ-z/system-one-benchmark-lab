@@ -1,9 +1,10 @@
 # Phase 8.4B — Hermes First-Run MVP handoff
 
-Start from the reviewed 8.4A product baseline. If this document is still on a
-Draft branch, use its exact reviewed head in a separate worktree and distinguish
-that SHA from public main; do not merge it implicitly. Preserve all existing
-Gates and the existing Agent's configuration and behavior.
+Start from the exact reviewed **8.4A research-integration Draft PR head**, not
+the older #14 head. The integration PR records its head SHA externally because
+a commit cannot embed its own SHA. Create a separate worktree at that SHA and
+distinguish it from public main; no formal merge is authorized yet. Preserve all
+existing Gates and the existing Agent's configuration and behavior.
 
 ## Fixed scope and code entry points
 
@@ -21,7 +22,8 @@ Gates and the existing Agent's configuration and behavior.
   existing task resolution unless a deliberate, tested replacement is made.
 - Keep the existing project structure. Prefer a small extension of these entry
   points to a new framework or daemon. Complete MCP and DSH distribution in
-  8.4C. Do not bring in 8.3 H4 executors.
+  8.4C. Historical H4 executors are retained in the repository for research;
+  do not wire them into the Runtime or execute them.
 
 ## User-operation contract
 
@@ -71,10 +73,11 @@ configuration on failure. Do not silently overwrite a nonmatching plugin.
 ```text
 开始 Local System One Phase 8.4B — Hermes First-Run MVP。
 
-先核对 GitHub main 和已审核的 8.4A 基线 SHA，基于该基线建立独立
-worktree。以 docs/V0_2_PRODUCT_SCOPE.md、docs/PHASE8_4A_RELEASE_BASELINE.md、
+先核对 GitHub main 和 8.4A 集成 Draft PR 的精确 head SHA，基于该集成
+head 建立独立 worktree；旧的 #14 head 不含本次研究集成。以
+docs/V0_2_PRODUCT_SCOPE.md、docs/PHASE8_4A_RELEASE_BASELINE.md、
 docs/PHASE8_4B_IMPLEMENTATION_HANDOFF.md 和 release/v0.2.0-manifest.json
-为已冻结契约；如 8.4A 仍为 Draft，明确使用其精确 head，未经授权不得合并。
+为已冻结契约。此前的 #9～#14 保持 Draft；正式合并需主人确认。
 
 目标：让用户在指定的独立 Hermes Profile 中完成 doctor、start、shadow、
 status、off、stop、uninstall。默认本地 Laya/MLX 和回环地址，安装后 OFF，
@@ -92,7 +95,7 @@ status、off、stop、uninstall。默认本地 Laya/MLX 和回环地址，安装
 
 保留五个现有 Gate；不新增 Gate，不启动 H4E，不引入自动重试、自动停止、
 付费模型升级、热切换或 Dashboard，不改生产 Hermes 配置，不安装常驻服务，
-不部署 MCP，不调用真实付费 Provider，不合并历史 PR。HTTP/MCP 和 DSH 的
+不部署 MCP，不调用真实付费 Provider，不擅自合并任何 PR。HTTP/MCP 和 DSH 的
 后续发行工作留给 8.4C；Luna 只可在 8.4C 单独研究。生产 Active、正式发布
 及真实 Owner Shadow 使用需要相应阶段的明确授权。
 ```

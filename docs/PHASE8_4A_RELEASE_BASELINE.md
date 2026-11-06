@@ -1,11 +1,13 @@
 # Phase 8.4A — Release baseline
 
-Snapshot: 2026-11-05. The product branch starts from GitHub
+Integration snapshot: 2026-11-06. The candidate starts from GitHub
 [`main@062d52e753e7e00d91a536dc81e9d85b8819cb12`](https://github.com/NMTZ-z/system-one-benchmark-lab/commit/062d52e753e7e00d91a536dc81e9d85b8819cb12).
 Phase 8.3 is **CLOSED_LIMITED**: its evidence is historical, its real user value
-is not established, and H4E is deferred. The product baseline is the 8.4A
-branch once reviewed and merged; until then the public main SHA above remains
-the actual main. Production Active/Canary remains **NOT_AUTHORIZED**.
+is not established, and H4E is deferred. The candidate retains the frozen
+research commits of PRs #9–#13 and the 8.4A changes from #14. Until the
+integration is approved and merged, the public main SHA above remains actual
+main; 8.4B can use the exact reviewed integration PR head in a new worktree.
+Production Active/Canary remains **NOT_AUTHORIZED**.
 
 ## Current implementation and gaps
 
@@ -21,9 +23,9 @@ the actual main. Production Active/Canary remains **NOT_AUTHORIZED**.
 | Evidence / budget | `evidence_integrity.py`, `budget_observability.py`, `docs/PHASE8_2B_*.md` | Structural checks and bounded mock evidence do not establish real billing, actual task savings or execution authority. |
 
 Phase 8.3's file-level disposition and dependency map is in the
-[archive index](PHASE8_3_ARCHIVE_INDEX.md). No Phase 8.3 code extraction is
-needed to start 8.4B; any later extraction needs an independent use case,
-provenance review and tests.
+[archive index](PHASE8_3_ARCHIVE_INDEX.md). Research source is retained in
+the candidate while its experiment executors and Opportunity module remain
+outside the product package. See the [integration review](PHASE8_4A_INTEGRATION_REVIEW.md).
 
 The installed Hermes source's admission validator passed its checks against
 the plugin in an isolated capability probe, with one warning: the optional
@@ -33,11 +35,10 @@ catches failures and falls back, but private APIs can drift and may complicate
 catalog review. Validate the fallback and find a supported integration seam
 before advertising compatibility or requesting the 8.4D catalog update.
 
-A wheel was built from the 8.4A source, installed without dependencies into a
-new isolated Python environment and imported outside the checkout. It contains
-the Runtime package and no Phase 8.3 experiment paths. This establishes package
-layout only; dependency installation, model loading and real inference still
-need clean end-to-end acceptance.
+The earlier #14 wheel check applies to that earlier source only. Integration
+must independently build and inspect its own product wheel and sdist, alongside
+product and research source exports. Dependency installation, model loading
+and real inference still need clean end-to-end acceptance.
 
 ## Version and distribution matrix
 
@@ -66,11 +67,13 @@ base SHA for a future release commit.
    platform versions, model revision, defaults, enabled capabilities and
    unauthorized actions. Unavailable values remain `null`; a final release
    with any required pending field is blocked.
-2. From a clean release commit, run `python scripts/build_public_release.py
-   --output <new-empty-directory>`. Verify its `PUBLIC-RELEASE.json` reports
-   the exact source SHA, `source_dirty=false`, `license_status=included`
-   and `publish_ready=true`; check every digest in its generated
-   `PUBLIC-MANIFEST.sha256`.
+2. From a clean release commit, export the product using the default
+   `release/product-files.txt`; export the research archive separately using
+   `--allowlist release/public-files.txt`. Verify each generated
+   `PUBLIC-RELEASE.json` reports the exact source SHA, `source_dirty=false`,
+   `license_status=included` and `publish_ready=true`, and independently
+   check all generated `PUBLIC-MANIFEST.sha256` entries. Inspect the wheel
+   and sdist to ensure the frozen Opportunity module is absent.
 3. The committed root `PUBLIC-RELEASE.json` and `PUBLIC-MANIFEST.sha256`
    describe an older `1fefe931...` bundle. They are historical artifacts,
    not an attestation of current main or a substitute for a fresh export.
@@ -93,11 +96,11 @@ notice and license verification remains pending with the artifact revision.
 
 | Item | Status | Meaning |
 |---|---|---|
-| Main baseline | VERIFIED | GitHub main and stacked PR heads checked on the snapshot date. |
+| Main baseline | VERIFIED | GitHub main and stacked PR heads checked on 2026-11-06; integration is still a Draft. |
 | Phase 8.3 archive | PARTIAL | Public frozen code and reports are indexed; completeness of all private raw evidence was not re-audited. |
-| Legacy PR disposition | DOCUMENTED | Keep #9–#13 open and frozen; do not merge the stack. |
+| Legacy PR disposition | DOCUMENTED | Research ancestry retained in the candidate; formal mainline integration needs maintainer confirmation. |
 | Release scope | FROZEN | [Product scope](V0_2_PRODUCT_SCOPE.md). |
 | Component version plan | FROZEN | Target versions fixed; future commits, digests and compatibility attestations are pending. |
-| Public release integrity | PASS (clean source export) | Sanitizer and generated manifest cover this source candidate. Final v0.2.0 artifact hashes, model licenses and installation acceptance remain pending. |
+| Public release integrity | PASS (integration source candidate) | Product/research exports and package boundaries are verified on the clean integration candidate. Final v0.2.0 artifacts remain pending. |
 | 8.4B handoff | READY | [Implementation handoff](PHASE8_4B_IMPLEMENTATION_HANDOFF.md). |
 | Production / Active | NOT_AUTHORIZED | Separate explicit authorization required. |

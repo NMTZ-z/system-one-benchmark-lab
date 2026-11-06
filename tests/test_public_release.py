@@ -45,6 +45,11 @@ def test_public_release_build_is_allowlisted_and_sanitized(tmp_path):
     assert not (output / "private").exists()
     assert not (output / "models").exists()
     assert not (output / "results/raw").exists()
+    assert not (output / "local_system_one/decision_opportunity.py").exists()
+    assert not (output / "benchmarks/decision_value").exists()
+    assert not list((output / "scripts").glob("phase8_3_*.py"))
+    for gate in ("search", "model_tier", "notification", "completion", "retry_escalation"):
+        assert (output / f"local_system_one/workflows/{gate}_gate.py").is_file()
 
     metadata = json.loads((output / "PUBLIC-RELEASE.json").read_text())
     assert metadata["file_count"] > 0
@@ -71,3 +76,17 @@ def test_allowlist_has_no_private_or_raw_result_prefix():
     entries = module.load_allowlist(ROOT / "release/public-files.txt")
     assert all(not value.startswith("private/") for value in entries)
     assert all(not value.startswith("results/raw/") for value in entries)
+
+
+def test_research_archive_keeps_frozen_sources_outside_product():
+    module = load_release_module()
+    research = set(module.select_source_files(module.load_allowlist(ROOT / "release/public-files.txt")))
+    product = set(module.select_source_files(module.load_allowlist(ROOT / "release/product-files.txt")))
+    historical = {
+        "local_system_one/decision_opportunity.py",
+        "benchmarks/decision_value/evaluate.py",
+        "scripts/phase8_3_h4e_runner.py",
+        "results/processed/phase8_3_h4e_parity_validation.json",
+    }
+    assert historical <= research
+    assert not historical & product

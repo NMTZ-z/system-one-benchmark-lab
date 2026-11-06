@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_ALLOWLIST = PROJECT_ROOT / "release" / "public-files.txt"
+DEFAULT_ALLOWLIST = PROJECT_ROOT / "release" / "product-files.txt"
 DEFAULT_OUTPUT = PROJECT_ROOT / "artifacts" / "public-release" / "local-system-one"
 
 FORBIDDEN_PARTS = {

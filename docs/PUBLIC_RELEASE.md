@@ -7,7 +7,9 @@ Status: pre-publication packaging
 
 The private research repository contains benchmark history, local experiment outputs and machine-specific evidence that should not be copied wholesale into a public project.
 
-Public distribution therefore uses an explicit tracked-file allowlist and a sanitizer rather than copying directories manually.
+Public distribution uses explicit tracked-file allowlists and a sanitizer. The
+default product bundle excludes Phase 8.3 research modules and H4 experiment
+tools. The complete GitHub research source remains separately exportable.
 
 ## Build a review bundle
 
@@ -21,9 +23,20 @@ Default output:
 artifacts/public-release/local-system-one/
 ~~~
 
+From the full GitHub checkout, export the fuller, sanitized research archive
+explicitly to a new output directory:
+
+~~~bash
+python scripts/build_public_release.py --allowlist release/public-files.txt --output <research-archive-directory>
+~~~
+
+The research archive includes historical H4 executors and their evidence.
+Those executors remain frozen and require separate authorization for any real
+execution. The product and research exports each get their own manifest.
+
 The builder:
 
-1. selects files from `release/public-files.txt`;
+1. selects files from `release/product-files.txt` by default, or from the explicitly supplied allowlist;
 2. expands directory prefixes from Git-tracked files only; exact allowlist entries may include a new non-ignored review-stage file, while any dirty source tree is marked non-publish-ready;
 3. rejects private/model/artifact/raw-result paths;
 4. rejects symlinks;
@@ -40,13 +53,13 @@ The public package has a standard Python project definition:
 ~~~bash
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[mcp]'
+python -m pip install '.[mcp]'
 ~~~
 
 For the L512 ANE backend:
 
 ~~~bash
-python -m pip install -e '.[ane,mcp]'
+python -m pip install '.[ane,mcp]'
 ~~~
 
 Validated runtime dependencies are pinned to:
@@ -55,6 +68,11 @@ Validated runtime dependencies are pinned to:
 - optional ANE runtime: `laya-coreml` from upstream commit `4619e0483f07adf39068532e85b42ec2347edb83`.
 
 The Git pin is deliberate: the validated `laya-coreml 0.1.1` in the research environment came from that source checkout and is not currently resolvable as a normal public-index package.
+
+Use a normal installation for the product wheel boundary. An editable install
+against the full research checkout exposes its checked-out research modules to
+Python; it is a development mode, and it does not wire those modules into the
+default Runtime.
 
 The GitHub source release deliberately does not bundle the original 421M checkpoint or large Core ML binaries. The validated fixed-shape ANE artifact family is published separately on Hugging Face at `NMTZ/laya-typed-decisions-421m-coreml-ane`. Users can download L512 directly, rebuild it locally, or provide their own paths through `--source`, `--ane-package`, or the existing `LOCAL_SYSTEM_ONE_SOURCE` / `LOCAL_SYSTEM_ONE_ANE_PACKAGE` service variables.
 
@@ -87,7 +105,9 @@ The public bundle does not contain:
 - historical experiment directories containing machine-specific paths;
 - credentials or `.env` files.
 
-The small set of frozen reports linked directly by the public README is included only after the same sanitizer passes them. Raw benchmark evidence and replay inputs remain excluded.
+The product bundle includes selected reports linked by the public README. The
+explicit research export includes sanitized replay inputs and processed
+evidence; both exports exclude private/raw evidence, credentials and models.
 
 The upstream Laya/CoreML provenance remains documented in `references/UPSTREAM.md`. The runtime can use the published `laya-coreml` Python package, so a source checkout of the research submodule is not required for ordinary users.
 

@@ -73,6 +73,7 @@ def test_frozen_8_2a_operational_source_provenance_and_later_change_boundary():
     # Runtime execution / Gate code remains outside this narrow allowlist.
     expected = {
         f"{HERMES_PLUGIN_PATH}/__init__.py",
+        f"{HERMES_PLUGIN_PATH}/README.md",
         f"{RUNTIME_PATH}/budget_observability.py",
         f"{RUNTIME_PATH}/evidence_integrity.py",
         # Phase 8.3 pure Shadow-only Opportunity classifier (no Gate wiring).

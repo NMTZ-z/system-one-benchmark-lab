@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 
 from test_hermes_system_one_plugin import FakeContext, load_plugin
 
@@ -316,6 +317,7 @@ def test_retry_observer_saturation_drops_instead_of_blocking(monkeypatch):
 
 def test_retry_isolated_shadow_evidence_exact_native_failure_identity(monkeypatch):
     """Retry owns a separate keyed request, but NEVER executes a native retry."""
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
     from phase8_2b_native_correlate import ref
     plugin=load_plugin()
     fake_key=b"\x44"*32

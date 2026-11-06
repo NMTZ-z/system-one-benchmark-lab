@@ -37,7 +37,7 @@ cd system-one-benchmark-lab
 
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e .
+python -m pip install .
 local-system-one --host 127.0.0.1 --port 8787
 ```
 
@@ -293,7 +293,10 @@ hermes plugins validate integrations/hermes/local-system-one-hermes
 hermes plugins doctor integrations/hermes/local-system-one-hermes --ci
 ```
 
-A disposable live lifecycle smoke test is also included:
+A historical live lifecycle smoke test is available in the full research source
+archive. It changes an evaluation profile to Canary and can invoke its configured
+Provider, so it requires separate authorization and is excluded from the
+product bundle:
 
 ```bash
 scripts/smoke_hermes_system_one_live.sh systemoneeval

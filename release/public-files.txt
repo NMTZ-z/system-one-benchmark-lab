@@ -7,6 +7,7 @@ pyproject.toml
 pytest.ini
 requirements-mcp.txt
 release/public-files.txt
+release/product-files.txt
 release/v0.2.0-manifest.json
 
 local_system_one/
@@ -70,6 +71,7 @@ docs/PHASE8_4A_RELEASE_BASELINE.md
 docs/PHASE8_3_ARCHIVE_INDEX.md
 docs/V0_2_PRODUCT_SCOPE.md
 docs/PHASE8_4B_IMPLEMENTATION_HANDOFF.md
+docs/PHASE8_4A_INTEGRATION_REVIEW.md
 references/UPSTREAM.md
 references/JEV_TYPED_DECISIONS.md
 

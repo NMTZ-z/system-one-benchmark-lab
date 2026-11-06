@@ -1,57 +1,66 @@
-# Phase 8.3 — archive and extraction index
+# Phase 8.3 — research archive index
 
-Phase 8.3 is **CLOSED_LIMITED**. Keep the following open Draft PRs and their
-frozen source/report references intact. This index preserves pointers, not a
-new claim that every private raw record has been re-audited: archive coverage
-is **PARTIAL**. H4E is deferred and does not block 8.4B.
+Phase 8.3 is **CLOSED_LIMITED**. The 8.4A integration candidate retains the
+frozen research source and commit ancestry of PRs #9–#13, plus the release
+baseline from #14. This candidate is a Draft; GitHub main and all six original
+PRs remain unchanged until a maintainer explicitly approves a merge.
 
-| PR | Actual base → head on 2026-11-05 | Delta | Disposition |
-|---|---|---:|---|
-| [#9](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/9) | `main@062d52e753e7e00d91a536dc81e9d85b8819cb12` → `feat/phase8-3-decision-value@f2392667e722f13c2dc35c4ffae08e36f963c6b4` | 132 files | Selective future extraction only; archive research and test harness. |
-| [#10](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/10) | #9 head → `feat/phase8-3-native-stock-shadow@e971889e23ecae6db54712c43772eb670c0a068d` | 12 files | Archive scoped native stock-shell proof and its fixtures. |
-| [#11](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/11) | #10 head → `feat/phase8-3-h4d-admission-value-intake@da1761879ca2425306a78c4252a1604bc2ad820b` | 10 files | Archive H4D readiness and evidence-feasibility study. |
-| [#12](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/12) | #11 head → `feat/phase8-3-h4d-once-step-plan@2c76bd4d705c8552e9c1a5105ce003e7e8f7586f` | 24 files | Archive H4D-specific auth, ledger and process changes. |
-| [#13](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/13) | #12 head → `feat/phase8-3-h4e-admission@b0ea294ab74f35b99e780eaf29aab2b36d205168` | 54 files | Archive H4E offline rehearsal; defer future work. |
+The code and sanitized evidence are available for study in the candidate.
+H4D/H4E programs remain historical research tools: keeping source does not
+authorize running them. The product source bundle and Runtime wheel exclude
+the Phase 8.3 opportunity module and H4 experiment programs.
 
-All five were open, Draft and unmerged at this snapshot. Later PRs inherit
-earlier changes. GitHub reporting a clean merge does not establish that the
-whole stack belongs in the product. The legacy branches also modify
-`README.md` and `release/public-files.txt`, which 8.4A changes; a future
-merge or rebase can create textual and semantic conflicts.
-
-## File-level disposition
-
-Paths below refer to the frozen PR commits unless explicitly described as main.
-Each grouping reflects implementation and dependencies, not filename alone.
-
-| Classification | Files and dependencies | Reason |
+| PR | Frozen base → head | Research retained in candidate |
 |---|---|---|
-| **KEEP_IN_MAIN** | `local_system_one/workflows/*.py`, `service.py`, `runtime/{mlx,ane,sources}.py`; Hermes `__init__.py` and `plugin.yaml`; DSH `src/{index,policy,retry}.ts`; `contracts/adapter-contract-v1.schema.json` | Existing product Gate, adapter, runtime and contract paths. They have distinct feature and evidence limits in the [baseline](PHASE8_4A_RELEASE_BASELINE.md). |
-| **KEEP_IN_MAIN** | `local_system_one/{evidence_integrity,budget_observability}.py`, `docs/PHASE8_2B_{EVIDENCE_CONTRACT,BUDGET_LEDGER}.md`, associated synthetic fixtures and verifier | Reusable evidence/budget formats, not permission to execute or proof of actual bills. |
-| **SELECTIVE_EXTRACT** | #9 `local_system_one/decision_opportunity.py`, `docs/PHASE8_3_OPPORTUNITY_CONTRACT.md`, `tests/test_phase8_3_opportunity.py`; depends on main `evidence_integrity.py` | Useful finite-choice classification with Shadow-only authority and validated labels. Its provenance and policy claims still need independent verification. 8.4B does not need it; keep the original credited commit as source for a future focused PR. |
-| **SELECTIVE_EXTRACT** | #9 Hermes `__init__.py` additions and `tests/test_retry_hermes.py`; depends on existing `_private_evidence_refs` and isolated-test HMAC opt-in | Adds Retry test-only provenance and request matching; it is not a general runtime safety fix. Extract only if a future product evidence requirement justifies it. |
-| **SELECTIVE_EXTRACT** | #9 `scripts/phase8_3_h4b_owned_processes.py` and tests; #13 changes add `phase8_3_h4e_process_identity.py` and case-specific recovery | Identity-before-signal and fail-closed cleanup are useful patterns. Current code depends on H4 private ledgers, case IDs and process-controller modules; do not transplant it into first-run as a generic library without redesign and independent tests. |
-| **ARCHIVE_ONLY** | #9 `benchmarks/decision_value/{capture,evaluate}.py`, `holdout_v1/*`, fixture JSONL and `results/processed/phase8_3_decision_value.json` | Synthetic/public-reconstruction replay and reports are useful research; they do not prove native task value and are not needed by the product. They depend on the opportunity contract and fixture-specific policy logic. |
-| **ARCHIVE_ONLY** | #9 `scripts/phase8_2a_native_run.py` changes and `scripts/phase8_3_{prepare_shared_dependency_home,native_rehearsal,init_diagnostic}*.py`; #10 `phase8_3_verify_stock_shadow.py` and related tests/reports | Isolated native test homes, auth routing, simulated Provider and precommitted task evidence. #9's shared script imports its 8.3 home preparation; copying it alone would break main's existing helper. |
-| **ARCHIVE_ONLY** | #11 `scripts/phase8_3_h4d_readiness.py`, `phase8_3_real_value_intake.py`, their tests and `docs/PHASE8_3_H4D_ADMISSION_REAL_INTAKE_REPORT.md` | H4D-specific admission and feasibility conclusions; preserve links as historical evidence. |
-| **ARCHIVE_ONLY** | #12 `scripts/phase8_2a_provider_cap.py` delta and `phase8_3_h4d_direct_child.py`, `phase8_3_transport_closeout.py`, auth tests/report | The shared budget proxy gains an H4D-only ledger-path exception, fixed ledger digest, run ID, caps and port; it imports the 8.3 closeout auditor. Merging it would couple the common helper to one historical experiment. Auth compatibility is likewise tied to the pinned Hermes path. |
-| **ARCHIVE_ONLY** | #13 `scripts/phase8_3_h4e_{controller,proxy,runner,rehearsal,adjudicate,sdk_guard,source}.py`, related contract, process identity, tests and reports | Dedicated H4E execution, proxy, Seatbelt, process identity and recovery machinery. Changes to shared H4 helpers also carry H4E cases and dependencies. |
-| **DEFER** | H4E real execution and repairs; real-provider value and billing claims; optional Luna Decisions API | No real H4E restart or Provider request in 8.4A/8.4B. Luna may be separately researched in 8.4C and cannot be required for local use. |
+| [#9](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/9) | `062d52e753e7e00d91a536dc81e9d85b8819cb12` → `f2392667e722f13c2dc35c4ffae08e36f963c6b4` | Opportunity contract, value replay, historical native diagnostics, tests and reports. |
+| [#10](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/10) | #9 → `e971889e23ecae6db54712c43772eb670c0a068d` | Scoped stock-shell four-case offline evidence. |
+| [#11](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/11) | #10 → `da1761879ca2425306a78c4252a1604bc2ad820b` | H4D offline readiness and evidence-feasibility research. |
+| [#12](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/12) | #11 → `2c76bd4d705c8552e9c1a5105ce003e7e8f7586f` | H4D credential compatibility and its narrowly scoped shared budget-helper changes. |
+| [#13](https://github.com/NMTZ-z/system-one-benchmark-lab/pull/13) | #12 → `b0ea294ab74f35b99e780eaf29aab2b36d205168` | H4E offline rehearsal, process-control and frozen evidence. |
 
-For any approved future extraction, retain original author and source commit,
-bring only the necessary dependencies, review the diff from current main, and
-run independent tests. Do not retarget #13 to main or close, delete or merge
-the historical PRs as a shortcut.
+All were open, Draft and unmerged when rechecked on 2026-11-06. The PRs are
+stacked; integrating them individually later without reconciling their shared
+history can duplicate work or reintroduce conflicting README/release changes.
+The proposed integration preserves their original commits as ancestors and
+must itself be reviewed before any formal mainline merge.
+The [complete pre-integration README](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/b0ea294ab74f35b99e780eaf29aab2b36d205168/README.md)
+remains available at the frozen #13 commit; the product-facing README links
+here to keep first-run guidance concise.
 
-## Evidence pointers and limits
+## Source, product and evidence boundaries
 
-- [#9 final report at its frozen head](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/f2392667e722f13c2dc35c4ffae08e36f963c6b4/docs/PHASE8_3_FINAL_REPORT.md)
+| Source group | Disposition and dependency |
+|---|---|
+| `local_system_one/workflows/*.py`, `runtime/*.py`, `service.py`, Hermes/DSH adapters and `contracts/adapter-contract-v1.schema.json` | Existing product implementation. #9 adds a test-only HMAC Retry correlation hook to Hermes; no new Gate or production authority. |
+| `local_system_one/{evidence_integrity,budget_observability}.py` | Existing reusable 8.2B formats; they do not grant execution authority or prove real billing. |
+| `local_system_one/decision_opportunity.py`, `benchmarks/decision_value/`, associated tests and processed results | Kept as frozen research source. The classifier depends on `evidence_integrity.py` and is not imported by the Runtime path. It is excluded from the product bundle, wheel and sdist. |
+| `scripts/phase8_2a_native_run.py`, `scripts/phase8_3_prepare_shared_dependency_home.py`, `scripts/phase8_3_native_rehearsal.py` and #10 stock verifier | Research harnesses depend on isolated homes, fixtures and an explicitly chosen test environment; none is in the product source bundle. |
+| `scripts/phase8_2a_provider_cap.py`, `scripts/phase8_3_transport_closeout.py` and `scripts/phase8_3_h4d_*.py` | #12 adds an H4D-only owner-ledger exception, fixed digest, run ID, port and caps to the shared **experimental** proxy. It is not a Runtime dependency or product installer. These historic scripts must not be treated as authorization to touch the original ledger or call a Provider. |
+| `scripts/phase8_3_h4e_*.py`, `scripts/phase8_3_h4b_*.py`, related tests, reports and processed evidence | Retained for research, with H4E-specific process ownership, proxy, admission and recovery dependencies. Excluded from the product bundle and never automatically started. |
+
+The frozen opportunity classifier can raise `TypeError` for a list or object
+in certain enum fields. It is an offline input-validation limitation, not an
+execution-authority bypass. Its bytes are part of the preregistered holdout
+hashes; editing it would invalidate that historical source check. Fix a
+separately versioned research implementation when it is next needed, retaining
+the original evidence and hashes.
+
+## Evidence and limits
+
+- [#9 final report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/f2392667e722f13c2dc35c4ffae08e36f963c6b4/docs/PHASE8_3_FINAL_REPORT.md)
   and [opportunity contract](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/f2392667e722f13c2dc35c4ffae08e36f963c6b4/docs/PHASE8_3_OPPORTUNITY_CONTRACT.md).
-- [#10 four-case stock-shell report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/e971889e23ecae6db54712c43772eb670c0a068d/docs/PHASE8_3_NATIVE_STOCK_SHADOW_REPORT.md):
+- [#10 stock-shell report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/e971889e23ecae6db54712c43772eb670c0a068d/docs/PHASE8_3_NATIVE_STOCK_SHADOW_REPORT.md):
   bounded synthetic-main-provider evidence, not measured real-world savings.
-- [#11 H4D readiness report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/da1761879ca2425306a78c4252a1604bc2ad820b/docs/PHASE8_3_H4D_ADMISSION_REAL_INTAKE_REPORT.md);
-  [#12 auth report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/2c76bd4d705c8552e9c1a5105ce003e7e8f7586f/docs/PHASE8_3_H4D_AUTH_COMPATIBILITY_REPORT.md);
+- [#11 H4D readiness](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/da1761879ca2425306a78c4252a1604bc2ad820b/docs/PHASE8_3_H4D_ADMISSION_REAL_INTAKE_REPORT.md),
+  [#12 authentication report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/2c76bd4d705c8552e9c1a5105ce003e7e8f7586f/docs/PHASE8_3_H4D_AUTH_COMPATIBILITY_REPORT.md),
   [#13 H4E parity report](https://github.com/NMTZ-z/system-one-benchmark-lab/blob/b0ea294ab74f35b99e780eaf29aab2b36d205168/docs/PHASE8_3_H4E_PARITY.md).
-- Historical ledger state reported by the frozen evidence: 8/24 physical
-  reservations, one H1 outcome UNKNOWN. This index does not fabricate its
-  missing result or treat a compatible reproduced failure as its unique cause.
+- A later local-only closeout dated 2026-11-05 reports one H4E attempt at
+  `512cfdb6791a400a5d588431a5fadf15fc483b90` blocked on DNS before the real
+  Agent and Provider proxy started. It records zero new physical Provider
+  requests, the historical 8/24 ledger and one H1 UNKNOWN. That later source
+  and private raw evidence are not included in PR #13; do not reinterpret its
+  earlier statements as a current real-E2E result.
+
+Public code and sanitized reports are indexed. Completeness of all private raw
+evidence has not been re-audited; archive coverage remains **PARTIAL**. Actual
+real Agent value and savings are not established.
