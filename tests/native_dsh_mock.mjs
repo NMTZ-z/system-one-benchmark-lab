@@ -57,7 +57,8 @@ try {
     const before = paths.length
     const patch = join(root, `dsh-${mode}.yml`)
     const gates = mode === 'first' ? '' : '    search_gate_enabled: true\n    model_tier_gate_enabled: true\n    notification_gate_enabled: true\n    completion_gate_enabled: true\n    retry_escalation_gate_enabled: true\n'
-    writeFileSync(patch, `- id: local-system-one-dsh\n  config:\n    mode: ${mode === 'off' ? 'off' : 'shadow'}\n    service_url: http://127.0.0.1:${sidecarPort}\n    timeout_ms: 3000\n${gates}    canary_acknowledged: false\n`)
+    const selectedMode = mode === 'off' ? '' : '    mode: shadow\n'
+    writeFileSync(patch, `- id: local-system-one-dsh\n  config:\n${selectedMode}    service_url: http://127.0.0.1:${sidecarPort}\n    timeout_ms: 3000\n${gates}    canary_acknowledged: false\n`)
     const policy = `(version 1)(allow default)(deny network-outbound)(allow network-outbound (remote ip "localhost:${mock.port}"))(allow network-outbound (remote ip "localhost:${sidecarPort}"))`
     const env = { ...process.env, DSH_TELEMETRY_MODE: 'DISABLED', DEEPSEEK_API_KEY: 'local-mock-key',
       DEEPSEEK_BASE_URL: mock.baseURL, LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE: tokenPath, NO_PROXY: '127.0.0.1,localhost' }
