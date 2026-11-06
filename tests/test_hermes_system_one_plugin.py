@@ -1372,6 +1372,25 @@ def test_off_drains_observation_and_old_session_stays_off_after_reenable(monkeyp
     assert len(calls) == 2
 
 
+def test_off_drops_queued_background_observation(monkeypatch):
+    plugin = load_plugin()
+    queued = []
+    calls = []
+    monkeypatch.setattr(plugin.threading.Thread, "start", lambda thread: queued.append(thread))
+    monkeypatch.setattr(plugin, "_safe_completion", lambda *args: calls.append(args))
+    ctx = FakeContext("shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+                      notification_gate_enabled=False, completion_gate_enabled=True,
+                      completion_loop_probe_enabled=True)
+    plugin.register(ctx)
+    ctx.hooks["pre_llm_call"](turn_id="queued", user_message="example")
+    ctx.hooks["post_tool_call"](turn_id="queued", result={}, status="success")
+    assert len(queued) == 1
+    plugin._set_control(ctx.state.data_dir.parent.parent, False)
+    queued[0].run()
+    assert not calls
+    assert "last_completion_loop_probe" not in ctx.state.values
+
+
 def test_sidecar_requires_explicit_https_for_remote_and_rejects_credentials():
     plugin = load_plugin()
     assert plugin._sidecar_url_allowed("http://127.0.0.1:8787")
@@ -1407,11 +1426,22 @@ def test_status_reads_live_registered_session_and_off_fence(tmp_path, monkeypatc
     plugin._set_control(home, False)
     assert first_run.status("demo") == 0
     assert "EFFECTIVE mode of registered v0.10 sessions: off (1 session(s))" in capsys.readouterr().out
+    (home / "config.yaml").write_text(
+        "plugins:\n  entries:\n    local-system-one-hermes:\n      settings:\n        mode: off\n",
+        encoding="utf-8",
+    )
+    assert first_run.status("demo") == 0
+    output = capsys.readouterr().out
+    assert "Registered v0.10 sessions: EFFECTIVE_OFF" in output
+    assert "CONFIGURED_OFF; PENDING_RELOAD" in output
+    assert "Profile EFFECTIVE_OFF: UNKNOWN" in output
     for callback in ctx.unload_callbacks:
         callback()
     assert not list((home / "plugin-data/local-system-one-hermes.sessions").iterdir())
     assert first_run.status("demo") == 0
-    assert "EFFECTIVE mode: PENDING_RELOAD" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "EFFECTIVE mode: UNKNOWN" in output
+    assert "CONFIGURED_OFF; PENDING_RELOAD" in output
 
 
 def test_untrusted_response_and_native_ids_are_not_persisted(monkeypatch):
@@ -1456,12 +1486,13 @@ def test_off_refuses_unknown_or_hardlinked_control_file(tmp_path):
     assert original.read_text(encoding="utf-8") == "keep this"
 
 
-def test_sidecar_redirect_does_not_forward_task():
+def test_sidecar_redirect_does_not_forward_task(tmp_path):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     import urllib.error
     import pytest
 
     received = []
+    redirects = []
 
     class Destination(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -1475,12 +1506,28 @@ def test_sidecar_redirect_does_not_forward_task():
     destination = ThreadingHTTPServer(("127.0.0.1", 0), Destination)
 
     class Redirect(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self):
+            import hashlib
+            import hmac
+            import json
+            nonce = self.headers.get("X-Local-System-One-Challenge", "")
+            proof = hmac.new(("a" * 43).encode(), f"identity:{nonce}:{self.connection.getsockname()[0]}:{self.connection.getsockname()[1]}".encode(), hashlib.sha256).hexdigest()
+            body = json.dumps({"proof": proof}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
         def log_message(self, *_args):
             pass
 
         def do_POST(self):
+            redirects.append((self.path, self.headers.get("Authorization")))
             self.send_response(307)
             self.send_header("Location", f"http://127.0.0.1:{destination.server_address[1]}/")
+            self.send_header("Content-Length", "0")
             self.end_headers()
 
     redirect = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
@@ -1488,9 +1535,15 @@ def test_sidecar_redirect_does_not_forward_task():
     for thread in threads:
         thread.start()
     try:
-        with pytest.raises(urllib.error.HTTPError):
-            load_plugin()._post_json(f"http://127.0.0.1:{redirect.server_address[1]}", "/gate", {"task": "private"}, 1)
+        plugin = load_plugin()
+        token = tmp_path / "token"
+        token.write_text("a" * 43, encoding="ascii")
+        token.chmod(0o600)
+        plugin._AUTH_PATH.set(str(token))
+        with pytest.raises(ValueError, match="HTTP 307"):
+            plugin._post_json(f"http://127.0.0.1:{redirect.server_address[1]}", "/gate", {"task": "private"}, 1)
         assert received == []
+        assert redirects == [("/gate", "Bearer " + "a" * 43)]
     finally:
         for server in (redirect, destination):
             server.shutdown()
@@ -1539,3 +1592,42 @@ def test_background_observation_keeps_its_registration_profile(tmp_path, monkeyp
         time.sleep(0.01)
     assert "last_completion_loop_probe" in ctx.state.by_profile["profile-a"]
     assert "profile-b" not in ctx.state.by_profile
+
+
+def test_impostor_sidecar_never_receives_token_or_task(tmp_path):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import pytest
+
+    seen = []
+
+    class Impostor(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_GET(self):
+            seen.append((self.path, self.headers.get("Authorization")))
+            body = b'{"proof":"' + b"0" * 64 + b'"}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self):
+            seen.append((self.path, self.headers.get("Authorization")))
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Impostor)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        plugin = load_plugin()
+        path = tmp_path / "access-token"
+        path.write_text("a" * 43)
+        path.chmod(0o600)
+        plugin._AUTH_PATH.set(str(path))
+        with pytest.raises(PermissionError):
+            plugin._post_json(f"http://127.0.0.1:{server.server_address[1]}", "/gate", {"task": "private"}, 1)
+        assert seen == [("/_local_system_one/identity", None)]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

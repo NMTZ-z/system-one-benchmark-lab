@@ -1,3 +1,4 @@
+import './setup.js'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { apply } from '../src/index.js'
 import { parseRetryEscalationDecision } from '../src/client.js'

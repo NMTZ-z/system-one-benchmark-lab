@@ -1,8 +1,8 @@
 {
   "name": "local-system-one-dsh",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
-  "description": "Reversible Local System One Search + Model Tier + Notification + Completion adapter for DeepSeek Harness",
+  "description": "Reversible five-gate Local System One adapter for DeepSeek Harness",
   "license": "Apache-2.0",
   "keywords": [
     "dsh",

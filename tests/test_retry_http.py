@@ -27,7 +27,7 @@ class NeverCalledEngine:
 
 @pytest.fixture
 def service():
-    server = create_server(NeverCalledEngine(), port=0)
+    server = create_server(NeverCalledEngine(), port=0, auth_token="test-secret")
     worker = threading.Thread(target=server.serve_forever, daemon=True)
     worker.start()
     try:
@@ -38,11 +38,14 @@ def service():
         worker.join(timeout=2)
 
 
-def _post(base, body, *, raw=False):
+def _post(base, body, *, raw=False, token="test-secret"):
     data = body if raw else json.dumps(body).encode("utf-8")
+    headers = {"content-type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     with urlopen(Request(
         f"{base}/v1/workflows/retry-escalation-gate",
-        data=data, headers={"content-type":"application/json"},method="POST",
+        data=data, headers=headers, method="POST",
     ), timeout=2) as response:
         return response.status, json.loads(response.read())
 
@@ -55,7 +58,7 @@ def test_live_http_write_timeout_verified_state(service):
     assert body["advisory_only"] is True
     assert body["backend"] == "rule"
     assert body["request_id"] == "phase8c-t1"
-    with urlopen(f"{service}/metrics", timeout=2) as response:
+    with urlopen(Request(f"{service}/metrics", headers={"Authorization": "Bearer test-secret"}), timeout=2) as response:
         metrics = json.loads(response.read())
     assert metrics["requests"] == 1
     assert metrics["backends"] == {"rule": 1}
@@ -147,7 +150,7 @@ def test_live_http_security_401_with_explicit_auth():
     thread.start()
     try:
         with pytest.raises(HTTPError) as err:
-            _post(f"http://127.0.0.1:{server.server_address[1]}",payload())
+            _post(f"http://127.0.0.1:{server.server_address[1]}",payload(), token=None)
         assert err.value.code == 401
     finally:
         server.shutdown()

@@ -18,21 +18,23 @@ class Engine:
         return {"service": "ok"}
 
 
-def test_runtime_owner_proof_and_authenticated_stop():
+def test_runtime_owner_proof_and_authenticated_stop(tmp_path):
     token = "example-only-this-runtime-knows-this-token"
+    access, _ = first_run._access_token(tmp_path)
     engine = Engine()
     engine.runtime_identity = {
         "backend": "mlx", "model": first_run.TYPED_DECISIONS_MODEL_ID,
         "revision": first_run.TYPED_DECISIONS_REVISION, "inference_verified": True,
     }
-    server = create_server(engine, host="127.0.0.1", port=0, owner_token=token)
+    server = create_server(engine, host="127.0.0.1", port=0, owner_token=token, auth_token=access)
     worker = threading.Thread(target=server.serve_forever)
     worker.start()
     port = server.server_address[1]
     try:
         assert not first_run._owned({"port": port, "token": "incorrect-token"})
         assert first_run._request(port, "/_local_system_one/stop", post=True) is None
-        assert first_run._ready({"port": port, "token": token})
+        assert first_run._ready({"port": port, "token": token,
+                                 "auth_sha256": hashlib.sha256(access.encode()).hexdigest()}, tmp_path)
         nonce = "ab" * 16
         result = first_run._request(port, "/_local_system_one/stop", post=True, headers={
             "X-Local-System-One-Challenge": nonce,
@@ -47,7 +49,7 @@ def test_runtime_owner_proof_and_authenticated_stop():
             worker.join(timeout=3)
         server.server_close()
     with pytest.raises(ValueError):
-        create_server(Engine(), host="0.0.0.0", port=0, owner_token=token)
+        create_server(Engine(), host="0.0.0.0", port=0, owner_token=token, auth_token=access)
 
 
 def test_stop_refuses_unowned_listener_and_never_sends_token(tmp_path, monkeypatch):
@@ -188,7 +190,7 @@ def test_start_ignores_untrusted_working_directory_and_pythonpath(tmp_path, monk
         (package / "__init__.py").write_text("")
         (package / "__main__.py").write_text(
             "import os\nfrom pathlib import Path\n"
-            "assert 'LOCAL_SYSTEM_ONE_AUTH_TOKEN' not in os.environ\n"
+            "assert len(os.environ['LOCAL_SYSTEM_ONE_AUTH_TOKEN']) == 43\n"
             "Path(__file__).resolve().parent.parent.joinpath('executed').write_text('yes')\n"
         )
     monkeypatch.setenv("LOCAL_SYSTEM_ONE_HERMES_ROOT", str(root))
@@ -226,6 +228,7 @@ def test_cli_loads_verified_snapshot_directly_offline(tmp_path, monkeypatch):
     from local_system_one import cli
 
     monkeypatch.setattr(first_run, "_model_snapshot", lambda: tmp_path)
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_AUTH_TOKEN", "test-secret")
     monkeypatch.setattr("sys.argv", ["local-system-one"])
 
     def load(source):
@@ -243,6 +246,7 @@ def test_legacy_service_never_downloads_the_default_model(monkeypatch, capsys):
     from local_system_one import cli
 
     monkeypatch.setattr(sys, "argv", ["local-system-one"])
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_AUTH_TOKEN", "test-secret")
     monkeypatch.setattr(first_run, "_model_snapshot", lambda: None)
     monkeypatch.setattr(cli, "MLXRuntime", lambda _source: pytest.fail("must not initialize missing model"))
     monkeypatch.setenv("HF_HUB_OFFLINE", "0")

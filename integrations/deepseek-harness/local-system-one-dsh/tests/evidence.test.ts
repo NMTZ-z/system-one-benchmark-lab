@@ -1,3 +1,4 @@
+import './setup.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apply } from '../src/index.js'
 import { correlationRefs, isolatedCorrelationKey, writePrivateCorrelation } from '../src/evidence.js'
