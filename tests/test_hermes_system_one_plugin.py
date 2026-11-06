@@ -234,6 +234,7 @@ def test_shadow_missing_runtime_is_reported_without_private_details(monkeypatch)
     event = ctx.state.values["last_shadow"]
     assert event["error"] == "runtime_unavailable"
     assert event["search"]["action_reason"] == "runtime_unavailable"
+    assert plugin._safe_telemetry(event)["error"] == "runtime_unavailable"
     assert "private-token-path" not in str(event)
 
 

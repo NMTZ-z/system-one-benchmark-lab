@@ -68,7 +68,7 @@ _SAFE_TEXT = frozenset({
     "unsupported_provider_or_model", "original_reasoning_not_high", "web_search", "web_extract",
     "tool_result", "turn_end", "post_tool_call", "invalid_response", "URLError", "TimeoutError", "OSError", "ValueError", "TypeError",
     "runtime_URLError", "runtime_TimeoutError", "runtime_OSError", "runtime_ValueError", "runtime_TypeError",
-    "runtime_invalid_response", "1.0", "0.10.0",
+    "runtime_invalid_response", "runtime_unavailable", "1.0", "0.10.0",
 })
 
 
