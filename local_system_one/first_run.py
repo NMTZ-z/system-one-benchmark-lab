@@ -455,6 +455,8 @@ def status(profile: str) -> int:
     error = last.get("error")
     if not isinstance(error, str) or not re.fullmatch(r"[A-Za-z_]{1,80}", error):
         error = "none or UNKNOWN"
+    elif error == "runtime_unavailable":
+        error = "Runtime unavailable or credential missing"
     print(f"Last Search decision source: {source}; latency ms: {latency}; failure: {error}")
     return 0
 
