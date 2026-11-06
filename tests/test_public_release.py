@@ -52,6 +52,7 @@ def test_public_release_build_is_allowlisted_and_sanitized(tmp_path):
         assert (output / f"local_system_one/workflows/{gate}_gate.py").is_file()
 
     metadata = json.loads((output / "PUBLIC-RELEASE.json").read_text())
+    assert metadata["source_allowlist"] == "release/product-files.txt"
     assert metadata["file_count"] > 0
     assert metadata["license_status"] == "included"
     assert metadata["publish_ready"] is (not metadata["source_dirty"])
@@ -78,7 +79,7 @@ def test_allowlist_has_no_private_or_raw_result_prefix():
     assert all(not value.startswith("results/raw/") for value in entries)
 
 
-def test_research_archive_keeps_frozen_sources_outside_product():
+def test_research_archive_keeps_frozen_sources_outside_product(tmp_path):
     module = load_release_module()
     research = set(module.select_source_files(module.load_allowlist(ROOT / "release/public-files.txt")))
     product = set(module.select_source_files(module.load_allowlist(ROOT / "release/product-files.txt")))
@@ -90,3 +91,15 @@ def test_research_archive_keeps_frozen_sources_outside_product():
     }
     assert historical <= research
     assert not historical & product
+    metadata = module.build_release(
+        tmp_path / "research", allowlist=ROOT / "release/public-files.txt"
+    )
+    assert metadata["source_allowlist"] == "release/public-files.txt"
+
+
+def test_external_allowlist_does_not_expose_its_path(tmp_path):
+    module = load_release_module()
+    external = tmp_path / "custom.txt"
+    external.write_text("README.md\nLICENSE\n")
+    metadata = module.build_release(tmp_path / "external", allowlist=external)
+    assert metadata["source_allowlist"] == "<external>"

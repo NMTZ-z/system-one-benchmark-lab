@@ -78,7 +78,7 @@ closeout is newer than #13; its actual real-Provider E2E remains blocked.
 
 ## Integration checks
 
-- 311 focused Python tests passed on the candidate, including the historical
+- 312 focused Python tests passed on the candidate, including the historical
   frozen holdout checks, adapter contracts, the isolated Retry correlation
   hook, budget-proxy mock tests and synthetic authorization-boundary unit tests.
   No H4 execution matrix or real Provider was run. Two integration-specific

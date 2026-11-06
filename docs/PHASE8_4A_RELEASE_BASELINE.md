@@ -71,7 +71,8 @@ base SHA for a future release commit.
    `release/product-files.txt`; export the research archive separately using
    `--allowlist release/public-files.txt`. Verify each generated
    `PUBLIC-RELEASE.json` reports the exact source SHA, `source_dirty=false`,
-   `license_status=included` and `publish_ready=true`, and independently
+   the correct `source_allowlist`, `license_status=included` and
+   `publish_ready=true`, and independently
    check all generated `PUBLIC-MANIFEST.sha256` entries. Inspect the wheel
    and sdist to ensure the frozen Opportunity module is absent.
 3. The committed root `PUBLIC-RELEASE.json` and `PUBLIC-MANIFEST.sha256`

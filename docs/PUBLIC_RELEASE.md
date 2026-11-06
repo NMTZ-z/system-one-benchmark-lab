@@ -42,7 +42,9 @@ The builder:
 4. rejects symlinks;
 5. scans exported text for user-home paths, private-key headers and common credential/token patterns;
 6. writes `PUBLIC-MANIFEST.sha256`;
-7. writes `PUBLIC-RELEASE.json` with source commit, dirty-tree state and license readiness.
+7. writes `PUBLIC-RELEASE.json` with source commit, selected allowlist,
+   dirty-tree state and license readiness. An external custom allowlist is
+   labeled `<external>` without exposing its path.
 
 A scanner finding fails the build.
 

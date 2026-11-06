@@ -209,9 +209,14 @@ def build_release(
     commit = git("rev-parse", "HEAD", root=root).strip()
     dirty = bool(git("status", "--porcelain", root=root).strip())
     license_present = (root / "LICENSE").is_file() and "LICENSE" in files
+    resolved_allowlist, resolved_root = allowlist.resolve(), root.resolve()
     metadata = {
         "schema": 1,
         "source_commit": commit,
+        "source_allowlist": (
+            resolved_allowlist.relative_to(resolved_root).as_posix()
+            if resolved_allowlist.is_relative_to(resolved_root) else "<external>"
+        ),
         "source_dirty": dirty,
         "file_count": len(files),
         "license_status": "included" if license_present else "missing",
