@@ -207,7 +207,7 @@ describe('configuration and policy', () => {
     expect(config.effectiveMode).toBe('canary')
   })
 
-  it('defaults both gates on while keeping reasoning mutation off', () => {
+  it('defaults Shadow to Search only while keeping reasoning mutation off', () => {
     const config = resolveConfig({ mode: 'shadow' })
     expect(config.searchGateEnabled).toBe(true)
     expect(config.modelTierGateEnabled).toBe(false)

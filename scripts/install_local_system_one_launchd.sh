@@ -19,12 +19,9 @@ if ! plutil -lint "$plist"; then
   exit 1
 fi
 if ! launchctl bootstrap "gui/$uid" "$plist"; then
-  if ! launchctl print "gui/$uid" >/dev/null 2>&1; then
+  if ! launchctl bootout "gui/$uid" "$plist"; then
     echo "LaunchAgent state is unknown; its configuration and credential were retained." >&2
     exit 1
-  fi
-  if launchctl print "gui/$uid/$label" >/dev/null 2>&1; then
-    launchctl bootout "gui/$uid" "$plist" || exit 1
   fi
   "$python" "$helper" remove "$repo" "$plist" "$logs"
   echo "LaunchAgent installation failed; its new credential was removed." >&2

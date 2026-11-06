@@ -16,8 +16,10 @@ def environment(tmp_path):
     launchctl = bindir / 'launchctl'
     launchctl.write_text('''#!/bin/sh
 if [ "$1" = bootstrap ] && [ "${FAIL_BOOTSTRAP:-}" = 1 ]; then exit 1; fi
+if [ "$1" = bootout ] && { [ "${FAIL_DOMAIN:-}" = 1 ] || [ "${FAIL_BOOTOUT:-}" = 1 ]; }; then exit 1; fi
 if [ "$1" = print ]; then
   if [ "${FAIL_DOMAIN:-}" = 1 ]; then exit 1; fi
+  if [ "${LABEL_RUNNING:-}" = 1 ]; then exit 0; fi
   case "$2" in */ai.localsystemone.service) exit 1;; *) exit 0;; esac
 fi
 exit 0
@@ -33,8 +35,8 @@ exit 0
     return home, env
 
 
-def run(script, env):
-    return subprocess.run([str(ROOT / 'scripts' / script)], cwd=ROOT, env=env, text=True, capture_output=True)
+def run(script, env, *args):
+    return subprocess.run([str(ROOT / 'scripts' / script), *args], cwd=ROOT, env=env, text=True, capture_output=True)
 
 
 def test_launchd_private_credential_and_owned_cleanup(tmp_path):
@@ -90,3 +92,16 @@ def test_uncertain_launchd_status_retains_credential_until_safe_cleanup(tmp_path
     env.pop('FAIL_DOMAIN')
     assert run('uninstall_local_system_one_launchd.sh', env).returncode == 0
     assert not token.exists() and not plist.exists()
+
+
+def test_failed_bootout_requires_explicit_stopped_confirmation(tmp_path):
+    home, env = environment(tmp_path)
+    assert run('install_local_system_one_launchd.sh', env).returncode == 0
+    token = home / 'Library/Application Support/Local System One/profiles/launchd/access-token'
+    env['FAIL_BOOTOUT'] = '1'
+    assert run('uninstall_local_system_one_launchd.sh', env).returncode != 0 and token.exists()
+    env['LABEL_RUNNING'] = '1'
+    assert run('uninstall_local_system_one_launchd.sh', env, '--confirm-stopped').returncode != 0 and token.exists()
+    env.pop('LABEL_RUNNING')
+    assert run('uninstall_local_system_one_launchd.sh', env, '--confirm-stopped').returncode == 0
+    assert not token.exists()

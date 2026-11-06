@@ -91,7 +91,7 @@ Logs:
 
 The installer creates a separate private `launchd` credential and configures its path in the LaunchAgent; it does not put the credential itself in the plist. Set `LOCAL_SYSTEM_ONE_PROFILE=launchd` for MCP clients and the status wrapper. The service binds only to loopback and model acquisition is offline. Installation refuses an existing plist or credential it cannot identify; older installations without this ownership record need manual review.
 
-Uninstall removes the owned LaunchAgent and its credential after verifying both. If the configuration was edited or service status cannot be determined, it leaves the files for review. Uninstall:
+Uninstall removes the owned LaunchAgent and its credential after verifying both. If the configuration was edited or service status cannot be determined, it leaves the files for review. After personally verifying an already-stopped service, use `--confirm-stopped` only if the normal uninstall cannot confirm shutdown. Uninstall:
 
 ~~~bash
 scripts/uninstall_local_system_one_launchd.sh
