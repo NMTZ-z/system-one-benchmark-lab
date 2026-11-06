@@ -90,6 +90,10 @@ def _safe_telemetry(value: Any, key: str = "") -> Any:
     if isinstance(value, float):
         return value if math.isfinite(value) and abs(value) <= 10**12 else None
     if isinstance(value, str):
+        if key in {"error", "action_reason"} and value.removeprefix("runtime_") in {
+            "FileNotFoundError", "PermissionError", "ConnectionRefusedError", "ConnectionResetError",
+        }:
+            return "runtime_unavailable"
         if key in {"request_id", "turn_id"}:
             if (key == "request_id" and os.environ.get("LOCAL_SYSTEM_ONE_EVIDENCE_ENABLE") == "isolated-shadow-test-v1"
                     and len(value) in (24, 32) and all(c in "0123456789abcdef" for c in value)):

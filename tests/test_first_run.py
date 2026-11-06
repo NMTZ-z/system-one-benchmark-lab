@@ -119,6 +119,9 @@ def test_status_redacts_untrusted_profile_and_decision_content(tmp_path, monkeyp
     assert "PENDING_RELOAD" in output and "model" in output and "2.5" in output
     assert "private-secret" not in output and "private-task" not in output
     assert "private error" not in output
+    (state / "state.json").write_text(json.dumps({"last_shadow": {"error": "runtime_unavailable"}}), encoding="utf-8")
+    assert first_run.status("demo") == 0
+    assert "Runtime unavailable or credential missing" in capsys.readouterr().out
 
 
 def test_doctor_is_read_only_and_reports_missing_profile(tmp_path, monkeypatch, capsys):
