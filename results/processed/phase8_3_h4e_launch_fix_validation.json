@@ -1,0 +1,49 @@
+{
+  "status": "PASS_OFFLINE_LAUNCH_CORRECTION",
+  "base_sha": "0e3695b2958c7df23a1aaf952dd148d30055797d",
+  "final_source_binding": "Exact commit and manifest in external freeze receipt.",
+  "python": {
+    "main_passed": 1580,
+    "main_skipped": 9,
+    "separate_kernel_passed": 11,
+    "frozen_registry_passed": 1,
+    "native_passed": 7,
+    "distinct_passed": 1599,
+    "remaining_skip": 1
+  },
+  "dsh": {
+    "passed": 64,
+    "typecheck": "PASS",
+    "build": "PASS"
+  },
+  "real_provider_requests_in_correction": 0,
+  "new_real_case_created": false,
+  "previous_attempt": {
+    "provider_requests": 0,
+    "verdict": "BLOCKED_BEFORE_NATIVE_PREFLIGHT",
+    "original_evidence_preserved": true
+  },
+  "scope": "H4E parent mode switch static checks; unchanged frozen zero-network native credential preflight must pass before any model, DNS, Provider or native task. Existing callers retain default official auth checks.",
+  "regression_cases": [
+    "No installation CLI during H4E static switch; credentials remain NOT_CHECKED",
+    "Wrong configured Provider route rejected",
+    "Actual mode switch via run with missing CLI and failed native preflight: no later services/DNS, complete restore, zero new slots"
+  ],
+  "independent_review": {
+    "standards_findings": 0,
+    "spec_findings": 0,
+    "reviewer": "Astra Medium read-only actual diff review"
+  },
+  "native_provider": "synthetic_loopback",
+  "native_controls": 7,
+  "shared_physical_cap": 3,
+  "shared_seconds": 90,
+  "network_permissions_changed": false,
+  "source_sha256": {
+    "scripts/phase8_3_prepare_shared_dependency_home.py": "8dbb87eeb90f2c9e6bb69c26f505c08922debc1f24afd3cf40a097cb8d4b9854",
+    "scripts/phase8_3_h4e_runner.py": "7b4b6de140c7097da07bcce4fa5452fbcb5a91e8a7a83e2d241409b88acd8ae1",
+    "tests/test_phase8_3_prepare_shared_dependency_home.py": "6a265d48a0023931adf5d1091bf6dd2543bfd79b2be0e339b610cc0ca2f517df",
+    "tests/test_phase8_3_h4e_runner.py": "85041bbecac7a3f812bf328cbd697e5bc9ed2b22c8b90658bab82fe772cb6f75"
+  },
+  "log_sha256": "56d7786cc8115bb7342f7aae423dca6976c401ce0843a5f0529bc8a6f60e0deb"
+}

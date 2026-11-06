@@ -1,0 +1,124 @@
+{
+  "schema": "local-system-one/phase8_3-h4d-auth-compatibility-v2",
+  "date": "2026-10-26",
+  "base_commit": "a6936c77071bd150b1e378a5f0cc331b4df795dd",
+  "reproduced_exception_path": [
+    "load_pool",
+    "read_credential_pool",
+    "_load_global_auth_store",
+    "Path.exists",
+    "PermissionError",
+    "missing_api_key"
+  ],
+  "historical_internal_exception_uniquely_proven": false,
+  "kernel_auth_scenarios": [
+    "original_failure",
+    "fixed_resolution",
+    "empty_profile",
+    "profile_denied",
+    "pool_direct_route"
+  ],
+  "production_policy_modified": false,
+  "historical_case_reused": false,
+  "new_local_model_inferences": 0,
+  "real_H4D_e2e": "UNVERIFIED",
+  "independent_review": {
+    "model": "Codex GPT-6 Astra",
+    "effort": "medium",
+    "mode": "READ_ONLY",
+    "blocking_findings": 0
+  },
+  "new_code_sha256": {
+    "scripts/phase8_3_h4b_direct_child.py": "262c4a43c5517721ce42e02a317c2faa0f27f312cf53f35cfd23a86e1ac43a44",
+    "scripts/phase8_3_real_hermes_h4b.py": "6976077a3676095f06a587e0dcd44de9ed9e7dfb2d4394f796379fde0d69cb5a",
+    "tests/test_phase8_3_h4d_auth.py": "ae76d9c92ebea4468f86eaedd40ecb98753a9bbf2bb6fe9ae0c01af6c20ed040"
+  },
+  "historical_ledger_sha256": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+  "historical_ledger_unchanged": true,
+  "auth_metadata_matches_pre_H4D_checkpoint": true,
+  "config_matches_original_OFF_checkpoint": true,
+  "auth_contents_read": false,
+  "new_real_provider_requests": 0,
+  "frozen_auth_source": {
+    "hermes_cli/auth.py": {
+      "sha256": "19c14865f2e8cf549182fcb6cc15f3cd91c2f71b2d1bd8d8e1f6f102f6b6e3d8",
+      "matches_original_Git_object": true
+    },
+    "agent/credential_pool.py": {
+      "sha256": "f7f8501b68485b1437b3365f6451b10cc35bffa815d303c9db3c81ca9a89f943",
+      "matches_original_Git_object": true
+    },
+    "hermes_cli/runtime_provider.py": {
+      "sha256": "d60a99f56c55f1d0b41f7d9f0b812625eb0339fe96b6ac19861831ca1c4aaa43",
+      "matches_original_Git_object": true
+    }
+  },
+  "delivery": "FINAL_ENGINEERING_VALIDATION",
+  "python": {
+    "version": "3.12.14",
+    "pytest_version": "9.1.1",
+    "main_passed": 1505,
+    "main_skipped": 2,
+    "main_deferred": 7,
+    "kernel_process_passed": 7,
+    "deferred_registry_passed": 1,
+    "distinct_passed": 1513,
+    "remaining_skipped": 1,
+    "remaining_skip": "legacy worktree-local historical-ledger fixture absent; owner-global ledger independently verified"
+  },
+  "dsh": {
+    "vitest_passed": 64,
+    "vitest_pool": "threads",
+    "typecheck": "PASS",
+    "build": "PASS",
+    "owned_process_groups_stopped": true,
+    "dependencies": "existing lock-matched copy; no install"
+  },
+  "protected_state": {
+    "protected_files_checked": 32,
+    "protected_files_unchanged": true,
+    "auth_metadata_unchanged": true,
+    "credential_contents_read": false,
+    "gate_runtime_adapter_diff": []
+  },
+  "h4d_old_processes": {
+    "schema": "local-system-one/phase8_3-h4b-owned-pid-recovery-v1",
+    "recorded_child_groups": 4,
+    "statuses": {
+      "mlx": "NOT_RUNNING",
+      "observer": "NOT_RUNNING",
+      "provider": "NOT_RUNNING",
+      "native": "NOT_RUNNING"
+    },
+    "test_only": true,
+    "all_stopped": true,
+    "production_processes_discovered_or_touched": false,
+    "active_authority": "NOT_AUTHORIZED",
+    "real_provider_requests": 0
+  },
+  "h4e": {
+    "proposal": "PREPARED",
+    "execution": "NO_GO",
+    "authorized": false,
+    "executor_implemented": false,
+    "case": "h4e_missing_read",
+    "physical_request_cap": 3,
+    "single_run_seconds": 90,
+    "model": "step-5-preview",
+    "route": "STEP_PLAN_ONLY",
+    "payg": false,
+    "automatic_retries": false
+  },
+  "raw_local_log_sha256": {
+    "python.log": "ee26e7176bc8c6b9e88cacc03096bfa25f5a5fcaf123c5085f4bdb6ee32a0844",
+    "kernel-and-process.log": "21a423b679bfb4e74cfc477e3b4b774cba3060a119732dbe290355e06576ada8",
+    "frozen-native-registry.log": "a71df3ef716cabe43ead70bd8311cda3aeadcb986bea501da0ea9262f31c3925",
+    "dsh-vitest.log": "1f32e048d0cf64cbe3735c16d5209d4f47e70e8438d7c3b7217ac28c8958a580",
+    "dsh-typecheck.log": "d464afc6835ff2d3fcd96119f5a5440f3f8a195049a560919ebf37bd90cd4db8",
+    "dsh-build.log": "9a373b660b4fae66062eb58825472c15a5a345b447e346c5e012acd8424fb2b0"
+  },
+  "public_validation_log_sha256": "2dc5d06e6f4e58f4434522aeeb4789a19a16209d52af2b387541d56fb381a5d1",
+  "release_readiness": "verified after clean commit in PUBLIC-RELEASE.json; no real-experiment authority",
+  "full_python_and_dsh_rerun": true,
+  "extra_codex_review_runs": 0
+}

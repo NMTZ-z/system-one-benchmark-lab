@@ -1,0 +1,214 @@
+H4E launch correction: offline validation, 2026-10-27.
+Real Provider requests in correction checks: 0.
+
+=== python.log ===
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+........................................................................ [ 27%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+......................s................................................. [ 45%]
+...................................sssssss.............................. [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 63%]
+..............s......................................................... [ 67%]
+........................................................................ [ 72%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................................ [ 95%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_phase8_3_h4b_direct_child.py:102: Provide an exported Hermes source using HERMES_TEST_SOURCE
+SKIPPED [7] tests/test_phase8_3_h4e_native.py:151: requires explicit local frozen Hermes/SDK and macOS Seatbelt
+SKIPPED [1] tests/test_phase8_3_real_hermes_h4b_safety.py:26: Local H1/H2/H3 original private ledger not mounted
+1580 passed, 9 skipped, 11 deselected in 39.60s
+
+=== kernel-and-process.log ===
+...........                                                              [100%]
+11 passed in 2.30s
+
+=== frozen-native-registry.log ===
+.                                                                        [100%]
+1 passed in 0.02s
+
+=== native-qualification.log ===
+.......                                                                  [100%]
+7 passed in 48.71s
+
+=== dsh-vitest.log ===
+> local-system-one-dsh@0.6.0 test
+> vitest run --pool=threads
+
+
+ RUN  v4.1.11 DISPOSABLE_TEST_PATH
+
+ ✓ tests/evidence.test.ts (6 tests) 16ms
+ ✓ tests/adapter.test.ts (46 tests) 57ms
+ ✓ tests/retry.test.ts (12 tests) 90ms
+
+ Test Files  3 passed (3)
+      Tests  64 passed (64)
+   Start at  23:51:47
+   Duration  213ms (transform 103ms, setup 0ms, import 158ms, tests 163ms, environment 0ms)
+
+=== dsh-typecheck.log ===
+> local-system-one-dsh@0.6.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+=== dsh-build.log ===
+> local-system-one-dsh@0.6.0 build
+> tsc -p tsconfig.json
+
+=== synthetic native controls ===
+[
+  {
+    "fixture": "test_actual_frozen_native_and_3",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "offline_preflight",
+    "provider_listener_retained": false,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 0,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 0,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_4",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 2,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 2,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 1,
+    "tool_violations": 1
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_5",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 2,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 2,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 1,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_2",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 1,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 1,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 1,
+      "stopped": 1,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 1
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_0",
+    "case_id": "h4e_missing_read",
+    "exit_code": 0,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 0,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 2,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 2,
+      "stopped": 0,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 0
+    },
+    "tool_calls": 1,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_1",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": true,
+    "sdk": {
+      "blocked_requests": 1,
+      "client_failures": 0,
+      "deadline_stops": 0,
+      "explicit_key_rejections": 0,
+      "logical_epochs": 1,
+      "resolver_failures": 0,
+      "route_rejections": 0,
+      "sdk_create_attempts": 1,
+      "stopped": 1,
+      "stream_errors_sanitized": 0,
+      "worker_stops_forwarded": 1
+    },
+    "tool_calls": 0,
+    "tool_violations": 0
+  },
+  {
+    "fixture": "test_actual_frozen_native_and_6",
+    "case_id": "h4e_missing_read",
+    "exit_code": 3,
+    "mode": "native",
+    "provider_listener_retained": false,
+    "sdk": null,
+    "tool_calls": 0,
+    "tool_violations": 0
+  }
+]

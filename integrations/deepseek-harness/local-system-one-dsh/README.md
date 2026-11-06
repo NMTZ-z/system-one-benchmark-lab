@@ -2,9 +2,9 @@
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
-Native DeepSeek Harness adapter for Local System One **Search Gate + Model Tier Gate + Notification Gate + Completion Gate**.
+Native DeepSeek Harness adapter for Local System One **Search, Model Tier, Notification, Completion and Retry / Escalation**.
 
-Version `0.5.0` implements **Adapter Contract v1** while keeping installation inert by default, observing all four gates, preserving the audited Search Canary, and keeping Model Tier Canary explicitly opt-in. Completion is Shadow-only and never stops or restarts the DSH loop.
+Main-source version `0.6.0` implements **Adapter Contract v1** with installation OFF by default. Completion and Retry / Escalation are Shadow-only and never stop, restart or retry the DSH loop. The `dsh-plugin` install branch is still `0.3.0` at `217cf89b3c9d17eb5f3178ec0de31b530f834a96`; it does not install this main-source version. The version-alignment plan is in the [8.4A baseline](../../../docs/PHASE8_4A_RELEASE_BASELINE.md).
 
 ## Compatibility
 
@@ -41,6 +41,7 @@ Local System One Runtime
        +-- Model Tier Gate
        +-- Notification Gate
        +-- Completion Gate
+       +-- Retry / Escalation Gate
        +-- Rules / typed model / MLX / ANE
 ```
 
@@ -78,13 +79,14 @@ machine-readable schema at
 | `notification_gate_enabled` | `true` |
 | `completion_gate_enabled` | `true` |
 | `completion_loop_probe_enabled` | `false` |
+| `retry_escalation_gate_enabled` | `false` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
 | `timeout_ms` | `500` |
 
 - `off`: no Local System One request and no DSH mutation.
-- `shadow`: Search Gate and Model Tier Gate are evaluated on step 1; Notification Gate and Completion Gate observe the final turn at `turn/end`. The four gates can be enabled independently. DSH behavior is never changed.
+- `shadow`: Search and Model Tier are evaluated on step 1; Notification and Completion observe the final turn. Optional Retry / Escalation observes eligible tool failures. Gates can be enabled independently; observations do not change DSH behavior.
 - `canary`: Shadow behavior plus narrowly audited mutations. Canary requires `canary_acknowledged: true`; otherwise it degrades to Shadow.
 
 Example:
@@ -102,7 +104,7 @@ canary_web_filter_enabled: true
 canary_reasoning_downgrade_enabled: false
 ```
 
-The adapter sends only the current user task plus an ephemeral request ID to the configured Local System One endpoint. It does not send the full transcript or system prompt.
+Search and Model Tier send the current task; Notification can send a bounded final response; Completion can send the task, bounded result and execution state; Retry can send structured failure context. These go to the configured sidecar along with request identifiers. The default address is loopback; a remote `service_url` sends those inputs to that remote endpoint. Raw task and response text is not written into adapter decision logs.
 
 ## Phase 8B optional loop probe
 
@@ -193,7 +195,7 @@ Endpoint:
 POST /v1/workflows/notification-gate
 ```
 
-Notification remains **Shadow-only** in `0.5.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
+Notification remains **Shadow-only** in `0.6.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
 
 The adapter logs only decision metadata (`delivery`, `notify_now`, source, reason, score, confidence, backend, latency and event length). It never logs the final response text. No push, webhook, message or other delivery action is taken even if Local System One returns `notify_now`.
 
@@ -207,7 +209,7 @@ Endpoint:
 POST /v1/workflows/completion-gate
 ```
 
-Completion is **Shadow-only** in `0.5.0`. The adapter captures the bounded task on
+Completion is **Shadow-only** in `0.6.0`. The adapter captures the bounded task on
 the first `agent/pre-step`, observes the latest `assistant/message`, counts
 `tool/result` failures, and submits one compact Completion request at `turn/end`.
 It clears the ephemeral record at turn/session cleanup.
@@ -314,4 +316,4 @@ See [PHASE7A_MODEL_TIER_PARITY.md](PHASE7A_MODEL_TIER_PARITY.md) for Model Tier 
 
 ## Still out of scope
 
-Phase 8A does not add Active notification delivery, Active Completion stopping, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops.
+Phase 8A did not add Active notification delivery, Active Completion stopping, Retry Gate, Action Risk Gate, cross-provider routing, global/profile model mutation, probability-threshold active routing, or custom agent loops. A later phase added Shadow-only Retry observation.

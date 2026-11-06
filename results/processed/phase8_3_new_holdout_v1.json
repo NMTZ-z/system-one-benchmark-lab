@@ -1,0 +1,251 @@
+{
+  "active_authority": "NOT_AUTHORIZED",
+  "actual_agent_savings": "NOT_MEASURED",
+  "all_80_cases_retained": true,
+  "backend_observed": "mlx",
+  "baseline_names": [
+    "Native Agent",
+    "Rule-only",
+    "Rules + Model"
+  ],
+  "dataset_sha256": "456326d1962b915aa1cb4db1df00831a7c14b9503dc11a5c81df9a08e1a491d8",
+  "discordance": {
+    "completion/synthetic/frozen_holdout": {
+      "additional_correct_choices": 0,
+      "both_correct": 30,
+      "model_only_correct": 0,
+      "n": 40,
+      "neither_correct": 10,
+      "rule_only_correct": 0
+    },
+    "retry_escalation/fault_injection/frozen_holdout": {
+      "additional_correct_choices": 4,
+      "both_correct": 36,
+      "model_only_correct": 4,
+      "n": 40,
+      "neither_correct": 0,
+      "rule_only_correct": 0
+    }
+  },
+  "experiment": "phase8_3_new_frozen_holdout_v1",
+  "fixed_case_count": 80,
+  "freeze_git_commit": "1245a3cb17120f0f6bee198a34aa159ea3eeb851",
+  "freeze_manifest_sha256": "2f876928c66d4910889ca87be81db8864686de7c5b6f75435fc5beacfa99eebb",
+  "grouping_rule": "never pool gate/source/split",
+  "groups": {
+    "completion/synthetic/frozen_holdout": {
+      "completion_policy_controls": {
+        "comparator_warning": "Originally reported Rule-only includes an additional positive verified-flags heuristic absent from original Rules+Laya's pre-model hard rules. The original B/C accuracy difference is NOT a paired causal model effect.",
+        "interpretation": "historical_public_policy_replay_not_real_blind",
+        "matched_existing_hard_rules": {
+          "shared_rules_plus_conservative_verify": {
+            "acceptable_accuracy": 0.75,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 30,
+            "observed": 40,
+            "preferred_accuracy": 0.75,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.59806,
+              0.858129
+            ]
+          },
+          "shared_rules_plus_observed_model": {
+            "acceptable_accuracy": 0.75,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 30,
+            "observed": 40,
+            "preferred_accuracy": 0.75,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.59806,
+              0.858129
+            ]
+          }
+        },
+        "matched_positive_flag_rule_counterfactual": {
+          "active_completion_authorized": false,
+          "actual_model_calls_avoided": "NOT_MEASURED",
+          "hypothetical_model_calls_after_short_circuit": 15,
+          "hypothetically_avoided_model_calls": 0,
+          "measured_model_calls_original": 15,
+          "positive_flag_cases": 0,
+          "positive_flag_first_then_observed_model_on_remainder": {
+            "acceptable_accuracy": 0.75,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 30,
+            "observed": 40,
+            "preferred_accuracy": 0.75,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.59806,
+              0.858129
+            ]
+          },
+          "rule_only_with_positive_flag": {
+            "acceptable_accuracy": 0.75,
+            "complete_precision": null,
+            "complete_recall": 0.0,
+            "non_complete_support": 30,
+            "observed": 40,
+            "preferred_accuracy": 0.75,
+            "premature_completion_rate": 0.0,
+            "premature_count": 0,
+            "uncertainty_wilson95": [
+              0.59806,
+              0.858129
+            ]
+          }
+        }
+      },
+      "gate": "completion",
+      "latency_small_sample": true,
+      "model_attempted": 15,
+      "model_attempts_among_candidates": 1.0,
+      "model_completed": 15,
+      "model_latency_n": 15,
+      "model_latency_p50_ms": 64.297,
+      "model_latency_p95_ms": 122.436,
+      "model_participation_rate": 0.375,
+      "n": 40,
+      "native_decision_quality": {
+        "acceptable_accuracy": null,
+        "complete_precision": null,
+        "complete_recall": null,
+        "non_complete_support": 0,
+        "observed": 0,
+        "preferred_accuracy": null,
+        "premature_completion_rate": null,
+        "premature_count": 0,
+        "uncertainty_wilson95": null
+      },
+      "native_verified_task_outcomes": 0,
+      "native_verified_task_successes": 0,
+      "observed_provider_attempts": null,
+      "opportunity_categories": {
+        "rule_only": 25,
+        "typed_model_candidate": 15
+      },
+      "real_agent_savings": "NOT_MEASURED",
+      "rule_only_coverage": 0.625,
+      "rule_only_quality": {
+        "acceptable_accuracy": 0.75,
+        "complete_precision": null,
+        "complete_recall": 0.0,
+        "non_complete_support": 30,
+        "observed": 40,
+        "preferred_accuracy": 0.75,
+        "premature_completion_rate": 0.0,
+        "premature_count": 0,
+        "uncertainty_wilson95": [
+          0.59806,
+          0.858129
+        ]
+      },
+      "rules_model_quality": {
+        "acceptable_accuracy": 0.75,
+        "complete_precision": null,
+        "complete_recall": 0.0,
+        "non_complete_support": 30,
+        "observed": 40,
+        "preferred_accuracy": 0.75,
+        "premature_completion_rate": 0.0,
+        "premature_count": 0,
+        "uncertainty_wilson95": [
+          0.59806,
+          0.858129
+        ]
+      },
+      "safety_overrides": 14,
+      "source": "synthetic",
+      "split": "frozen_holdout",
+      "typed_opportunity_coverage": 0.375
+    },
+    "retry_escalation/fault_injection/frozen_holdout": {
+      "completion_policy_controls": null,
+      "gate": "retry_escalation",
+      "latency_small_sample": true,
+      "model_attempted": 14,
+      "model_attempts_among_candidates": 1.0,
+      "model_completed": 14,
+      "model_latency_n": 14,
+      "model_latency_p50_ms": 62.254,
+      "model_latency_p95_ms": 65.984,
+      "model_participation_rate": 0.35,
+      "n": 40,
+      "native_decision_quality": {
+        "acceptable_accuracy": null,
+        "missed_verification_rate": null,
+        "observed": 0,
+        "preferred_accuracy": null,
+        "uncertainty_wilson95": null,
+        "unnecessary_escalation_rate": null,
+        "unsafe_retry_denominator": 0,
+        "unsafe_retry_rate": null
+      },
+      "native_verified_task_outcomes": 0,
+      "native_verified_task_successes": 0,
+      "observed_provider_attempts": null,
+      "opportunity_categories": {
+        "rule_only": 26,
+        "typed_model_candidate": 14
+      },
+      "real_agent_savings": "NOT_MEASURED",
+      "rule_only_coverage": 0.65,
+      "rule_only_quality": {
+        "acceptable_accuracy": 0.9,
+        "missed_verification_rate": 0.0,
+        "observed": 40,
+        "preferred_accuracy": 0.825,
+        "uncertainty_wilson95": [
+          0.769482,
+          0.96042
+        ],
+        "unnecessary_escalation_rate": 0.0,
+        "unsafe_retry_denominator": 33,
+        "unsafe_retry_rate": 0.0
+      },
+      "rules_model_quality": {
+        "acceptable_accuracy": 1.0,
+        "missed_verification_rate": 0.0,
+        "observed": 40,
+        "preferred_accuracy": 0.975,
+        "uncertainty_wilson95": [
+          0.912378,
+          1
+        ],
+        "unnecessary_escalation_rate": 0.0,
+        "unsafe_retry_denominator": 33,
+        "unsafe_retry_rate": 0.0
+      },
+      "safety_overrides": 0,
+      "source": "fault_injection",
+      "split": "frozen_holdout",
+      "typed_opportunity_coverage": 0.35
+    }
+  },
+  "independent_real_agent_outcome": "NOT_MEASURED",
+  "limitations": [
+    "Shadow-only decisions cannot establish actual Agent-level savings.",
+    "Synthetic editorial oracle labels are not independent real-world task outcomes.",
+    "Native task success and native decision quality are distinct; missing is null.",
+    "Opportunity schema and hashes cannot authenticate fabricated evidence.",
+    "Historical/observed splits are not a newly independent blind test.",
+    "Completion original B/C used different rule sets: consult completion_policy_controls.",
+    "Matched positive-flag short circuit is a counterfactual policy, not actual avoided calls."
+  ],
+  "model_completed_count": 29,
+  "model_invoked_count": 29,
+  "model_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+  "native_real_stepfun_validation": "NOT_RUN",
+  "oracle_external_independence": "NOT_ESTABLISHED",
+  "paid_provider_requests": 0,
+  "schema": "local-system-one/decision-value-report-v1",
+  "scope": "newly authored, preregistered synthetic/fault-injection pilot"
+}

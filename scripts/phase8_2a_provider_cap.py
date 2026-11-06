@@ -7,6 +7,7 @@ pass-through, not a model stub; an exhausted cap always fails closed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import fcntl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -53,6 +54,21 @@ class BudgetLedger:
             fcntl.flock(lock, fcntl.LOCK_EX)
             try:
                 events = self._events()
+                if run=="h4d_missing_read":
+                    # Concurrent physical send is the sole authoritative
+                    # reservation boundary; recheck frozen H1-H3 ledger prefix
+                    # INSIDE the same exclusive lock as the slot allocation.
+                    if not self.path.is_file() or self.path.is_symlink():
+                        raise ValueError("H4D original physical ledger prefix missing")
+                    raw=self.path.read_bytes()
+                    original=raw.splitlines(keepends=True)
+                    if (len(original)<30 or
+                        hashlib.sha256(b"".join(original[:30])).hexdigest()!=
+                          "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb" or
+                        any(v.get("run") not in
+                            {"h1_read_off","h2_read_shadow","h3_runtime_down","h4d_missing_read"}
+                            for v in events)):
+                        raise ValueError("H4D original physical ledger prefix or run set altered")
                 used = [v for v in events if v["kind"] == "reserved"]
                 if (len(used) >= self.total_limit
                         or sum(v["run"] == run for v in used) >= self.per_run_limit):
@@ -253,8 +269,35 @@ def main() -> None:
         parser.error("invalid bounded isolated runner settings")
     # A test helper must not write a ledger or lock into production homes.
     private_root = (Path(__file__).resolve().parents[1] / "private").resolve()
-    if not args.private_ledger.resolve().is_relative_to(private_root):
-        parser.error("budget ledger must be inside this repo's ignored private/ directory")
+    # The H4D Provider service runs under a separate disposable HOME; macOS
+    # Seatbelt may deny DirectoryService/getpwuid even when this uid is valid.
+    # Its owner-scoped parent orchestrator passes ONE absolute owner-home
+    # path in a fresh child-only env, independent of the disposable HOME.
+    owner_home=Path(os.environ.get("PHASE83_H4D_OWNER_HOME", ""))
+    if args.run=="h4d_missing_read":
+        if (not owner_home.is_absolute() or owner_home.is_symlink()
+                or not owner_home.is_dir() or owner_home.stat().st_uid!=os.getuid()
+                or owner_home.resolve()!=owner_home):
+            parser.error("H4D parent-provided exact owner Home is missing/invalid")
+    historic=owner_home/"Projects/system-one-phase8-3/private/phase8_3_native_real/provider_real_ledger.private.jsonl"
+    h4d_exception=(
+        args.run=="h4d_missing_read" and not args.private_ledger.is_symlink()
+        and args.private_ledger.absolute()==historic.absolute()
+        and historic.is_file() and historic.stat().st_mode & 0o077==0
+    )
+    if not args.private_ledger.resolve().is_relative_to(private_root) and not h4d_exception:
+        parser.error("budget ledger must be inside this repo private/ or exact H4D owner-global original")
+    if args.run=="h4d_missing_read" and not h4d_exception:
+        parser.error("H4D must use exactly the existing global physical ledger")
+    if args.run=="h4d_missing_read" and (args.total_cap!=24 or args.per_run_cap!=3 or args.port!=18794):
+        parser.error("H4D exact Plan cap/port required")
+    if args.run=="h4d_missing_read":
+        from phase8_3_transport_closeout import audited_snapshot
+        state=audited_snapshot(historic,new_run=args.run)
+        if (state["reserved_global"]!=8 or state["reserved_new"]!=0 or
+            state["historic_h1_unresolved"]!=1 or
+            state["ledger_digest_sha256"]!="5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb"):
+            parser.error("H4D global budget no longer frozen at original 8/24")
     os.umask(0o077)
     args.private_ledger.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     ledger = BudgetLedger(args.private_ledger, total_limit=args.total_cap,

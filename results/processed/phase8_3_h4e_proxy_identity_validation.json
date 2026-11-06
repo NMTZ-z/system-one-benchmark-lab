@@ -1,0 +1,66 @@
+{
+  "status": "PASS_OFFLINE_PROVIDER_IDENTITY_CORRECTION",
+  "base_sha": "04b12dc098a203a528585d9296d38fa7361091ff",
+  "final_source_binding": "External frozen commit and public manifest receipt; no self-referential commit value.",
+  "python": {
+    "main_passed": 1577,
+    "main_skipped": 9,
+    "separately_run_deselected": 11,
+    "kernel_and_process_passed": 11,
+    "frozen_registry_passed": 1,
+    "native_passed": 7,
+    "distinct_passed": 1596,
+    "remaining_skipped": 1,
+    "remaining_skip": "Historical fixture ledger unavailable in isolated test root; actual original ledger independently checked."
+  },
+  "dsh": {
+    "passed": 64,
+    "typecheck": "PASS",
+    "build": "PASS"
+  },
+  "real_provider_requests": 0,
+  "native_provider": "synthetic_loopback",
+  "native_controls_retained": 7,
+  "local_mlx": {
+    "shadow_case_warmups": 1,
+    "completion_inferences": 2,
+    "retry_inferences": 0,
+    "retry_backend": "rule"
+  },
+  "independent_review": {
+    "standards_findings": 0,
+    "spec_findings": 0,
+    "reviewer": "Astra Medium, read-only incremental review",
+    "previous_P1": "fixed: signed provider readiness and exclusive listener retained through native lifetime"
+  },
+  "limits": {
+    "case": "h4e_missing_read",
+    "model": "step-5-preview",
+    "maximum_new_physical_requests": 3,
+    "shared_window_seconds": 90,
+    "mode": "shadow",
+    "retries": 0
+  },
+  "network_boundary": "Kernel permits any destination TCP 443. Fixed Step Plan URL, fixed IP, TLS hostname validation and CPython socket audit constrain current proxy path; this is not kernel IP filtering.",
+  "authority": "NO_GO_REAL_PROVIDER_PENDING_NEW_EXACT_SOURCE_OWNER_APPROVAL",
+  "initial_failures": "Shared fixed-port parallel collision; release evidence files missing before creation. Resolved by serial execution and packaging completion without relaxing validators. A later collector-only rerun required the already-approved outer launch permission to install the same inner Seatbelt policy.",
+  "source_sha256": {
+    "scripts/phase8_3_h4e_proxy.py": "ec60772d14627549629e9ce37ea89966b5814134149ef7079415339612f1b4e0",
+    "scripts/phase8_3_h4e_runner.py": "bcfc2ebf950a292c1c024cfbb0455c86cc46be94fa69c424b6d138d6dc8e4d2b",
+    "scripts/phase8_3_h4e_direct_child.py": "a64b2b78fee0c942338861b24951adddbf10e0bf4a8914fcda96cfd2a48e1d59",
+    "scripts/phase8_3_h4e_adjudicate.py": "3a29b550bb408a9df2f8b6631d7f16ce13b969177441ac5c5b38980a40ee0ee5",
+    "tests/test_phase8_3_h4e_proxy_identity.py": "ac898deaaa218ce68d626fb35f527b76264562e5d141ce9c4ac35e34b4fd7ded",
+    "tests/test_phase8_3_h4e_native.py": "951e8e7c46fa3725ebf6f8de177b4629203c91736970f3f298ccec66a9a73a26",
+    "tests/test_phase8_3_h4e_adjudicate.py": "a2c89bd97e03ccfa0a58bd387b6adb63193ab52c7855664a3a8e2674b077a9cc"
+  },
+  "raw_log_sha256": {
+    "python.log": "93627163e8ad49c49825dbdffe76b4a9e917929a969d98f34b0de1a1fd8c7d95",
+    "kernel-and-process.log": "f1e2fe655a5ecd5f11e0c203e75f54ebbf46b5fb4c50a91d7a2018d5cb83b14c",
+    "frozen-native-registry.log": "a71df3ef716cabe43ead70bd8311cda3aeadcb986bea501da0ea9262f31c3925",
+    "native-qualification.log": "ffb3f215abe153fbf734ffb35c0c08442f6261be627bf0f257b7d2968fa60430",
+    "dsh-vitest.log": "036a6dee71057be9474c2e11544528b014b3c803c1381992b93fd2d108d49a87",
+    "dsh-typecheck.log": "d464afc6835ff2d3fcd96119f5a5440f3f8a195049a560919ebf37bd90cd4db8",
+    "dsh-build.log": "9a373b660b4fae66062eb58825472c15a5a345b447e346c5e012acd8424fb2b0"
+  },
+  "public_log_sha256": "52220ddfeccc7e321b05bfd8ce474852ea07ad5a5b39cc8aec0e32d30ccddcac"
+}

@@ -1,0 +1,249 @@
+{
+  "schema": "local-system-one/phase8_3-offline-native-rehearsal-v1",
+  "date": "2026-10-24",
+  "baseline": "a947c4b296dfc1dd0a00f2fcd80a33c7114d00f0",
+  "executed_commit": "dc6b9c0046ac4ff40710bb5d83c110ae3f8257e4",
+  "hermes_executed_revision": "4d04303818b61bf3aa09278af48356315515965b",
+  "installed_hermes_observed_revision_not_executed": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
+  "evidence_kind": "DEPENDENCY_ISOLATED_NATIVE_TOOL_AND_SHADOW_WITH_SYNTHETIC_MAIN_PROVIDER",
+  "main_provider": "httpx.MockTransport; two OpenAI-protocol responses per native case",
+  "tool_dependency_isolation": [
+    "disable shell environment snapshot",
+    "real directory enumeration for exactly two frozen-target-parent filename suggestion queries"
+  ],
+  "upstream_native_components_retained": [
+    "AIAgent",
+    "read_file handler",
+    "native file stat",
+    "missing-file ReadResult construction",
+    "tool dispatch",
+    "lifecycle hooks",
+    "SQLite persistence",
+    "official plugin discovery"
+  ],
+  "cases": [
+    {
+      "case": "off",
+      "verdict": "PASS_OFFLINE_NATIVE_REHEARSAL",
+      "main_provider_kind": "synthetic_in_memory",
+      "external_provider_requests": 0,
+      "issues": [],
+      "native_read_file_missing_verified": true,
+      "adapter_observations": 0,
+      "http_observations": 0,
+      "runtime_metrics": {},
+      "real_mlx_successful_predictions": 0
+    },
+    {
+      "case": "shadow_fixture",
+      "verdict": "PASS_OFFLINE_NATIVE_REHEARSAL",
+      "main_provider_kind": "synthetic_in_memory",
+      "external_provider_requests": 0,
+      "issues": [],
+      "native_read_file_missing_verified": true,
+      "adapter_observations": 3,
+      "http_observations": 3,
+      "identity_joins_verified": 3,
+      "runtime_metrics": {
+        "runtime_kind": "shadow_fixture",
+        "predict": {
+          "attempts": 2,
+          "successes": 2
+        },
+        "implementation": "__main__.FixtureRuntime",
+        "warmup": {
+          "attempts": 0,
+          "successes": 0
+        },
+        "python_version": "3.12.14",
+        "dependencies": {},
+        "engine": {
+          "requests": 3,
+          "errors": 0,
+          "backends": {
+            "mlx": 2,
+            "rule": 1
+          },
+          "route_reasons": {
+            "short_input": 2,
+            "retry_escalation_gate:retry_budget_unverified": 1
+          },
+          "recent_latency_ms": {
+            "samples": 3,
+            "mean": 0.004041707143187523,
+            "p50": 0.004291068762540817,
+            "max": 0.005500158295035362
+          }
+        }
+      },
+      "real_mlx_successful_predictions": 0
+    },
+    {
+      "case": "shadow_mlx",
+      "verdict": "PASS_OFFLINE_NATIVE_REHEARSAL",
+      "main_provider_kind": "synthetic_in_memory",
+      "external_provider_requests": 0,
+      "issues": [],
+      "native_read_file_missing_verified": true,
+      "adapter_observations": 3,
+      "http_observations": 3,
+      "identity_joins_verified": 3,
+      "runtime_metrics": {
+        "runtime_kind": "shadow_mlx",
+        "predict": {
+          "attempts": 2,
+          "successes": 2
+        },
+        "implementation": "local_system_one.runtime.mlx.MLXRuntime",
+        "warmup": {
+          "attempts": 1,
+          "successes": 1
+        },
+        "python_version": "3.12.14",
+        "dependencies": {
+          "mlx": "0.32.2",
+          "laya-mlx": "0.2.0"
+        },
+        "engine": {
+          "requests": 3,
+          "errors": 0,
+          "backends": {
+            "rule": 1,
+            "mlx": 2
+          },
+          "route_reasons": {
+            "retry_escalation_gate:retry_budget_unverified": 1,
+            "ane_unavailable": 2
+          },
+          "recent_latency_ms": {
+            "samples": 3,
+            "mean": 176.0433193606635,
+            "p50": 231.01500002667308,
+            "max": 297.11225000210106
+          }
+        }
+      },
+      "real_mlx_successful_predictions": 2
+    },
+    {
+      "case": "shadow_503",
+      "verdict": "PASS_OFFLINE_NATIVE_REHEARSAL",
+      "main_provider_kind": "synthetic_in_memory",
+      "external_provider_requests": 0,
+      "issues": [],
+      "native_read_file_missing_verified": true,
+      "adapter_observations": 3,
+      "http_observations": 3,
+      "identity_joins_verified": 3,
+      "runtime_metrics": {
+        "runtime_kind": "shadow_503",
+        "predict": {
+          "attempts": 0,
+          "successes": 0
+        },
+        "implementation": "__main__.FixtureRuntime",
+        "warmup": {
+          "attempts": 0,
+          "successes": 0
+        },
+        "python_version": "3.12.14",
+        "dependencies": {},
+        "engine": {
+          "requests": 0,
+          "errors": 0,
+          "backends": {},
+          "route_reasons": {},
+          "recent_latency_ms": {
+            "samples": 0,
+            "mean": null,
+            "p50": null,
+            "max": null
+          }
+        }
+      },
+      "real_mlx_successful_predictions": 0
+    }
+  ],
+  "cases_passed": 4,
+  "owned_process_groups_stopped": 7,
+  "new_physical_StepFun_requests": 0,
+  "historical_physical_requests": 8,
+  "historical_cap": 24,
+  "H1_UNKNOWN": 1,
+  "ledger_sha256_unchanged": "5b93ff7c76bcf74f85cf5e955e90b1a425608287c1213b3a3fd5185bee3ab5cb",
+  "real_mlx_task_predictions": 2,
+  "separate_synthetic_mlx_warmup_predictions": 1,
+  "retry_gate_model_predictions": 0,
+  "real_provider_e2e": "NOT_RUN",
+  "stock_shell_transport": "NOT_VALIDATED",
+  "agent_value_or_savings": "NOT_ESTABLISHED",
+  "active_canary": "NOT_AUTHORIZED",
+  "h4d_real_execution": "NO_GO",
+  "source_hashes": {
+    "hermes_bootstrap.py": "f242036b2d35b92283b9a7e97c7059e537607fc4b02026f657a6d00cb4683f69",
+    "run_agent.py": "33c7195fc6efa9122f1a6700d416fd283f9634712189af3fd72feb01bcea054f",
+    "hermes_cli/oneshot.py": "ebd2bc6a320f24fa94249dab37a0776f4d32c92bb7ac3f6c7193f14eefecfdc9",
+    "agent/tool_executor.py": "1b1b67d4b88f73c51dc147d0e0383b36c561d921d278d801326de5ba24b29702"
+  },
+  "harness_hashes_at_execution": {
+    "phase8_3_native_rehearsal.py": "5adfc7b2d7779fd968cb4601bd3876077af0c8604cc5781259ac56f546e3c267",
+    "phase8_3_rehearsal_child.py": "6d73a1eaef54aa7a27b1875dd1c8a6b02ebcf14fae0594632f9012baa4083d25",
+    "phase8_3_init_diagnostic.py": "11d181d0d54a76baa1814b896085013b041b5f3b174ea4bce9ff52e55598f8bb",
+    "__init__.py": "23571e6d457c711256c7e628c19c99b1e13ed048ce97bc281b08e022d7c5a79a",
+    "plugin.yaml": "3beed4fea99e526f73c0acf9d4b7f92ec8aa5f795b9e151f60fa066f4e734a1d"
+  },
+  "model_revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
+  "model_file_sha256": {
+    "model.safetensors": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+    "rl_agent_config.json": "ebf0cd524d92342a6be5e48e9fca3d7c2babfb5a56ccd79d2171ef5d8c7f7be8",
+    "encoder/config.json": "5268d24ad3b77c8151de5dcb0762ba4391619aad9ab0bda33e36fb083cfeae6d",
+    "tokenizer/tokenizer_config.json": "08d4cf3ac4dca381759441b85b91a6d40e688471dcd33d15d6649eb0a9a854d1",
+    "tokenizer/tokenizer.json": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30"
+  },
+  "independent_verifier_sha256": "b2402b3d9a3af8fbcbfe4f37b81b4bb1bfa30ac64702b6eff2abe570ef8e705e",
+  "case_evidence_sha256": {
+    "off": {
+      "manifest.json": "8a80450e5b3c351a225c5dde344cd5ba5edb0488a3b4536155285c586cd2a7fb",
+      "session-snapshot.db": "d2b71eac34770972be0732f4df5e1479c62002de5e4512813bcc6ba8c8641283",
+      "post/native-events.jsonl": "6526943a03a38d7990587a26fb292508fdbc047473e0f7f0d409119e0ca57564"
+    },
+    "shadow_fixture": {
+      "manifest.json": "bda1d0fe12f932df0249a43aef001577fd34622371af4820f5dffa558fe21783",
+      "session-snapshot.db": "7aa81b25c342c5411e10c8f71e86c49bce3a5c73a7fb3b2958515dd8ec46bdb0",
+      "post/native-events.jsonl": "953eb309e4456a0204f17c1718c803e8aa6e9286b079da4dad505e3b02436c58"
+    },
+    "shadow_mlx": {
+      "manifest.json": "0e967d786996ddf252063bd62baf28a3f7f11e338f83f25d3139db27c55a5c78",
+      "session-snapshot.db": "e8f66ff95f2bf3c7e356ec2a4489b56d1aa72c8db5dfd7457e46bf0951d54952",
+      "post/native-events.jsonl": "cb67fa9773f41fde5343ff924b340a11d273366648b1988ec95946a4a6c38100"
+    },
+    "shadow_503": {
+      "manifest.json": "888ef6584c2b7879069b5a603b122f1a4f251020f81e9d9d9b6e26cf3c2bd72e",
+      "session-snapshot.db": "6a1775f80820a7ca6496ef31deff2244dd11f97eb468ac73128cc33ee0c69827",
+      "post/native-events.jsonl": "561d2a50e749c2b6bac0cafaecdadefcc2797e8c889f9f7282e1430013737268"
+    }
+  },
+  "restoration_independently_verified": true,
+  "original_evidence_preserved": true,
+  "regression": {
+    "python_passed": 1422,
+    "python_skipped": 1,
+    "python_total": 1423,
+    "skip": "original private ledger deliberately not mounted; digest independently verified",
+    "main_sandbox_passed": 1418,
+    "own_seatbelt_checks_passed": 2,
+    "supervisor_identity_checks_passed": 2,
+    "new_rehearsal_tests": 34,
+    "dsh_vitest_passed": 64,
+    "typescript_typecheck": "PASS",
+    "typescript_build": "PASS"
+  },
+  "validation_logs_sha256": {
+    "rehearsal-regression/python.log": "d04559484714178df24e2911ee3f8b3fba751b11bbab05b72b0b35ef2999521e",
+    "rehearsal-regression/kernel.log": "1b69ecbb245749d5bb66cf7dace2b87f71d7a2b122b0823e25f5dcc67983132f",
+    "rehearsal-process-tests.log": "471c77f65875e4c272e08d0f1104f654c2ee63bed8cefdd055594fbb60385d29",
+    "rehearsal-regression/dsh-test.log": "188b20b88b5c18b4b41a0980ff0655a8f6f58d53a7cac27d9d6fa53ba096b800",
+    "rehearsal-regression/dsh-types.log": "d464afc6835ff2d3fcd96119f5a5440f3f8a195049a560919ebf37bd90cd4db8",
+    "rehearsal-regression/dsh-build.log": "9a373b660b4fae66062eb58825472c15a5a345b447e346c5e012acd8424fb2b0"
+  }
+}

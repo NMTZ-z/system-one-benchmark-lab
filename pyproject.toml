@@ -37,3 +37,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["local_system_one"]
+exclude = ["/local_system_one/decision_opportunity.py"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["local_system_one", "pyproject.toml", "README.md", "LICENSE"]
+exclude = ["/local_system_one/decision_opportunity.py"]

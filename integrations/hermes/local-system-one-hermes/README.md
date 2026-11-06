@@ -37,7 +37,7 @@ cd system-one-benchmark-lab
 
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e .
+python -m pip install .
 local-system-one --host 127.0.0.1 --port 8787
 ```
 
@@ -53,7 +53,7 @@ For the optional Apple Neural Engine backend, see the repository root README.
 
 ### Hermes Plugin Catalog
 
-Once this plugin is listed in the official Hermes Plugin Catalog:
+The [official Hermes Plugin Catalog](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) currently lists `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. This source tree's plugin is `0.9.0`. Install the older catalog version with:
 
 ```bash
 hermes plugins install local-system-one-hermes
@@ -81,7 +81,7 @@ scripts/hermes_system_one_status.sh systemoneeval
 
 ## Recommended first run: Shadow
 
-Start with a disposable or evaluation profile:
+Start with a disposable or evaluation profile. With the current `0.9.0` defaults, the command below turns on Search, Model Tier, Notification and Completion observations; Retry remains off. Search-only first Shadow is planned for Phase 8.4B and is not provided by this command alone. Inspect and explicitly choose the per-Gate settings before use:
 
 ```bash
 scripts/set_hermes_system_one_mode.sh systemoneeval shadow
@@ -222,6 +222,7 @@ Shadow evidence, not evidence for Active stopping. See
 | `model_tier_gate_enabled` | `true` |
 | `notification_gate_enabled` | `true` |
 | `completion_gate_enabled` | `true` |
+| `retry_escalation_gate_enabled` | `false` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |
@@ -292,7 +293,10 @@ hermes plugins validate integrations/hermes/local-system-one-hermes
 hermes plugins doctor integrations/hermes/local-system-one-hermes --ci
 ```
 
-A disposable live lifecycle smoke test is also included:
+A historical live lifecycle smoke test is available in the full research source
+archive. It changes an evaluation profile to Canary and can invoke its configured
+Provider, so it requires separate authorization and is excluded from the
+product bundle:
 
 ```bash
 scripts/smoke_hermes_system_one_live.sh systemoneeval
