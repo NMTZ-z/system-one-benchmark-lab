@@ -7,6 +7,7 @@ import hashlib
 import ipaddress
 import json
 import re
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -31,6 +32,7 @@ MAX_BODY_BYTES = 1_048_576
 MAX_CONNECTIONS = 8
 SOCKET_TIMEOUT_SECONDS = 5.0
 REQUEST_TIMEOUT_SECONDS = 10.0
+MAX_CONNECTION_SECONDS = 15.0
 
 
 def _invalid_json_constant(_value: str) -> None:
@@ -66,9 +68,23 @@ class _BoundedHTTPServer(ThreadingHTTPServer):
             raise
 
     def process_request_thread(self, request, address):
+        def expire():
+            try:
+                request.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+        deadline = threading.Timer(MAX_CONNECTION_SECONDS, expire)
+        deadline.daemon = True
         try:
+            try:
+                deadline.start()
+            except BaseException:
+                self.shutdown_request(request)
+                raise
             super().process_request_thread(request, address)
         finally:
+            deadline.cancel()
             self.connections.release()
 
     def handle_error(self, request, client_address):
@@ -145,10 +161,11 @@ def create_server(
         def do_GET(self) -> None:
             if self.path == "/_local_system_one/identity":
                 nonce = self.headers.get("X-Local-System-One-Challenge", "")
-                if not re.fullmatch(r"[0-9a-f]{32}", nonce):
+                if getattr(self, "_identity_issued", False) or not re.fullmatch(r"[0-9a-f]{32}", nonce):
                     self.close_connection = True
                     self._json(400, {"error": "invalid_request"})
                     return
+                self._identity_issued = True
                 address = self.connection.getsockname()
                 proof = hmac.new(auth_token.encode(), f"identity:{nonce}:{address[0]}:{address[1]}".encode(), hashlib.sha256).hexdigest()
                 self._json(200, {"proof": proof})

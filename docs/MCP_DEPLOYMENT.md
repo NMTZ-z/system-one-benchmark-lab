@@ -25,7 +25,7 @@ The MCP proxy does not load the 421M model. This avoids duplicate model memory a
 
 ## Persistent service
 
-Manual launch:
+Use `local-system-one start --profile <name>` for managed startup and token creation. The lower-level manual wrapper requires an existing private Runtime token file:
 
 ~~~bash
 scripts/run_local_system_one_service.sh
@@ -89,9 +89,9 @@ Logs:
 ~/Library/Logs/LocalSystemOne/stderr.log
 ~~~
 
-The service binds only to loopback by default.
+The installer creates a separate private `launchd` credential and configures its path in the LaunchAgent; it does not put the credential itself in the plist. Set `LOCAL_SYSTEM_ONE_PROFILE=launchd` for MCP clients and the status wrapper. The service binds only to loopback and model acquisition is offline. Installation refuses an existing plist or credential it cannot identify; older installations without this ownership record need manual review.
 
-Uninstall:
+Uninstall removes the owned LaunchAgent and its credential after verifying both. If the configuration was edited or service status cannot be determined, it leaves the files for review. Uninstall:
 
 ~~~bash
 scripts/uninstall_local_system_one_launchd.sh
@@ -116,7 +116,7 @@ Run manually:
 scripts/run_local_system_one_mcp.sh
 ~~~
 
-The wrapper uses uv to provide the optional MCP dependency without adding it to the benchmark virtual environment.
+The wrapper uses uv in offline mode to provide the optional MCP dependency without adding it to the benchmark virtual environment. If the dependency is not cached, provision it explicitly before using the wrapper.
 
 Optional dependency specification:
 

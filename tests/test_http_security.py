@@ -1,7 +1,9 @@
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import socket
 import threading
+import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -170,3 +172,54 @@ def test_identity_proof_from_another_port_cannot_be_replayed(runtime):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_active_unauthenticated_connections_have_a_total_deadline(monkeypatch):
+    monkeypatch.setattr(service, "MAX_CONNECTION_SECONDS", 0.3)
+    server = service.create_server(Engine(), port=0, auth_token="synthetic")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    clients = []
+    try:
+        for _ in range(service.MAX_CONNECTIONS):
+            connection = socket.create_connection(("127.0.0.1", server.server_address[1]), timeout=1)
+            connection.sendall(b"GET /health HTTP/1.1\r\nHost: localhost\r\nX-Slow: ")
+            clients.append(connection)
+        deadline = time.monotonic() + 0.45
+        while time.monotonic() < deadline:
+            for connection in clients:
+                try:
+                    connection.sendall(b"x")
+                except OSError:
+                    pass
+            time.sleep(0.04)
+        for connection in clients:
+            try:
+                assert connection.recv(1) == b""
+            except ConnectionResetError:
+                pass
+        probe = HTTPConnection("127.0.0.1", server.server_address[1], timeout=1)
+        probe.request("GET", "/health")
+        assert probe.getresponse().status == 401
+        probe.close()
+    finally:
+        for connection in clients:
+            connection.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_identity_challenge_cannot_be_repeated_on_one_connection(runtime):
+    _, port = runtime
+    connection = HTTPConnection("127.0.0.1", port, timeout=1)
+    headers = {"X-Local-System-One-Challenge": "1" * 32}
+    try:
+        connection.request("GET", "/_local_system_one/identity", headers=headers)
+        response = connection.getresponse()
+        assert response.status == 200
+        response.read()
+        connection.request("GET", "/_local_system_one/identity", headers=headers)
+        assert connection.getresponse().status == 400
+    finally:
+        connection.close()

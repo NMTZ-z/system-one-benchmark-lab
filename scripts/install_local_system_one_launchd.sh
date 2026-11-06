@@ -7,44 +7,31 @@ uid="$(id -u)"
 launch_agents="$HOME/Library/LaunchAgents"
 logs="$HOME/Library/Logs/LocalSystemOne"
 plist="$launch_agents/$label.plist"
-runner="$repo/scripts/run_local_system_one_service.sh"
+python="$repo/.venv/bin/python"
+[[ -x "$python" ]] || python="$(command -v python3)"
+helper="$repo/scripts/local_system_one_launchd_credentials.py"
 
 mkdir -p "$launch_agents" "$logs"
+"$python" "$helper" prepare "$repo" "$plist" "$logs"
+if ! plutil -lint "$plist"; then
+  "$python" "$helper" remove "$repo" "$plist" "$logs"
+  echo "LaunchAgent installation failed; its new credential was removed." >&2
+  exit 1
+fi
+if ! launchctl bootstrap "gui/$uid" "$plist"; then
+  if ! launchctl print "gui/$uid" >/dev/null 2>&1; then
+    echo "LaunchAgent state is unknown; its configuration and credential were retained." >&2
+    exit 1
+  fi
+  if launchctl print "gui/$uid/$label" >/dev/null 2>&1; then
+    launchctl bootout "gui/$uid" "$plist" || exit 1
+  fi
+  "$python" "$helper" remove "$repo" "$plist" "$logs"
+  echo "LaunchAgent installation failed; its new credential was removed." >&2
+  exit 1
+fi
 
-cat > "$plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>$label</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/bin/zsh</string>
-    <string>$runner</string>
-  </array>
-  <key>WorkingDirectory</key>
-  <string>$repo</string>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>ThrottleInterval</key>
-  <integer>30</integer>
-  <key>StandardOutPath</key>
-  <string>$logs/stdout.log</string>
-  <key>StandardErrorPath</key>
-  <string>$logs/stderr.log</string>
-</dict>
-</plist>
-EOF
-
-plutil -lint "$plist"
-
-launchctl bootout "gui/$uid" "$plist" 2>/dev/null || true
-launchctl bootstrap "gui/$uid" "$plist"
-
-echo "Installed $label"
+echo "Installed $label with a private, dedicated Runtime credential."
+echo "MCP profile: launchd"
 echo "Plist: $plist"
 echo "Logs: $logs"
-echo "Health: http://127.0.0.1:8787/health"

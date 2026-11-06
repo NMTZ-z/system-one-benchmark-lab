@@ -56,7 +56,8 @@ try {
     const mock = await startMockLlmServer({ sequence, repeatLast: true, toolName: 'read', toolArguments: '{}', successText: 'MOCK_RESPONSE' })
     const before = paths.length
     const patch = join(root, `dsh-${mode}.yml`)
-    writeFileSync(patch, `- id: local-system-one-dsh\n  config:\n    mode: ${mode === 'off' ? 'off' : 'shadow'}\n    service_url: http://127.0.0.1:${sidecarPort}\n    timeout_ms: 3000\n    search_gate_enabled: true\n    model_tier_gate_enabled: true\n    notification_gate_enabled: true\n    completion_gate_enabled: true\n    retry_escalation_gate_enabled: true\n    canary_acknowledged: false\n`)
+    const gates = mode === 'first' ? '' : '    search_gate_enabled: true\n    model_tier_gate_enabled: true\n    notification_gate_enabled: true\n    completion_gate_enabled: true\n    retry_escalation_gate_enabled: true\n'
+    writeFileSync(patch, `- id: local-system-one-dsh\n  config:\n    mode: ${mode === 'off' ? 'off' : 'shadow'}\n    service_url: http://127.0.0.1:${sidecarPort}\n    timeout_ms: 3000\n${gates}    canary_acknowledged: false\n`)
     const policy = `(version 1)(allow default)(deny network-outbound)(allow network-outbound (remote ip "localhost:${mock.port}"))(allow network-outbound (remote ip "localhost:${sidecarPort}"))`
     const env = { ...process.env, DSH_TELEMETRY_MODE: 'DISABLED', DEEPSEEK_API_KEY: 'local-mock-key',
       DEEPSEEK_BASE_URL: mock.baseURL, LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE: tokenPath, NO_PROXY: '127.0.0.1,localhost' }
@@ -87,7 +88,9 @@ try {
       assert(prompted.result, JSON.stringify(prompted.error) + errors)
       const ended = await waitFor(value => value.method === 'session.event' && value.params?.event?.type === 'turn/end')
       assert.equal(ended.params.event.data?.reason?.kind, 'completed')
-      for (let i = 0; i < 40 && ['shadow', 'retry'].includes(mode) && paths.length - before < 4; i++) await delay(50)
+      const expected = mode === 'first' ? 1 : ['shadow', 'retry'].includes(mode) ? 4 : 0
+      for (let i = 0; i < 40 && paths.length - before < expected; i++) await delay(50)
+      if (mode === 'first') await delay(300)
       send({ jsonrpc: '2.0', id: 3, method: 'shutdown', params: {} })
       const stopped = await waitFor(value => value.id === 3)
       assert(stopped.result, JSON.stringify(stopped.error) + errors)
@@ -106,6 +109,8 @@ try {
 
   const off = await scenario('off')
   assert.equal(off.paths.length, 0)
+  const first = await scenario('first')
+  assert.deepEqual(first.paths, ['/v1/workflows/search-gate'])
   const shadow = await scenario('shadow')
   for (const gate of ['search', 'model-tier', 'notification', 'completion']) {
     assert(shadow.paths.some(path => path.endsWith(`/${gate}-gate`)), `missing ${gate} observation`)
@@ -120,7 +125,7 @@ try {
   sidecar = undefined
   const down = await scenario('down')
   assert(down.request, 'native DSH did not continue with the mock provider')
-  console.log(JSON.stringify({ revision, install: 'PASS', default_off: 'PASS', shadow_four_gates: 'PASS',
+  console.log(JSON.stringify({ revision, install: 'PASS', default_off: 'PASS', first_shadow_search_only: 'PASS', shadow_four_gates: 'PASS',
     native_provider_request_unchanged: 'PASS', runtime_down_fail_open: 'PASS',
     retry_observed: retryObserved, retry_tool_failure_seen: retry.toolFailure, provider: 'local_mock' }))
 } finally {

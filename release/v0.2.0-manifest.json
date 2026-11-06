@@ -151,12 +151,14 @@
     "max_concurrent_inference": 1,
     "max_queued_inference": 0,
     "socket_timeout_seconds": 5,
-    "request_timeout_seconds": 10
+    "request_timeout_seconds": 10,
+    "max_connection_seconds": 15
   },
   "known_limits": [
     "Legacy Hermes sessions remain PENDING_RELOAD or UNKNOWN until reloaded.",
     "Real remote-provider acceptance is outside Phase 8.4C.",
     "Optional ANE artifact is not frozen for this candidate.",
-    "Final review and artifact evidence are required before RC2_READY."
+    "Final review and artifact evidence are required before RC2_READY.",
+    "DSH mode changes require a plugin reload; already-loaded sessions are not attested OFF."
   ]
 }

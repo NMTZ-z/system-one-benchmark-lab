@@ -77,9 +77,9 @@ machine-readable schema at
 |---|---|
 | `mode` | `off` |
 | `search_gate_enabled` | `true` |
-| `model_tier_gate_enabled` | `true` |
-| `notification_gate_enabled` | `true` |
-| `completion_gate_enabled` | `true` |
+| `model_tier_gate_enabled` | `false` |
+| `notification_gate_enabled` | `false` |
+| `completion_gate_enabled` | `false` |
 | `completion_loop_probe_enabled` | `false` |
 | `retry_escalation_gate_enabled` | `false` |
 | `canary_acknowledged` | `false` |
@@ -87,8 +87,8 @@ machine-readable schema at
 | `canary_reasoning_downgrade_enabled` | `false` |
 | `timeout_ms` | `500` |
 
-- `off`: no Local System One request and no DSH mutation.
-- `shadow`: Search and Model Tier are evaluated on step 1; Notification and Completion observe the final turn. Optional Retry / Escalation observes eligible tool failures. Gates can be enabled independently; observations do not change DSH behavior.
+- `off`: no Local System One request and no DSH mutation. Configuration changes apply when the DSH host reloads the plugin; a previously loaded session cannot be assumed OFF before reload or termination.
+- `shadow`: Search is enabled by default. Opt-in Model Tier observes step 1; opt-in Notification and Completion observe the final turn. Optional Retry / Escalation observes eligible tool failures. Observations do not change DSH behavior.
 - `canary`: Shadow behavior plus narrowly audited mutations. Canary requires `canary_acknowledged: true`; otherwise it degrades to Shadow.
 
 Example:
