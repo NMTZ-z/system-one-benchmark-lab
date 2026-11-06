@@ -8,6 +8,7 @@ requirements-mcp.txt
 requirements/first-run-macos-arm64-py312.lock
 release/product-files.txt
 release/v0.2.0-manifest.json
+release/v0.2.0-rc2-manifest.json
 
 local_system_one/__init__.py
 local_system_one/__main__.py

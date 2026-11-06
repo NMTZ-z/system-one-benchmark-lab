@@ -1,7 +1,7 @@
 {
   "schema": "local-system-one/release-plan-v1",
-  "status": "RC2_READY",
-  "release_version": "0.2.0rc2",
+  "status": "FINAL_CANDIDATE_LOCAL_ONLY",
+  "release_version": "0.2.0",
   "release_commit": null,
   "release_tag": null,
   "snapshot_date": "2026-11-05",
@@ -11,7 +11,9 @@
     "phase_8_3_stack_head": "b0ea294ab74f35b99e780eaf29aab2b36d205168",
     "phase_8_4a_baseline_head": "0439777e0c42046316165558bd675013d3138ac9",
     "development_baseline": "81e2792e2bc0be491af4c08a945ec2412aabf2a4",
-    "phase_8_4b_dependency": "1a380eb0b26c527eae4174cc01720a72dc055ae2"
+    "phase_8_4b_dependency": "1a380eb0b26c527eae4174cc01720a72dc055ae2",
+    "phase_8_4d_trial": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
+    "phase_8_4d_version_candidate": "42fc6f07d4d32a5199cd3494f20535640678d27d"
   },
   "source_exports": {
     "product_allowlist": "release/product-files.txt",
@@ -58,23 +60,23 @@
       "target_version": "0.2.0",
       "python_rc1_version": "0.2.0rc1",
       "observed_main_version": "0.1.0",
-      "candidate_version": "0.2.0rc2",
-      "release_source_commit": "d6c420d7a8c9bce7edc26eaa3770d5f09babad3b",
+      "candidate_version": "0.2.0",
+      "release_source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
       "artifacts": [
         {
-          "name": "local_system_one-0.2.0rc2-py3-none-any.whl",
+          "name": "local_system_one-0.2.0-py3-none-any.whl",
           "url": null,
-          "sha256": "547dc6cb196be2b6918c1eac13e711c4d19e97b4b99d83d78d849e4512f919b0",
-          "source_commit": "d6c420d7a8c9bce7edc26eaa3770d5f09babad3b",
-          "version": "0.2.0rc2",
+          "sha256": "98400fd1f0fd23b9fc9750d464f41222d0647b0562d753c75ec6bed085134df1",
+          "source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+          "version": "0.2.0",
           "availability": "local_review_only"
         },
         {
-          "name": "local_system_one-0.2.0rc2.tar.gz",
+          "name": "local_system_one-0.2.0.tar.gz",
           "url": null,
-          "sha256": "330e7d556932b6dcec484ee1df4760625faf291f5c3742efbc5b43559f0a8845",
-          "source_commit": "d6c420d7a8c9bce7edc26eaa3770d5f09babad3b",
-          "version": "0.2.0rc2",
+          "sha256": "1c3d4aed282a179bc3b02e4c13d9985f606995ba329757adf5f345edee1808c3",
+          "source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+          "version": "0.2.0",
           "availability": "local_review_only"
         }
       ],
@@ -86,20 +88,21 @@
       "target_version": "0.10.0",
       "observed_main_version": "0.9.0",
       "candidate_version": "0.10.0",
-      "release_source_commit": "d6c420d7a8c9bce7edc26eaa3770d5f09babad3b",
+      "release_source_commit": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
       "artifacts": [
         {
-          "name": "local-system-one-hermes-0.10.0-source.tar.gz",
+          "name": "local-system-one-hermes-0.10.0-8.4d-source.tar.gz",
           "url": null,
-          "sha256": "63a1dfde88528dec8fd619a3ccdf02719d6b368a8688c4115c6439b5c52f3259",
-          "source_commit": "d6c420d7a8c9bce7edc26eaa3770d5f09babad3b",
+          "sha256": "94ccc4334aca9fdf6b29284212e62a681b9452170fd7f20acc89ed24dbf5c821",
+          "source_commit": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
           "version": "0.10.0",
           "availability": "local_review_only"
         }
       ],
       "catalog_version_at_snapshot": "0.6.0",
       "catalog_source_commit_at_snapshot": "1095495019b2dff2b4231ed70ec23a3ea716e2f6",
-      "catalog_update_phase": "8.4D"
+      "catalog_update_phase": "8.4D",
+      "source_tree_identical_at_candidate_commit": true
     },
     "dsh_plugin": {
       "target_version": "0.7.0",
@@ -118,7 +121,8 @@
       ],
       "install_branch_version_at_snapshot": "0.3.0",
       "install_branch_commit_at_snapshot": "217cf89b3c9d17eb5f3178ec0de31b530f834a96",
-      "candidate_version": "0.7.0"
+      "candidate_version": "0.7.0",
+      "source_tree_identical_at_candidate_commit": true
     }
   },
   "model": {
@@ -191,29 +195,33 @@
   },
   "known_limits": [
     "Legacy Hermes sessions remain PENDING_RELOAD or UNKNOWN until reloaded or ended.",
-    "The 8.4B Hermes 0.10.0 candidate shares the version label but lacks this authentication; install the RC2 source and reload existing sessions.",
+    "The older 8.4B Hermes 0.10.0 candidate lacks local authentication; use the authenticated source pinned in this manifest and reload existing sessions.",
     "DSH mode changes require plugin reload; already-loaded sessions are not attested OFF.",
-    "Real remote-provider acceptance and production Active/Canary are outside Phase 8.4C.",
     "Optional ANE artifact is not frozen for this candidate.",
     "LaunchAgent lifecycle has mocked launchctl coverage only; pre-existing unowned launchd configurations require manual review.",
     "A cold Hermes package-manager installation can try to provision its toolchain; the observed attempt was blocked by the isolated test network policy.",
     "Sustained local connection flooding can still cause overload responses despite bounded slots and connection lifetime.",
-    "Public artifact hosting and formal release remain pending."
+    "Public artifact hosting and formal release remain pending.",
+    "The owner completed three hands-on examples; subjective assessment is pending.",
+    "One public tool call failed and was followed by another call; the retained records do not identify the cause or initiator."
   ],
-  "candidate_source_commit": "d6c420d7a8c9bce7edc26eaa3770d5f09babad3b",
+  "candidate_source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
   "qualification": {
     "python_regression": "286 passed",
     "dsh_typecheck_build_vitest": "68 passed",
     "mcp": "five gates and health; HTTP parity, failure paths and real local MLX",
     "hermes": "0.23.0 native loader, legacy migration and local mock provider",
     "dsh": "both pinned versions: real SDK, local mock provider, offline install and removal",
-    "remote_provider": "not executed",
+    "remote_provider": "eight isolated Shadow tasks completed at 8204485406cb7b00b9f4a94ddb407a14b3d60191; owner hands-on decision pending",
     "launchagent": "isolated mocked launchctl lifecycle; not production validated",
     "product_and_research_sanitizer": "passed",
     "artifact_privacy_scan": "passed",
     "security_scan": "4a7cf9ce-e038-41c2-9b44-c91f6a32801d; one medium connection-availability finding at 7ce1fbf, fixed at a8acf69 and independently reviewed; sustained local flooding can still cause overload",
     "mcp_sdk_tested": "2.3.0",
-    "artifact_rebuild": "wheel and sdist reproduced identical SHA-256 offline",
-    "security_fix_recheck": "independent read-only follow-up confirmed single-connection deadline, repeated-challenge rejection, and conservative launchd cleanup"
-  }
+    "artifact_rebuild": "0.2.0 wheel and sdist reproduced identical SHA-256 offline",
+    "security_fix_recheck": "independent read-only follow-up confirmed single-connection deadline, repeated-challenge rejection, and conservative launchd cleanup",
+    "final_candidate": "clean offline installation, local MLX inference and Hermes lifecycle at 42fc6f07d4d32a5199cd3494f20535640678d27d; 41 non-metadata wheel files match trial candidate",
+    "owner_hands_on": "three owner-selected examples completed on 0.2.0 candidate 42fc6f07d4d32a5199cd3494f20535640678d27d; subjective assessment pending"
+  },
+  "manifest_note": "Artifacts were built from candidate_source_commit. The final release commit and tag remain pending. The RC2 manifest is preserved separately."
 }
