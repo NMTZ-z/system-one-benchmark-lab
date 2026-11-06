@@ -25,6 +25,7 @@ local_system_one/probes.py
 local_system_one/router.py
 local_system_one/schemas.py
 local_system_one/service.py
+local_system_one/security.py
 local_system_one/model_backends/
 local_system_one/runtime/
 local_system_one/workflows/
@@ -80,6 +81,11 @@ tests/test_hermes_system_one_scripts.py
 tests/test_first_run.py
 tests/native_hermes_first_run.py
 tests/native_hermes_mock_provider.py
+tests/native_hermes_legacy_migration.py
+tests/native_mlx_mcp.py
+tests/native_dsh_mock.mjs
+tests/test_http_security.py
+tests/test_mcp_proxy.py
 tests/native_hermes_upgrade_rollback.py
 tests/test_model_tier_gate.py
 tests/test_notification_gate.py

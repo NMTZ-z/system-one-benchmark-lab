@@ -47,7 +47,7 @@ local-system-one start --profile lsoeval
 Check it before enabling the plugin:
 
 ```bash
-curl http://127.0.0.1:8787/health
+local-system-one status --profile lsoeval
 ```
 
 For the optional Apple Neural Engine backend, see the repository root README.
@@ -93,6 +93,8 @@ Shadow mode:
 - **does not rewrite the Hermes provider request or send notifications**.
 
 Reload or start a Hermes session after the change. Status distinguishes configured settings from registered live sessions. Older plugin versions do not participate in this check and must be reloaded.
+
+The managed Runtime writes a private per-profile access token. The plugin verifies a fresh Runtime identity challenge and sends task data and the token only on that same loopback connection; missing credentials or a failed identity check leave Hermes on its native path. Older loaded plugins cannot use this token and require a reload. A token is never forwarded to a remote sidecar.
 
 Each additional Gate needs an explicit setting. For example:
 

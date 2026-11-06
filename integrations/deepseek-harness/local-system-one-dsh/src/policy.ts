@@ -31,10 +31,11 @@ export const VERIFIED_PUBLIC_WEB_TOOLS = new Set([
   'mcp__tavily__tavily_search',
 ])
 
-function normalizeServiceUrl(value: string): string {
+export function normalizeServiceUrl(value: string): string {
   const url = new URL(value)
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('service_url must use http or https')
+  if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+      || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('service_url must be a loopback HTTP origin')
   }
   return url.toString().replace(/\/$/, '')
 }

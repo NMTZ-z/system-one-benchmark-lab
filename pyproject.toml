@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "local-system-one"
-version = "0.2.0rc1"
+version = "0.2.0rc2"
 description = "Local typed-decision control plane for Apple Silicon agents"
 readme = "README.md"
 license = "Apache-2.0"

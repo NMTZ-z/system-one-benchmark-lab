@@ -108,6 +108,9 @@ if [[ "$MODE" != "off" ]]; then
 fi
 echo "$PLUGIN_ID CONFIGURED mode for '$PROFILE': $MODE"
 echo "EFFECTIVE: UNKNOWN until the selected Hermes session has reloaded and status is verified."
+if [[ "$MODE" == "off" ]]; then
+  echo "CONFIGURED_OFF; PENDING_RELOAD for older sessions. Profile EFFECTIVE_OFF remains UNKNOWN until those sessions end or reload."
+fi
 echo "OFF fences version 0.10 sessions; older loaded versions require a Hermes reload."
 if [[ "$MODE" == "canary" ]]; then
   echo "Canary acknowledgement: enabled for this profile"

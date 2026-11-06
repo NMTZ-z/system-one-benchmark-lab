@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import http.client
 import contextvars
 import fcntl
 import ipaddress
@@ -24,6 +25,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import secrets
 import stat
 import sys
@@ -47,6 +49,7 @@ _CONTROL_NAME = "local-system-one-hermes.control"
 _CONTROL_SCHEMA = "local-system-one/control-v1"
 _SESSIONS_NAME = "local-system-one-hermes.sessions"
 _TELEMETRY_KEY = os.urandom(32)
+_AUTH_PATH = contextvars.ContextVar("local_system_one_auth_path", default=None)
 _SAFE_TEXT = frozenset({
     "hermes", "off", "shadow", "canary", "shadow_canary_ack_required", "rule", "model", "mlx", "ane",
     "search", "no_search", "fast", "strong", "complete", "continue", "verify", "notify_now", "digest", "silent",
@@ -270,10 +273,61 @@ def _post_json(
     base_url: str, path: str, payload: dict[str, Any], timeout: float
 ) -> dict[str, Any]:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if _sidecar_url_allowed(base_url):
+        token_path = _AUTH_PATH.get()
+        if not token_path:
+            raise PermissionError("local Runtime access token is unavailable")
+        fd = os.open(token_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="ascii") as handle:
+            info = os.fstat(handle.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid()
+                    or info.st_mode & 0o077 or info.st_size > 128):
+                raise PermissionError("local Runtime access token is not private")
+            token = handle.read(129)
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+            raise PermissionError("local Runtime access token is invalid")
+        target = urllib.parse.urlsplit(base_url)
+        connection = http.client.HTTPConnection(target.hostname, target.port, timeout=timeout)
+        try:
+            nonce = secrets.token_hex(16)
+            connection.request("GET", "/_local_system_one/identity", headers={"X-Local-System-One-Challenge": nonce})
+            response = connection.getresponse()
+            raw = response.read(1025)
+            try:
+                proof = json.loads(raw)["proof"]
+            except (ValueError, KeyError, TypeError):
+                raise PermissionError("local Runtime identity is unverified") from None
+            sock = connection.sock
+            peer = sock.getpeername() if sock else ("", 0)
+            expected = hmac.new(token.encode(), f"identity:{nonce}:{peer[0]}:{peer[1]}".encode(), hashlib.sha256).hexdigest()
+            if response.status != 200 or not isinstance(proof, str) or not hmac.compare_digest(proof, expected) or sock is None:
+                raise PermissionError("local Runtime identity is unverified")
+            def no_reconnect():
+                raise ConnectionError("verified Runtime connection was closed")
+            connection.connect = no_reconnect
+            headers["Authorization"] = f"Bearer {token}"
+            connection.request("POST", path, body=body, headers=headers)
+            if connection.sock is not sock:
+                raise ConnectionError("verified Runtime connection changed")
+            response = connection.getresponse()
+            if response.status != 200:
+                raise ValueError(f"local Runtime HTTP {response.status}")
+            data = response.read(1_048_577)
+        except http.client.HTTPException as error:
+            raise OSError("local Runtime connection failed") from error
+        finally:
+            connection.close()
+        if len(data) > 1_048_576:
+            raise ValueError("Local System One response is too large")
+        value = json.loads(data.decode("utf-8"))
+        if not isinstance(value, dict):
+            raise TypeError("Local System One response must be a JSON object")
+        return value
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}{path}",
         data=body,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers=headers,
         method="POST",
     )
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
@@ -803,6 +857,10 @@ def register(ctx):
     timeout_ms = int(ctx.get_config("timeout_ms", 500))
     timeout = max(0.05, min(timeout_ms / 1000.0, 5.0))
     profile = _profile_name(ctx)
+    token_path = os.environ.get("LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE")
+    if not token_path and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", profile):
+        state_home = Path(os.environ.get("LOCAL_SYSTEM_ONE_STATE_HOME", Path.home() / "Library/Application Support/Local System One"))
+        token_path = str(state_home / "profiles" / profile / "access-token")
     search_enabled = _as_bool(ctx.get_config("search_gate_enabled", True), True)
     model_tier_enabled = _as_bool(ctx.get_config("model_tier_gate_enabled", False), False)
     notification_enabled = _as_bool(ctx.get_config("notification_gate_enabled", False), False)
@@ -887,6 +945,7 @@ def register(ctx):
             current = contextvars.copy_context()
             if home_binding:
                 current.run(home_binding[0].set, home_binding[1])
+            current.run(_AUTH_PATH.set, token_path)
             return current.run(_control_call, control_path, control_epoch, function, *args, **kwargs)
         return run
 

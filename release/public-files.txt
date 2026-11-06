@@ -29,6 +29,11 @@ scripts/uninstall_hermes_system_one_plugin.sh
 tests/test_first_run.py
 tests/native_hermes_first_run.py
 tests/native_hermes_mock_provider.py
+tests/native_hermes_legacy_migration.py
+tests/native_mlx_mcp.py
+tests/native_dsh_mock.mjs
+tests/test_http_security.py
+tests/test_mcp_proxy.py
 tests/native_hermes_upgrade_rollback.py
 scripts/install_local_system_one_launchd.sh
 scripts/local_system_one_status.sh

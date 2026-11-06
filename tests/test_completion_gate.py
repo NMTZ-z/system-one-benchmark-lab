@@ -179,7 +179,7 @@ def _post_json(url: str, payload: dict) -> tuple[int, dict]:
     req = urllib.request.Request(
         url,
         data=body,
-        headers={"content-type": "application/json"},
+        headers={"content-type": "application/json", "Authorization": "Bearer test-secret"},
         method="POST",
     )
     try:
@@ -191,7 +191,7 @@ def _post_json(url: str, payload: dict) -> tuple[int, dict]:
 
 def test_runtime_endpoint_accepts_valid_and_rejects_malformed_requests():
     engine = FakeEngine(decision="complete", probability=0.95)
-    server = create_server(engine, port=0)
+    server = create_server(engine, port=0, auth_token="test-secret")
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -228,7 +228,7 @@ def test_http_reused_exception_is_recorded_once_per_request():
         raise cached_error
 
     engine.decide = fail_and_record
-    server = create_server(engine, port=0)
+    server = create_server(engine, port=0, auth_token="test-secret")
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

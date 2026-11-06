@@ -63,6 +63,8 @@ Environment overrides:
 - LOCAL_SYSTEM_ONE_HOST
 - LOCAL_SYSTEM_ONE_PORT
 - LOCAL_SYSTEM_ONE_AUTH_TOKEN
+- LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE
+- LOCAL_SYSTEM_ONE_PROFILE
 
 If the ANE package is missing, the service starts in MLX-only fallback mode.
 
@@ -102,9 +104,11 @@ The optional MCP server uses the official Python MCP SDK v2 and exposes:
 - search_gate
 - model_tier_gate
 - notification_gate
+- completion_gate
+- retry_escalation_gate
 - system_one_health
 
-The Runtime's Completion and Retry / Escalation HTTP endpoints are not exposed as MCP tools in the current main source. MCP parity is part of the v0.2.0 delivery plan for Phase 8.4C; see [product scope](V0_2_PRODUCT_SCOPE.md).
+Completion and Retry / Escalation return advisory results and never execute Agent actions.
 
 Run manually:
 
@@ -126,7 +130,7 @@ The MCP proxy talks to:
 http://127.0.0.1:8787
 ~~~
 
-by default. Override with LOCAL_SYSTEM_ONE_URL.
+by default. Override with `LOCAL_SYSTEM_ONE_URL` using a loopback HTTP origin. For a named managed profile, set `LOCAL_SYSTEM_ONE_PROFILE` to that profile name; alternatively set `LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE` to its private token file. The token is read per request, is not passed on the command line and is not sent through redirects. The proxy verifies a fresh Runtime identity challenge and sends task data and the token only on that same connection. Older MCP clients need upgrading with the Runtime.
 
 ## Generic MCP host command
 
@@ -144,10 +148,11 @@ Do not point each host directly at the model runtime. The persistent HTTP servic
 
 The official MCP v2 in-memory Client successfully:
 
-- discovered all four tools;
+- discovered all six tools;
 - called search_gate against the real persistent 421M service;
 - called model_tier_gate;
 - called notification_gate;
+- called completion_gate and retry_escalation_gate;
 - called system_one_health;
 - received structured tool output for every call.
 
@@ -159,7 +164,7 @@ Model-service failure is surfaced through system_one_health and tool-call errors
 
 The decision service is therefore an optimization/control layer, not a single point of failure for the agent ecosystem.
 
-## Verified current deployment state
+## Historical deployment snapshot
 
 The Mac mini current-user launchd service is installed as:
 

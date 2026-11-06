@@ -151,6 +151,7 @@ class CompletionGate:
             "token_count": int(token_count),
             "latency_ms": float(latency_ms),
             "request_id": request.request_id,
+            "advisory_only": True,
             "input_bounded": {
                 "task_truncated": request.task_truncated,
                 "result_truncated": request.result_truncated,

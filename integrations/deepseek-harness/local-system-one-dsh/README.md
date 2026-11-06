@@ -4,11 +4,13 @@
 
 Native DeepSeek Harness adapter for Local System One **Search, Model Tier, Notification, Completion and Retry / Escalation**.
 
-Main-source version `0.6.0` implements **Adapter Contract v1** with installation OFF by default. Completion and Retry / Escalation are Shadow-only and never stop, restart or retry the DSH loop. The `dsh-plugin` install branch is still `0.3.0` at `217cf89b3c9d17eb5f3178ec0de31b530f834a96`; it does not install this main-source version. The version-alignment plan is in the [8.4A baseline](../../../docs/PHASE8_4A_RELEASE_BASELINE.md).
+Candidate version `0.7.0` implements **Adapter Contract v1** with installation OFF by default. Completion and Retry / Escalation are Shadow-only and never stop, restart or retry the DSH loop. The `dsh-plugin` install branch is still `0.3.0` at `217cf89b3c9d17eb5f3178ec0de31b530f834a96`; install the candidate bundle instead.
+
+The current candidate is for OFF and Shadow evaluation. Production Active and Canary use are not authorized.
 
 ## Compatibility
 
-Phase 7A revalidated two exact DSH versions:
+Phase 8.4C installed and exercised this candidate through both exact DSH versions with local mock providers and loopback mock decisions. Both covered OFF, Shadow hooks for all five Gates, Runtime-down fallback, and removal. No remote provider was called in this phase. Earlier Phase 7A results are historical:
 
 | DSH | Commit | Validation |
 |---|---|---|
@@ -104,7 +106,7 @@ canary_web_filter_enabled: true
 canary_reasoning_downgrade_enabled: false
 ```
 
-Search and Model Tier send the current task; Notification can send a bounded final response; Completion can send the task, bounded result and execution state; Retry can send structured failure context. These go to the configured sidecar along with request identifiers. The default address is loopback; a remote `service_url` sends those inputs to that remote endpoint. Raw task and response text is not written into adapter decision logs.
+Search and Model Tier send the current task; Notification can send a bounded final response; Completion can send the task, bounded result and execution state; Retry can send structured failure context. These go to the loopback sidecar with request identifiers. Set `LOCAL_SYSTEM_ONE_PROFILE` to the managed Runtime profile, or set `LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE` to its private token file. The adapter verifies a fresh Runtime identity challenge and sends task data and the token only on that same connection. Missing credentials, failed identity checks and Runtime errors leave native DSH behavior intact. Redirects and remote sidecars are rejected. Raw task and response text is not written into adapter decision logs.
 
 ## Phase 8B optional loop probe
 
@@ -116,9 +118,7 @@ observation uses generic progress wording, not raw tool output. It does not
 mutate DSH control flow and is **off by default**. Turn and session state
 is scoped and cleared on lifecycle boundaries; failures are fail-open.
 
-Only the pinned upstream DSH lifecycle and simulated event replay plus real
-HTTP adapter integration were evaluated. Full native LLM-backed Agent
-E2E and a production-quality task dataset remain outstanding. [Phase 8B
+The Phase 8B evaluation covered pinned upstream lifecycle events, simulated replay and HTTP integration. Phase 8.4C additionally used the native DSH SDK with a local mock LLM. Real remote-provider acceptance for this candidate and a production-quality task dataset remain outstanding. [Phase 8B
 report](../../../docs/PHASE8B_FINAL_REPORT.md): **Active NO-GO**.
 
 ## Search Gate
@@ -195,7 +195,7 @@ Endpoint:
 POST /v1/workflows/notification-gate
 ```
 
-Notification remains **Shadow-only** in `0.6.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
+Notification remains **Shadow-only** in `0.7.0`. DSH observes the last visible `assistant/message` for the turn and, at `turn/end`, submits that bounded event plus lifecycle metadata to Local System One. The `session/event` contract is observe-only, so this work cannot veto or delay the main Agent turn.
 
 The adapter logs only decision metadata (`delivery`, `notify_now`, source, reason, score, confidence, backend, latency and event length). It never logs the final response text. No push, webhook, message or other delivery action is taken even if Local System One returns `notify_now`.
 
@@ -209,7 +209,7 @@ Endpoint:
 POST /v1/workflows/completion-gate
 ```
 
-Completion is **Shadow-only** in `0.6.0`. The adapter captures the bounded task on
+Completion is **Shadow-only** in `0.7.0`. The adapter captures the bounded task on
 the first `agent/pre-step`, observes the latest `assistant/message`, counts
 `tool/result` failures, and submits one compact Completion request at `turn/end`.
 It clears the ephemeral record at turn/session cleanup.
@@ -228,7 +228,7 @@ therefore explicitly **NO-GO** for Phase 8A. See
 
 DSH invokes `agent/pre-step` again after tool results, so Search and Model Tier are evaluated only for `step === 1`. Notification and Completion are evaluated once at turn end after the final assistant event is known.
 
-Search and Model Tier decisions are kept separately under session + turn identity. Completion uses bounded ephemeral session + turn state and is cleared at `turn/end`; `session/end` / `session/close` clears remaining state. No raw task, final response, transcript, system prompt, credentials, or tool arguments are emitted by adapter logs. Search/Model Tier send the current task to the configured service; Notification sends the bounded final event; Completion sends the bounded task/result plus structured execution counters. A remote `service_url` therefore carries those inputs off-device.
+Search and Model Tier decisions are kept separately under session + turn identity. Completion uses bounded ephemeral session + turn state and is cleared at `turn/end`; `session/end` / `session/close` clears remaining state. No raw task, final response, transcript, system prompt, credentials, or tool arguments are emitted by adapter logs. Search/Model Tier send the current task to the loopback service; Notification sends the bounded final event; Completion sends the bounded task/result plus structured execution counters.
 
 ## Fail-open behavior
 
@@ -236,15 +236,15 @@ Each gate is independent. A timeout, HTTP error, malformed response, or dead Loc
 
 Canary mutations also fail open: if authority cannot be proven or a mutation throws, the original tool/provider behavior is preserved. Known but unverified provider/model mappings are recorded as `unsupported`; actual integration failures are recorded as `failed_open`.
 
-## Community bundle install
+## Candidate bundle install
 
 Install into a supported `headless` profile:
 
 ```bash
-dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
+dsh plugin --profile headless add file:/absolute/path/local-system-one-dsh-0.7.0.tgz
 ```
 
-The bundle installs in `off` mode. Enabling Shadow or Canary requires an explicit profile override.
+The bundle installs in `off` mode. Enabling Shadow requires an explicit profile override.
 
 Example Shadow override:
 
@@ -282,7 +282,7 @@ npm run build
 npm audit
 ```
 
-The package is not published to npm. The `dsh-plugin` distribution branch carries built output so GitHub installation does not depend on install-time compilation.
+The candidate package is not published to npm. The historical `dsh-plugin` branch carries the older `0.3.0` package.
 
 ## Local development load
 

@@ -1,7 +1,7 @@
 {
   "schema": "local-system-one/release-plan-v1",
-  "status": "rc1-candidate-in-validation",
-  "release_version": "0.2.0",
+  "status": "RC2_BLOCKED",
+  "release_version": "0.2.0rc2",
   "release_commit": null,
   "release_tag": null,
   "snapshot_date": "2026-11-05",
@@ -10,21 +10,29 @@
   "integration_sources": {
     "phase_8_3_stack_head": "b0ea294ab74f35b99e780eaf29aab2b36d205168",
     "phase_8_4a_baseline_head": "0439777e0c42046316165558bd675013d3138ac9",
-    "development_baseline": "81e2792e2bc0be491af4c08a945ec2412aabf2a4"
+    "development_baseline": "81e2792e2bc0be491af4c08a945ec2412aabf2a4",
+    "phase_8_4b_dependency": "1a380eb0b26c527eae4174cc01720a72dc055ae2"
   },
   "source_exports": {
     "product_allowlist": "release/product-files.txt",
     "research_allowlist": "release/public-files.txt",
     "research_opportunity_in_runtime_wheel_or_sdist": false
   },
-  "rc_targets": ["v0.2.0-rc.1", "v0.2.0-rc.2"],
+  "rc_targets": [
+    "v0.2.0-rc.1",
+    "v0.2.0-rc.2"
+  ],
   "platform": {
     "os_architecture": "macOS / Apple Silicon",
     "python_declared": ">=3.11,<3.14",
-    "python_versions_tested_for_release": ["3.12.14"],
+    "python_versions_tested_for_release": [
+      "3.12.14"
+    ],
     "python_first_run_lock": "requirements/first-run-macos-arm64-py312.lock",
     "hermes_declared": ">=0.21.4",
-    "hermes_versions_tested_for_release": ["0.23.0"],
+    "hermes_versions_tested_for_release": [
+      "0.23.0"
+    ],
     "hermes_tested_source_commit": "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19",
     "hermes_tested_host_python": "3.14.9",
     "first_run_tested_macos": "27.0.1",
@@ -38,19 +46,24 @@
         "source_commit": "5badb15009ae1756c3afe0ae0cef1faafc290ccc"
       }
     ],
-    "dsh_versions_tested_for_release": null,
-    "node_declared": ">=22.19.0"
+    "dsh_versions_tested_for_release": [
+      "0.1.7-rc.2",
+      "0.2.1-alpha.1"
+    ],
+    "node_declared": ">=22.19.0",
+    "node_version_tested": "26.6.0"
   },
   "components": {
     "runtime": {
       "target_version": "0.2.0",
       "python_rc1_version": "0.2.0rc1",
       "observed_main_version": "0.1.0",
-      "candidate_version": "0.2.0rc1",
+      "candidate_version": "0.2.0rc2",
       "release_source_commit": null,
       "artifacts": null,
       "default_backend": "mlx",
-      "declared_laya_mlx_version": "0.2.0"
+      "declared_laya_mlx_version": "0.2.0",
+      "mlx_version_tested": "0.32.4"
     },
     "hermes_plugin": {
       "target_version": "0.10.0",
@@ -69,7 +82,8 @@
       "install_source_commit": null,
       "artifacts": null,
       "install_branch_version_at_snapshot": "0.3.0",
-      "install_branch_commit_at_snapshot": "217cf89b3c9d17eb5f3178ec0de31b530f834a96"
+      "install_branch_commit_at_snapshot": "217cf89b3c9d17eb5f3178ec0de31b530f834a96",
+      "candidate_version": "0.7.0"
     }
   },
   "model": {
@@ -90,16 +104,24 @@
   "target_defaults": {
     "service_url": "http://127.0.0.1:8787",
     "hermes_mode": "off",
-    "first_shadow_gates": ["search"],
+    "first_shadow_gates": [
+      "search"
+    ],
     "other_gates": "explicit_opt_in",
     "cloud_decision_provider": "disabled",
     "persistent_service": "opt_in",
     "production_active": "not_authorized"
   },
   "target_capabilities": {
-    "gates": ["search", "model_tier", "notification", "completion", "retry_escalation"],
+    "gates": [
+      "search",
+      "model_tier",
+      "notification",
+      "completion",
+      "retry_escalation"
+    ],
     "http": "five_gates_and_health",
-    "mcp": "five_gates_and_health_by_8.4C",
+    "mcp": "five_gates_and_health",
     "hermes": "shadow_without_agent_mutation",
     "dsh": "verified_versions_only",
     "stop_and_uninstall": "reversible_owned_resources"
@@ -111,6 +133,30 @@
     "automatic_paid_model_escalation",
     "automatic_remote_provider_fallback"
   ],
-  "artifact_record_requirements": ["name", "url", "sha256", "source_commit", "version"],
-  "final_release_ready": false
+  "artifact_record_requirements": [
+    "name",
+    "url",
+    "sha256",
+    "source_commit",
+    "version"
+  ],
+  "final_release_ready": false,
+  "security": {
+    "listener": "loopback only",
+    "credential": "random per-profile token in owner-only file",
+    "listener_identity": "fresh HMAC challenge; task and token follow on the verified connection",
+    "same_user_processes": "can access the token and call the service",
+    "body_limit_bytes": 1048576,
+    "max_connections": 8,
+    "max_concurrent_inference": 1,
+    "max_queued_inference": 0,
+    "socket_timeout_seconds": 5,
+    "request_timeout_seconds": 10
+  },
+  "known_limits": [
+    "Legacy Hermes sessions remain PENDING_RELOAD or UNKNOWN until reloaded.",
+    "Real remote-provider acceptance is outside Phase 8.4C.",
+    "Optional ANE artifact is not frozen for this candidate.",
+    "Final review and artifact evidence are required before RC2_READY."
+  ]
 }
