@@ -131,7 +131,7 @@ def run(source: Path, mutable: Path, forbidden: Path, port: int, mode: str, *, s
         if event == "socket.connect" and args[1] == ("127.0.0.1", port):
             return
         if event == "subprocess.Popen" and stock_shell:
-            # Separate OFF-only qualification: genuine upstream Bash transport.
+            # Separately opt-in stock-native qualification: genuine upstream Bash transport.
             # No executor/payload patch; OS Seatbelt still denies all external
             # network and writes outside the newly disposable scratch tree.
             executable, argv, cwd, _env = args

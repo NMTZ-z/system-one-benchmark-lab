@@ -308,3 +308,117 @@ def test_stock_shell_requires_exact_frozen_official_code(tmp_path):
     (tmp_path / "hermes_bootstrap.py").symlink_to(tmp_path / "tools/file_operations.py")
     with pytest.raises(ValueError, match="pinned upstream Hermes source"):
         validate_stock_source(tmp_path)
+
+# Opt-in native stock-shell Shadow controls. These unit fixtures explicitly
+# do NOT count as a native E2E execution or a real Laya inference.
+def _stock_shadow_fixture(tmp_path, monkeypatch, kind):
+    case, statepath = shadow_case(tmp_path, monkeypatch, kind)
+    db = case / "session-snapshot.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE messages SET content=? WHERE role='assistant' AND tool_calls IS NULL",
+                     ("The requested file does not exist. No retry was attempted.",))
+    eventpath = case / "post/native-events.jsonl"
+    events = rehearsal.rows(eventpath) + _stock_events()
+    eventpath.write_text("\n".join(json.dumps(e) for e in events))
+    state = rehearsal.read_json(statepath)
+    retry = state["retry_escalation_shadow_history"][0]
+    retry["reason"] = "retry_budget_unverified"
+    retry["raw_model_decision"] = None
+    statepath.write_text(json.dumps(state))
+    if kind == "shadow_stock_mlx":
+        metrics_path = case / "runtime-post/metrics.json"
+        metrics = rehearsal.read_json(metrics_path)
+        metrics.update(implementation="local_system_one.runtime.mlx.MLXRuntime",
+                       warmup={"attempts": 1, "successes": 1})
+        metrics_path.write_text(json.dumps(metrics))
+    if kind == "shadow_stock_503":
+        for name in rehearsal.HISTORIES:
+            row = state[name][0]
+            row.update(action_status="failed_open", action_reason=(
+                "retry_runtime_unavailable" if row["gate"] == "retry_escalation"
+                else "runtime_HTTPError"),
+                decision=None, decision_source=None, raw_model_decision=None, backend=None,
+                reason=None)
+        statepath.write_text(json.dumps(state))
+        http_path = case / "runtime-post/http.jsonl"
+        http = rehearsal.rows(http_path)
+        for row in http:
+            row["http_status"] = 503
+        http_path.write_text("\n".join(json.dumps(e) for e in http))
+        metrics_path = case / "runtime-post/metrics.json"
+        metrics_path.write_text(json.dumps({
+            "runtime_kind": kind, "predict": {"attempts": 0, "successes": 0},
+            "engine": {"backends": {}},
+        }))
+    return case, statepath
+
+
+def test_new_stock_shadow_cases_do_not_change_original_default_matrix():
+    assert rehearsal.CASES == ("off", "shadow_fixture", "shadow_mlx", "shadow_503")
+    assert rehearsal.STOCK_CASES == (
+        "off_stock_shell", "shadow_stock_fixture", "shadow_stock_mlx", "shadow_stock_503")
+    assert set(rehearsal.STOCK_SHADOW_CASES).isdisjoint(rehearsal.CASES)
+    assert rehearsal.OFF_CASES == ("off", "off_stock_shell")
+
+
+@pytest.mark.parametrize("kind,expected_mlx", [
+    ("shadow_stock_fixture", 0),
+    ("shadow_stock_mlx", 2),
+    ("shadow_stock_503", 0),
+])
+def test_stock_shadow_independent_verifier_requires_actual_provenance(tmp_path, monkeypatch, kind, expected_mlx):
+    case, _ = _stock_shadow_fixture(tmp_path, monkeypatch, kind)
+    result = rehearsal.verify(case)
+    assert result["verdict"] == "PASS_OFFLINE_NATIVE_REHEARSAL", result["issues"]
+    assert result["identity_joins_verified"] == 3
+    assert result["adapter_observations"] == 3
+    assert result["native_stock_bash_spawn_count"] == 3
+    assert result["real_mlx_successful_predictions"] == expected_mlx
+    assert len(result["native_final_message_sha256"]) == 64
+
+
+@pytest.mark.parametrize("mutation", [
+    "wrong_final", "wrong_retry", "retry_model_claim", "fake_raw_retry",
+    "wrong_runtime", "no_model_call", "missing_stock_shell", "fake_bridge", "bad_hmac", "bad_503",
+    "down_fake_decision", "down_wrong_reason",
+])
+def test_stock_shadow_rejects_forgeries(tmp_path, monkeypatch, mutation):
+    kind = ("shadow_stock_503" if mutation in
+            {"bad_503", "down_fake_decision", "down_wrong_reason"} else "shadow_stock_mlx")
+    case, statepath = _stock_shadow_fixture(tmp_path, monkeypatch, kind)
+    state = rehearsal.read_json(statepath)
+    metrics_path = case / "runtime-post/metrics.json"
+    metrics = rehearsal.read_json(metrics_path)
+    events_path = case / "post/native-events.jsonl"
+    events = rehearsal.rows(events_path)
+    retry = state["retry_escalation_shadow_history"][0]
+    if mutation == "wrong_final":
+        with sqlite3.connect(case / "session-snapshot.db") as conn:
+            conn.execute("UPDATE messages SET content=? WHERE role='assistant' AND tool_calls IS NULL",
+                         ("Fabricated successful task",))
+    elif mutation == "wrong_retry":
+        retry["decision"] = "retry_same"
+    elif mutation == "retry_model_claim":
+        retry["decision_source"] = "model"
+    elif mutation == "fake_raw_retry":
+        retry["raw_model_decision"] = "retry_same"
+    elif mutation == "wrong_runtime":
+        metrics["runtime_kind"] = "shadow_stock_fixture"
+    elif mutation == "no_model_call":
+        metrics["predict"]["successes"] = 1
+    elif mutation == "missing_stock_shell":
+        events = [e for e in events if e.get("event") != "stock_shell_spawn"]
+    elif mutation == "fake_bridge":
+        events.append({"event": "directory_listing"})
+    elif mutation == "bad_hmac":
+        retry["decision_request_ref"] = "0" * 32
+    elif mutation == "bad_503":
+        metrics["predict"]["attempts"] = 2
+    elif mutation == "down_fake_decision":
+        retry["decision"] = "ask_user"
+    elif mutation == "down_wrong_reason":
+        retry["action_reason"] = "retry_shadow_advisory_only"
+    statepath.write_text(json.dumps(state))
+    metrics_path.write_text(json.dumps(metrics))
+    events_path.write_text("\n".join(json.dumps(e) for e in events))
+    assert rehearsal.verify(case)["verdict"] == "BLOCKED"
