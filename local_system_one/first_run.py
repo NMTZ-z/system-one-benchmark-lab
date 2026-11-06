@@ -420,7 +420,8 @@ def doctor(profile: str, port: int) -> int:
     hermes_version = _hermes_version(hermes)
     plugin_version = _plugin_version(home)
     model = _model_snapshot()
-    dependencies = all(importlib.util.find_spec(name) is not None for name in ("laya_mlx", "mlx", "huggingface_hub"))
+    dependencies = all(importlib.util.find_spec(name) is not None for name in
+                       ("laya_mlx", "mlx", "huggingface_hub", "numpy", "tokenizers", "yaml"))
     try:
         dependencies = dependencies and importlib.metadata.version("laya-mlx") == "0.2.0"
     except importlib.metadata.PackageNotFoundError:
@@ -428,6 +429,8 @@ def doctor(profile: str, port: int) -> int:
     settings = _profile_settings(home)
     version_match = re.match(r"v?(\d+)\.(\d+)\.(\d+)", hermes_version or "")
     needs_setup = not all((hermes, version_match, home.is_dir(), plugin_version == "0.10.0", model, dependencies, settings is not None))
+    auth_conflict = bool(os.environ.get("LOCAL_SYSTEM_ONE_AUTH_TOKEN"))
+    needs_setup = needs_setup or auth_conflict
     if version_match and tuple(map(int, version_match.groups())) < (0, 21, 4):
         blocked = True
     record = _read_record(_state_dir(profile))
@@ -472,6 +475,8 @@ def doctor(profile: str, port: int) -> int:
     print(f"Configured sidecar: {address}; managed Runtime: http://127.0.0.1:{port}; port: {'occupied' if port_busy else 'available'}")
     print(f"Model: {TYPED_DECISIONS_MODEL_ID}@{TYPED_DECISIONS_REVISION}")
     print(f"Model cache: {'present' if model else 'missing; run download-model explicitly'}; dependencies: {'present' if dependencies else 'missing'}")
+    if auth_conflict:
+        print("Managed Runtime cannot use the configured bearer token with this Hermes plugin; resolve the configuration before starting.")
     print(f"Free disk: {disk // 1024**3} GiB; configured mode: {mode}; effective state: see status")
     result = "BLOCKED" if blocked else "NEEDS_SETUP" if needs_setup else "READY"
     print("Doctor:", result)
@@ -482,6 +487,11 @@ def start(profile: str, port: int) -> int:
     if platform.system() != "Darwin" or platform.machine() != "arm64" or not (3, 11) <= sys.version_info[:2] < (3, 14):
         print("Runtime requires macOS on Apple Silicon and Python 3.11–3.13.", file=sys.stderr)
         return 1
+    env = os.environ.copy()
+    if env.get("LOCAL_SYSTEM_ONE_AUTH_TOKEN"):
+        print("Managed Runtime cannot safely honor the configured bearer token with this Hermes plugin; resolve the configuration before starting.", file=sys.stderr)
+        return 1
+    env.pop("LOCAL_SYSTEM_ONE_AUTH_TOKEN", None)
     if _model_snapshot() is None:
         print("Pinned model is not cached. Run download-model explicitly first.", file=sys.stderr)
         return 1
@@ -505,17 +515,18 @@ def start(profile: str, port: int) -> int:
         record = {"schema": "local-system-one/runtime-v1", "port": port, "token": owner_token,
                   "pid": None, "log": log_path.name}
         _write_record(directory, record)
-        env = os.environ.copy()
         env.update(LOCAL_SYSTEM_ONE_OWNER_TOKEN=owner_token, HF_HUB_OFFLINE="1",
                    HF_HUB_DISABLE_TELEMETRY="1", PYTHONUNBUFFERED="1")
-        env.pop("LOCAL_SYSTEM_ONE_AUTH_TOKEN", None)
         process = None
         success = False
         try:
             log_fd = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
             with os.fdopen(log_fd, "ab") as log:
                 process = subprocess.Popen(
-                    [sys.executable, "-m", "local_system_one", "--host", "127.0.0.1", "--port", str(port)],
+                    [sys.executable, "-I", "-B", "-u", "-c",
+                     "import runpy,sys;sys.path.insert(0,sys.argv.pop(1));runpy.run_module('local_system_one',run_name='__main__')",
+                     str(Path(__file__).resolve().parent.parent),
+                     "--host", "127.0.0.1", "--port", str(port)],
                     stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=env, start_new_session=True,
                 )
             record["pid"] = process.pid

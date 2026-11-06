@@ -94,6 +94,8 @@ f9ab0b228f0fc0f14d873dbc99038f135c2da1b2
 
 The plugin is installed under `~/.hermes/profiles/lsoeval/plugins/local-system-one-hermes`. The Python package lives in the selected virtual environment; Runtime ownership records live under `~/Library/Application Support/Local System One/profiles/lsoeval`. The model is kept in the Hugging Face cache. Failed-start diagnostic logs and a small Runtime lock file can remain in that state directory.
 
+The default loopback decision API has no bearer authentication and can be reached by other local accounts or processes. Managed startup refuses an existing `LOCAL_SYSTEM_ONE_AUTH_TOKEN`, because this Hermes plugin cannot yet pass it to the service. Enabling the plugin can request a reload of the selected profile's running Hermes Gateway.
+
 The Runtime remains offline with respect to model acquisition. To inspect its local service:
 
 ```bash

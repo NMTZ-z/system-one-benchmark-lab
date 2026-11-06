@@ -41,6 +41,7 @@ fi
 STAGE="$(mktemp -d "$PLUGINS_DIR/.local-system-one-hermes.install.XXXXXX")"
 BACKUP=""
 COMMITTED=false
+CONFIG_STARTED=false
 cleanup() {
   local result=$?
   if [[ -n "$BACKUP" && -d "$BACKUP" ]]; then
@@ -57,6 +58,9 @@ cleanup() {
     fi
   elif [[ "$COMMITTED" != true && "$FIRST_INSTALL" == true && -d "$TARGET" ]]; then
     python3 "$OWNERSHIP" remove "$TARGET" || echo "Partial installation remains at $TARGET" >&2
+  fi
+  if [[ "$COMMITTED" != true && "$FIRST_INSTALL" == true && "$CONFIG_STARTED" == true ]]; then
+    echo "Profile configuration or control state may remain; inspect prior settings before running local-system-one uninstall --profile $PROFILE." >&2
   fi
   if [[ -d "$STAGE" ]]; then
     rm -f "$STAGE/__init__.py" "$STAGE/plugin.yaml" "$STAGE/README.md" "$STAGE/.local-system-one-install.json"
@@ -90,6 +94,7 @@ if ! HERMES_HOME="$HOME_DIR" hermes plugins validate "$TARGET" >/dev/null; then
 fi
 
 if [[ "$FIRST_INSTALL" == true ]]; then
+  CONFIG_STARTED=true
   python3 "$SOURCE/__init__.py" "$HOME_DIR" off
   # First install is explicit and inert. Manifest defaults cover every other setting.
   HERMES_HOME="$HOME_DIR" hermes config set \

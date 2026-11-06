@@ -23,6 +23,7 @@ def _fake_env(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
         'echo "HERMES_HOME=${HERMES_HOME:-} :: $*" >> "$FAKE_HERMES_LOG"\n'
         'if [[ "${1:-}" == plugins && "${2:-}" == validate ]]; then '
         '[[ "${FAKE_FAIL_TARGET:-}" != "${3:-}" ]] || exit 1; exit 0; fi\n'
+        'if [[ "${1:-}" == plugins && "${2:-}" == enable && "${FAKE_FAIL_ENABLE:-}" == true ]]; then exit 1; fi\n'
         'if [[ "${1:-}" == plugins && "${2:-}" == show ]]; then echo "fake plugin show"; exit 0; fi\n'
         'if [[ "${1:-}" == config && "${2:-}" == get ]]; then '
         'if [[ "${3:-}" == *.service_url && -n "${FAKE_SERVICE_URL:-}" ]]; then '
@@ -70,6 +71,17 @@ def test_install_default_is_off_and_excludes_bytecode(tmp_path):
     assert "settings.mode false --force" in commands
     assert "settings.canary_acknowledged false --force" in commands
     assert "plugins enable local-system-one-hermes --no-allow-tool-override" in commands
+
+
+def test_first_install_failure_reports_remaining_profile_state(tmp_path):
+    env, root, _ = _fake_env(tmp_path)
+    (root / "profiles/demo").mkdir(parents=True)
+    env["FAKE_FAIL_ENABLE"] = "true"
+    result = _run("install_hermes_system_one_plugin.sh", "demo", env=env)
+    assert result.returncode != 0
+    assert "Profile configuration or control state may remain" in result.stderr
+    assert "local-system-one uninstall --profile demo" in result.stderr
+    assert not (root / "profiles/demo/plugins/local-system-one-hermes").exists()
 
 
 def test_install_named_profile_and_upgrade_preserves_settings(tmp_path):

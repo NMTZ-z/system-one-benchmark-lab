@@ -132,6 +132,17 @@ def test_doctor_is_read_only_and_reports_missing_profile(tmp_path, monkeypatch, 
     assert "NEEDS_SETUP" in capsys.readouterr().out
 
 
+def test_doctor_reports_missing_yaml_dependency(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_HERMES_ROOT", str(tmp_path / "hermes"))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.delenv("LOCAL_SYSTEM_ONE_AUTH_TOKEN", raising=False)
+    find_spec = first_run.importlib.util.find_spec
+    monkeypatch.setattr(first_run.importlib.util, "find_spec",
+                        lambda name: None if name == "yaml" else find_spec(name))
+    first_run.doctor("demo", 8787)
+    assert "dependencies: missing" in capsys.readouterr().out
+
+
 def test_status_does_not_guess_when_config_is_invalid(tmp_path, monkeypatch, capsys):
     root = tmp_path / "hermes"
     home = root / "profiles/demo"
@@ -153,6 +164,46 @@ def test_start_never_creates_state_for_missing_profile(tmp_path, monkeypatch):
     monkeypatch.setattr(first_run, "_model_snapshot", lambda: Path("/cached"))
     assert first_run.start("missing", 8787) == 1
     assert not (tmp_path / "state").exists()
+
+
+def test_start_rejects_configured_auth_before_creating_state(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_HERMES_ROOT", str(tmp_path / "hermes"))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_AUTH_TOKEN", "example-configured-token")
+    monkeypatch.setattr(first_run.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(first_run.platform, "machine", lambda: "arm64")
+    assert first_run.start("demo", 8787) == 1
+    assert "cannot safely honor the configured bearer token" in capsys.readouterr().err
+    assert not (tmp_path / "state").exists()
+
+
+def test_start_ignores_untrusted_working_directory_and_pythonpath(tmp_path, monkeypatch):
+    root = tmp_path / "hermes"
+    (root / "profiles/demo").mkdir(parents=True)
+    trusted = tmp_path / "trusted"
+    untrusted = tmp_path / "untrusted"
+    for directory in (trusted, untrusted):
+        package = directory / "local_system_one"
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("")
+        (package / "__main__.py").write_text(
+            "import os\nfrom pathlib import Path\n"
+            "assert 'LOCAL_SYSTEM_ONE_AUTH_TOKEN' not in os.environ\n"
+            "Path(__file__).resolve().parent.parent.joinpath('executed').write_text('yes')\n"
+        )
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_HERMES_ROOT", str(root))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("PYTHONPATH", str(untrusted))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_AUTH_TOKEN", "")
+    monkeypatch.chdir(untrusted)
+    monkeypatch.setattr(first_run, "__file__", str(trusted / "local_system_one/first_run.py"))
+    monkeypatch.setattr(first_run, "_model_snapshot", lambda: trusted)
+    monkeypatch.setattr(first_run, "_port_busy", lambda _port: False)
+    monkeypatch.setattr(first_run.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(first_run.platform, "machine", lambda: "arm64")
+    assert first_run.start("demo", 18790) == 1
+    assert (trusted / "executed").is_file()
+    assert not (untrusted / "executed").exists()
 
 
 def test_model_snapshot_rejects_corrupt_cached_file(tmp_path, monkeypatch):
