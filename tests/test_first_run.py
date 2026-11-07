@@ -124,6 +124,34 @@ def test_status_redacts_untrusted_profile_and_decision_content(tmp_path, monkeyp
     assert "Runtime unavailable or credential missing" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(("search", "timestamp", "expected", "recorded"), [
+    ({"decision": "search", "action_status": "observed"}, 1700000000, "search", "2023-11-14T22:13:20+00:00"),
+    ({"decision": "no_search", "action_status": "observed"}, 1700000000, "no_search", "2023-11-14T22:13:20+00:00"),
+    ({"decision": "search", "action_status": "failed_open"}, True, "UNKNOWN", "UNKNOWN"),
+    ({"decision": "private-task", "action_status": "observed"}, 10**400, "UNKNOWN", "UNKNOWN"),
+    ({"decision": ["search"], "action_status": "observed"}, float("nan"), "UNKNOWN", "UNKNOWN"),
+])
+def test_status_shows_only_safe_recorded_search_recommendations(
+    tmp_path, monkeypatch, capsys, search, timestamp, expected, recorded
+):
+    root = tmp_path / "hermes"
+    home = root / "profiles/demo"
+    home.mkdir(parents=True)
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_HERMES_ROOT", str(root))
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_STATE_HOME", str(tmp_path / "state"))
+    suffix = hashlib.sha256(b"local-system-one-hermes").hexdigest()[:8]
+    state = home / "plugin-data" / f"agent-plugin-local-system-one-hermes-{suffix}"
+    state.mkdir(parents=True)
+    (state / "state.json").write_text(json.dumps({
+        "last_shadow": {"ts": timestamp, "task": "private-task", "search": search}
+    }), encoding="utf-8")
+
+    assert first_run.status("demo") == 0
+    output = capsys.readouterr().out
+    assert f"earlier task): {expected}; recorded UTC: {recorded}" in output
+    assert "private-task" not in output
+
+
 def test_doctor_is_read_only_and_reports_missing_profile(tmp_path, monkeypatch, capsys):
     root = tmp_path / "hermes"
     root.mkdir()

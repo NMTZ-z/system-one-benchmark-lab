@@ -58,6 +58,9 @@ This distinction matters: the project deliberately separates **technical capabil
 
 ## Quick start
 
+For a plain-language explanation, a worked example, and how to interpret the
+latest recorded Search recommendation, see the [Chinese first-use guide](docs/HERMES_FIRST_RUN_ZH.md).
+
 ### Requirements
 
 - macOS on Apple Silicon
@@ -85,7 +88,13 @@ local-system-one shadow --profile lsoeval
 local-system-one status --profile lsoeval
 ```
 
-Reload or start a Hermes session for `lsoeval` after enabling Shadow. The default source alias is `laya-typed-decisions`; it resolves and verifies this checkpoint revision:
+Verify that the selected profile's registered sessions report effective Shadow before
+using the observation. On Hermes 0.23, chat turns run in a Gateway: opening a new
+chat does not necessarily reload a plugin the Gateway already loaded in OFF. A
+profile-scoped plugin refresh can also reconcile shared MCP connections; use the
+[isolated first-use procedure](docs/HERMES_FIRST_RUN_ZH.md) only after confirming
+the test Gateway and its connections are not shared with other profiles. The
+default source alias is `laya-typed-decisions`; it resolves and verifies this checkpoint revision:
 
 ```text
 convaiinnovations/laya-typed-decisions
@@ -333,6 +342,9 @@ This is an **alpha control-plane project**, not a universal autonomous router.
 
 Important limits:
 
+- The pinned MLX backend clamps the checkpoint's `choice:11+` temperature. Treat
+  confidence for Choice requests with 11 or more options as uncalibrated;
+  Search uses the separate `noul` primitive.
 - Search model probabilities are **not** trusted as unrestricted final authority.
 - Model Tier broad automatic downgrade is **not** proven to provide a stable latency benefit.
 - The ANE backend uses a fixed L512 body and must fall back when requests do not fit or health checks fail.

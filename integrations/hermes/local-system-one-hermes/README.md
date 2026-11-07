@@ -95,7 +95,19 @@ Shadow mode:
 - records privacy-safe operational metadata;
 - **does not rewrite the Hermes provider request or send notifications**.
 
-Reload or start a Hermes session after the change. Status distinguishes configured settings from registered live sessions. Older plugin versions do not participate in this check and must be reloaded.
+Verify that registered sessions report effective Shadow before treating observations as active. In Hermes 0.23, chat turns run in a Gateway: a new chat does not necessarily reload a plugin that the running Gateway already loaded in OFF. The target profile's plugin needs a scoped refresh after the mode change. A refresh also reconciles MCP connections and can affect another profile sharing them, so stop if ownership is unknown. The following sequence is only for a dedicated evaluation Gateway and connections that no other profile uses, after confirming plugin management will not change shared dependencies:
+
+If the evaluation Gateway is not running, start an empty isolated test session without submitting a task. Then run the following in another terminal:
+
+```bash
+local-system-one off --profile lsoeval
+hermes -p lsoeval plugins disable local-system-one-hermes
+local-system-one shadow --profile lsoeval
+hermes -p lsoeval plugins enable local-system-one-hermes --no-allow-tool-override
+local-system-one status --profile lsoeval
+```
+
+If status still reports `UNKNOWN` or `PENDING_RELOAD` after the refresh, stop and verify that the target Gateway reloaded the plugin. Older plugin versions do not participate in the current status check and must be reloaded or ended. Do not restart a shared Gateway to force this change.
 
 The managed Runtime writes a private per-profile access token. The plugin verifies a fresh Runtime identity challenge and sends task data and the token only on that same loopback connection; missing credentials or a failed identity check leave Hermes on its native path. Older loaded plugins cannot use this token and require a reload. A token is never forwarded to a remote sidecar.
 
@@ -106,7 +118,7 @@ hermes -p lsoeval config set plugins.entries.local-system-one-hermes.settings.mo
 local-system-one shadow --profile lsoeval
 ```
 
-The other settings are `notification_gate_enabled`, `completion_gate_enabled`, `retry_escalation_gate_enabled` and `completion_loop_probe_enabled`. Reload the Hermes session after changing settings. The completion loop probe additionally requires Completion to be enabled.
+The other settings are `notification_gate_enabled`, `completion_gate_enabled`, `retry_escalation_gate_enabled` and `completion_loop_probe_enabled`. Apply the same scoped-refresh and status checks after changing settings. The completion loop probe additionally requires Completion to be enabled.
 
 ## Phase 8B optional tool-result Completion probe
 

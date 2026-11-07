@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "local-system-one"
-version = "0.2.0rc2"
+version = "0.2.0"
 description = "Local typed-decision control plane for Apple Silicon agents"
 readme = "README.md"
 license = "Apache-2.0"
@@ -52,5 +52,5 @@ exclude = ["/local_system_one/decision_opportunity.py"]
 "scripts/uninstall_hermes_system_one_plugin.sh" = "local_system_one/_hermes/scripts/uninstall_hermes_system_one_plugin.sh"
 
 [tool.hatch.build.targets.sdist]
-only-include = ["local_system_one", "pyproject.toml", "README.md", "LICENSE", "requirements/first-run-macos-arm64-py312.lock", "integrations/hermes/local-system-one-hermes/__init__.py", "integrations/hermes/local-system-one-hermes/plugin.yaml", "integrations/hermes/local-system-one-hermes/README.md", "scripts/hermes_system_one_common.sh", "scripts/hermes_system_one_status.sh", "scripts/hermes_system_one_ownership.py", "scripts/install_hermes_system_one_plugin.sh", "scripts/set_hermes_system_one_mode.sh", "scripts/uninstall_hermes_system_one_plugin.sh"]
+only-include = ["local_system_one", "pyproject.toml", "README.md", "LICENSE", "docs/HERMES_FIRST_RUN_ZH.md", "requirements/first-run-macos-arm64-py312.lock", "integrations/hermes/local-system-one-hermes/__init__.py", "integrations/hermes/local-system-one-hermes/plugin.yaml", "integrations/hermes/local-system-one-hermes/README.md", "scripts/hermes_system_one_common.sh", "scripts/hermes_system_one_status.sh", "scripts/hermes_system_one_ownership.py", "scripts/install_hermes_system_one_plugin.sh", "scripts/set_hermes_system_one_mode.sh", "scripts/uninstall_hermes_system_one_plugin.sh"]
 exclude = ["/local_system_one/decision_opportunity.py"]
