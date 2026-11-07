@@ -34,6 +34,9 @@ The Local System One runtime lives in the same public repository:
 ```bash
 git clone https://github.com/NMTZ-z/system-one-benchmark-lab.git
 cd system-one-benchmark-lab
+# Use the reviewed release tag once it has been published. During candidate
+# evaluation, substitute the full source commit recorded in its manifest.
+git checkout --detach v0.2.0
 
 python3.12 -m venv .venv
 . .venv/bin/activate

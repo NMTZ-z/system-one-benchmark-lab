@@ -39,7 +39,9 @@ Defaults:
 - host: 127.0.0.1;
 - port: 8787.
 
-For a prebuilt validated L512 ANE package, download the Hugging Face release:
+The optional prebuilt L512 ANE artifact is not qualified for v0.2.0: its
+artifact revision and digest are not frozen. To evaluate it separately, download
+the Hugging Face artifact explicitly:
 
 ~~~bash
 hf download NMTZ/laya-typed-decisions-421m-coreml-ane \
@@ -54,7 +56,8 @@ Alternatively, reproduce the public L512 ANE package locally with:
 scripts/build_typed421_ane.sh
 ~~~
 
-The builder pins both the `laya-coreml` source revision and the original Typed Decisions checkpoint revision. The prebuilt Hugging Face artifact uses the same pinned provenance.
+The builder pins the `laya-coreml` source revision and the original Typed
+Decisions checkpoint revision. Those pins do not verify the prebuilt artifact.
 
 Environment overrides:
 

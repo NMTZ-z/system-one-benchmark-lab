@@ -221,6 +221,23 @@ def test_shadow_failure_is_recorded_but_not_raised(monkeypatch):
     assert ctx.state.values["last_shadow"]["error"] == "URLError"
 
 
+def test_shadow_missing_runtime_is_reported_without_private_details(monkeypatch):
+    plugin = load_plugin()
+    ctx = FakeContext("shadow", model_tier_gate_enabled=False)
+
+    def missing(*_args, **_kwargs):
+        raise FileNotFoundError("private-token-path")
+
+    monkeypatch.setattr(plugin, "_post_json", missing)
+    plugin.register(ctx)
+    assert ctx.hooks["pre_llm_call"](user_message="example", turn_id="example") is None
+    event = ctx.state.values["last_shadow"]
+    assert event["error"] == "runtime_unavailable"
+    assert event["search"]["action_reason"] == "runtime_unavailable"
+    assert plugin._safe_telemetry(event)["error"] == "runtime_unavailable"
+    assert "private-token-path" not in str(event)
+
+
 class ProductionFakeContext(FakeContext):
     profile_name = "sisi"
 
