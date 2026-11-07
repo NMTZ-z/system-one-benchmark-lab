@@ -15,4 +15,4 @@ fi
 
 export LOCAL_SYSTEM_ONE_URL="$service_url"
 cd "$repo"
-exec "$uv_bin" run --with 'mcp>=2,<3' python -m local_system_one.mcp_server
+exec "$uv_bin" run --offline --with 'mcp>=2,<3' python -m local_system_one.mcp_server

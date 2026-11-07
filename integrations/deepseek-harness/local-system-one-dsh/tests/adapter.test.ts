@@ -1,3 +1,4 @@
+import './setup.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ModelTierGateClient,
@@ -206,12 +207,12 @@ describe('configuration and policy', () => {
     expect(config.effectiveMode).toBe('canary')
   })
 
-  it('defaults both gates on while keeping reasoning mutation off', () => {
+  it('defaults Shadow to Search only while keeping reasoning mutation off', () => {
     const config = resolveConfig({ mode: 'shadow' })
     expect(config.searchGateEnabled).toBe(true)
-    expect(config.modelTierGateEnabled).toBe(true)
-    expect(config.notificationGateEnabled).toBe(true)
-    expect(config.completionGateEnabled).toBe(true)
+    expect(config.modelTierGateEnabled).toBe(false)
+    expect(config.notificationGateEnabled).toBe(false)
+    expect(config.completionGateEnabled).toBe(false)
     expect(config.canaryWebFilterEnabled).toBe(true)
     expect(config.canaryReasoningDowngradeEnabled).toBe(false)
   })
@@ -410,6 +411,15 @@ describe('HTTP clients', () => {
 })
 
 describe('DeepSeek Harness lifecycle integration', () => {
+  it('first Shadow observes Search only unless other Gates are explicitly enabled', async () => {
+    const fetchMock = gateFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new FakeContext()
+    apply(ctx, { mode: 'shadow' })
+    await enterTurn(ctx, 's-first-shadow', 1, 'synthetic')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(String(fetchMock.mock.calls[0]![0])).toContain('/search-gate')
+  })
   it('OFF performs zero Local System One calls and zero tool mutation', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -434,7 +444,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const fetchMock = gateFetch()
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow' })
+    apply(ctx, { mode: 'shadow', model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-shadow', 1, 'synthetic local task')
     await ctx.one('agent/pre-step')(
@@ -497,7 +507,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow' })
+    apply(ctx, { mode: 'shadow', model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-independent-failure', 1, 'rewrite: hello')
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -509,7 +519,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const fetchMock = gateFetch()
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow', completion_gate_enabled: false })
+    apply(ctx, { mode: 'shadow', model_tier_gate_enabled: true, notification_gate_enabled: true, completion_gate_enabled: false })
     const raw = 'Deployment finished; review the result when convenient.'
 
     await enterTurn(ctx, 's-notify', 1, 'deploy the service')
@@ -542,6 +552,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'shadow',
+      model_tier_gate_enabled: true,
       notification_gate_enabled: false,
       completion_gate_enabled: false,
     })
@@ -567,7 +578,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'shadow', completion_gate_enabled: false })
+    apply(ctx, { mode: 'shadow', model_tier_gate_enabled: true, notification_gate_enabled: true, completion_gate_enabled: false })
     await enterTurn(ctx, 's-notify-fail', 1, 'task')
     ctx.one('session/event')(
       { id: 's-notify-fail' },
@@ -818,7 +829,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
   it('Canary denies only verified Web/Search tools for audited hard rules', async () => {
     vi.stubGlobal('fetch', gateFetch())
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'canary', canary_acknowledged: true })
+    apply(ctx, { mode: 'canary', canary_acknowledged: true, model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-canary', 1, 'synthetic local task')
 
@@ -848,6 +859,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_web_filter_enabled: false,
     })
@@ -867,7 +879,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
       gateFetch({ ...modelDecision, probability_search: 0 }, modelFastDecision),
     )
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'canary', canary_acknowledged: true })
+    apply(ctx, { mode: 'canary', canary_acknowledged: true, model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-model', 1, 'synthetic ambiguous task')
     const result = await ctx.one('tools/pre-execute')(
@@ -881,7 +893,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
   it('Local System One failure is fail-open for Search and Model Tier', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('service unavailable')))
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'canary', canary_acknowledged: true })
+    apply(ctx, { mode: 'canary', canary_acknowledged: true, model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-fail', 1, 'synthetic task')
     const result = await ctx.one('tools/pre-execute')(
@@ -900,7 +912,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
   it('malformed Model Tier response fails open without breaking Search Canary', async () => {
     vi.stubGlobal('fetch', gateFetch(hardRuleDecision, { ...hardFastDecision, tier: '???' }))
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'canary', canary_acknowledged: true })
+    apply(ctx, { mode: 'canary', canary_acknowledged: true, model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-malformed-tier', 1, 'synthetic local task')
     const result = await ctx.one('tools/pre-execute')(
@@ -917,6 +929,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: true,
     })
@@ -945,6 +958,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: true,
     })
@@ -969,6 +983,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: true,
     })
@@ -987,6 +1002,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: true,
     })
@@ -1011,6 +1027,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: true,
     })
@@ -1031,6 +1048,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const ctx = new FakeContext()
     apply(ctx, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: true,
     })
@@ -1047,6 +1065,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
     const offSwitch = new FakeContext()
     apply(offSwitch, {
       mode: 'canary',
+      model_tier_gate_enabled: true,
       canary_acknowledged: true,
       canary_reasoning_downgrade_enabled: false,
     })
@@ -1074,6 +1093,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
       const ctx = new FakeContext()
       apply(ctx, {
         mode: 'canary',
+        model_tier_gate_enabled: true,
         canary_acknowledged: true,
         canary_reasoning_downgrade_enabled: true,
       })
@@ -1092,7 +1112,7 @@ describe('DeepSeek Harness lifecycle integration', () => {
   it('turn/end prevents cross-turn Search or Model Tier decision leakage', async () => {
     vi.stubGlobal('fetch', gateFetch())
     const ctx = new FakeContext()
-    apply(ctx, { mode: 'canary', canary_acknowledged: true })
+    apply(ctx, { mode: 'canary', canary_acknowledged: true, model_tier_gate_enabled: true })
 
     await enterTurn(ctx, 's-multi', 1, 'synthetic turn one')
     const denied = await ctx.one('tools/pre-execute')(

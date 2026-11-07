@@ -12,6 +12,7 @@ from .engine import DecisionEngine
 from .health import ANEHealthGate
 from .router import DecisionRouter, RouterConfig
 from .runtime import ANERuntime, MLXRuntime
+from .security import access_token_path, read_access_token
 from .service import create_server
 
 
@@ -50,20 +51,26 @@ def main() -> int:
     parser.add_argument("--ane-min-tokens", type=int, default=192)
     parser.add_argument("--ane-max-tokens", type=int, default=512)
     parser.add_argument("--ane-max-p50-ms", type=float, default=125.0)
-    parser.add_argument(
-        "--auth-token",
-        default=os.environ.get("LOCAL_SYSTEM_ONE_AUTH_TOKEN"),
-    )
+    parser.add_argument("--auth-token", help=argparse.SUPPRESS)
     args = parser.parse_args()
     owner_token = os.environ.pop("LOCAL_SYSTEM_ONE_OWNER_TOKEN", None)
+    auth_token = os.environ.pop("LOCAL_SYSTEM_ONE_AUTH_TOKEN", None)
+
+    if args.auth_token is not None:
+        parser.error("do not put bearer credentials on the command line; use a private token file")
 
     if owner_token and (args.host != "127.0.0.1" or args.source != "laya-typed-decisions"):
         parser.error("owned first-run Runtime requires the pinned model and 127.0.0.1")
 
-    if not _is_loopback(args.host) and not args.auth_token:
-        parser.error(
-            "non-loopback binding requires --auth-token or LOCAL_SYSTEM_ONE_AUTH_TOKEN"
-        )
+    if not _is_loopback(args.host):
+        parser.error("Runtime only supports loopback binding")
+    if not auth_token:
+        try:
+            path = Path(os.environ["LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE"]) if os.environ.get("LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE") else access_token_path()
+            auth_token = read_access_token(path)
+        except (OSError, ValueError):
+            print("A private Runtime access token is required; use managed start or configure LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE.", file=sys.stderr)
+            return 1
 
     from .runtime.sources import TYPED_DECISIONS_ALIAS, TYPED_DECISIONS_MODEL_ID
     model_source = args.source
@@ -114,7 +121,7 @@ def main() -> int:
         engine,
         host=args.host,
         port=args.port,
-        auth_token=args.auth_token,
+        auth_token=auth_token,
         owner_token=owner_token,
     )
     print(f"Local System One listening on http://{args.host}:{args.port}", flush=True)

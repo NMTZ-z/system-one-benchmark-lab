@@ -43,7 +43,7 @@ import type {
 } from './types.js'
 
 export const name = 'local-system-one-dsh'
-export const version = '0.6.0'
+export const version = '0.7.0'
 const MAX_COMPLETION_TASK_CHARS = 4000
 const MAX_NOTIFICATION_CHARS = 6000
 

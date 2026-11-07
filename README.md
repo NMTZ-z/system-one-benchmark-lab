@@ -94,12 +94,14 @@ f9ab0b228f0fc0f14d873dbc99038f135c2da1b2
 
 The plugin is installed under `~/.hermes/profiles/lsoeval/plugins/local-system-one-hermes`. The Python package lives in the selected virtual environment; Runtime ownership records live under `~/Library/Application Support/Local System One/profiles/lsoeval`. The model is kept in the Hugging Face cache. Failed-start diagnostic logs and a small Runtime lock file can remain in that state directory.
 
-The default loopback decision API has no bearer authentication and can be reached by other local accounts or processes. Managed startup refuses an existing `LOCAL_SYSTEM_ONE_AUTH_TOKEN`, because this Hermes plugin cannot yet pass it to the service. Enabling the plugin can request a reload of the selected profile's running Hermes Gateway.
+The managed Runtime creates a random bearer credential in the profile's private `access-token` file with user-only file permissions. Hermes, DSH and MCP use that credential for local requests. Other processes running as the same user, and administrators with sufficient access, can also read it and call the API; loopback alone does not restrict access to Hermes. Clients first verify a fresh Runtime identity challenge, then send the token and task on the same connection. A loaded older plugin needs a reload before it can authenticate. Upgrade older HTTP, MCP and DSH clients with the Runtime; the candidate does not fall back to unauthenticated access. Managed startup refuses a conflicting `LOCAL_SYSTEM_ONE_AUTH_TOKEN` instead of silently changing the configured credential.
+
+The service accepts loopback listeners only. It limits request bodies to 1 MiB, active connections to 8, concurrent decision work to 1 and queued decision work to 0. A stalled request receives a timeout; its model work may finish in the background, and new work receives an overload response until that slot is free. Socket reads are limited to 5 seconds, request handling to 10 seconds, and each connection to 15 seconds in total.
 
 The Runtime remains offline with respect to model acquisition. To inspect its local service:
 
 ```bash
-curl http://127.0.0.1:8787/health
+local-system-one status --profile lsoeval
 ```
 
 Available endpoints include:
@@ -117,7 +119,7 @@ GET  /health
 GET  /metrics
 ```
 
-The current MCP proxy exposes Search, Model Tier, Notification and health; it does not yet expose Completion or Retry. See [MCP deployment](docs/MCP_DEPLOYMENT.md).
+The MCP proxy exposes all five Gates and health. Completion and Retry are advisory only. See [MCP deployment](docs/MCP_DEPLOYMENT.md).
 
 The service binds to loopback by default and does not persist raw task text.
 
@@ -235,7 +237,7 @@ Validated DSH targets are deliberately exact:
 
 The adapter supports independent Search, Model Tier, Notification, Completion, and Retry / Escalation observation. Search and Model Tier run at turn start; Notification and Completion observe the completed Agent turn, and Retry can observe an eligible failed tool result. Notification, Completion, and Retry remain Shadow-only. Search Canary retains the audited hard no-Web rules. Model Tier Canary is experimental and disabled by default; when explicitly acknowledged and enabled, only an audited deterministic hard-fast decision on an exact verified provider/model route may copy the first provider request and change `reasoningEffort: high -> low`. Model/probability decisions never receive active authority.
 
-Real provider-wire validation paths include:
+Historical real provider-wire research included the following paths. Phase 8.4C uses local mock providers and does not validate these remote routes:
 
 ```text
 DeepSeek Harness -> Nova -> DeepSeek V4.1 Flash
@@ -246,11 +248,13 @@ The StepFun route completed native high/low requests and an automatic Local Syst
 
 The installation bundle remains inert in `off` mode. Connection errors, timeouts, malformed gate responses, unsupported provider/model routes, and any missing Canary authority fail open to native DSH behavior. Turn-scoped Search and Model Tier state is cleared at turn end.
 
-The following community bundle is the older `0.3.0` install branch at `217cf89b3c9d17eb5f3178ec0de31b530f834a96`, not the main-source `0.6.0` adapter; it does not provide the current five-Gate feature set. Aligning the install artifact is planned for 8.4C:
+Install the candidate bundle from its local artifact path:
 
 ```bash
-dsh plugin --profile headless add github:NMTZ-z/system-one-benchmark-lab#dsh-plugin
+dsh plugin --profile headless add file:/absolute/path/local-system-one-dsh-0.7.0.tgz
 ```
+
+The older `dsh-plugin` branch still contains version `0.3.0`. Production Active and Canary use remain unauthorized for this candidate.
 
 See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md), the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md), and the [Phase 7A Model Tier parity report](integrations/deepseek-harness/local-system-one-dsh/PHASE7A_MODEL_TIER_PARITY.md).
 

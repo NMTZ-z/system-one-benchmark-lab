@@ -7,6 +7,7 @@ from contextlib import contextmanager
 import fcntl
 import hashlib
 import hmac
+import http.client
 import importlib.util
 import importlib.metadata
 import ipaddress
@@ -28,6 +29,7 @@ import urllib.parse
 import urllib.request
 
 from .runtime.sources import TYPED_DECISIONS_MODEL_ID, TYPED_DECISIONS_REVISION
+from .security import read_access_token, verified_request
 
 DEFAULT_PORT = 8787
 MODEL_FILES = {
@@ -108,6 +110,42 @@ def _write_record(directory: Path, data: dict) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _access_token(directory: Path, expected_hash: str | None = None) -> tuple[str, bool]:
+    path = directory / "access-token"
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        credential = read_access_token(path)
+        if not expected_hash or not hmac.compare_digest(hashlib.sha256(credential.encode()).hexdigest(), expected_hash):
+            raise ValueError("existing access token ownership cannot be verified")
+        return credential, False
+    credential = secrets.token_urlsafe(32)
+    try:
+        with os.fdopen(fd, "w", encoding="ascii") as handle:
+            handle.write(credential)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return credential, True
+
+
+def _remove_access_token(directory: Path, expected_hash: str | None) -> None:
+    if not expected_hash:
+        return
+    path = directory / "access-token"
+    if not path.exists() and not path.is_symlink():
+        return
+    before = path.lstat()
+    credential = read_access_token(path)
+    current = path.lstat()
+    if ((before.st_dev, before.st_ino) != (current.st_dev, current.st_ino)
+            or not hmac.compare_digest(hashlib.sha256(credential.encode()).hexdigest(), expected_hash)):
+        raise ValueError("access token ownership cannot be verified")
+    path.unlink()
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -142,10 +180,20 @@ def _proof(token: str, action: str, nonce: str) -> str:
     return hmac.new(token.encode(), f"{action}:{nonce}".encode(), hashlib.sha256).hexdigest()
 
 
-def _ready(record: dict) -> bool:
+def _ready(record: dict, directory: Path) -> bool:
     if not _owned(record):
         return False
-    health = _request(record["port"], "/health") or {}
+    try:
+        access_token = read_access_token(directory / "access-token")
+        if not hmac.compare_digest(hashlib.sha256(access_token.encode()).hexdigest(), record.get("auth_sha256", "")):
+            return False
+    except (OSError, ValueError, TypeError):
+        return False
+    try:
+        status, data = verified_request(f"http://127.0.0.1:{record['port']}", "GET", "/health", None, access_token, 2)
+        health = json.loads(data) if status == 200 else {}
+    except (OSError, ValueError, RuntimeError, http.client.HTTPException):
+        return False
     runtime = health.get("runtime") or {}
     if not isinstance(runtime, dict):
         return False
@@ -327,8 +375,9 @@ def status(profile: str) -> int:
         print(f"Profile '{profile}' does not exist.", file=sys.stderr)
         return 1
     settings = _profile_settings(home)
-    record = _read_record(_state_dir(profile))
-    healthy = bool(record and _ready(record))
+    directory = _state_dir(profile)
+    record = _read_record(directory)
+    healthy = bool(record and _ready(record, directory))
     print(f"Profile: {profile}")
     print(f"Owned Runtime: {'HEALTHY' if healthy else 'UNKNOWN or stopped'}")
     if healthy:
@@ -383,6 +432,8 @@ def status(profile: str) -> int:
                or (configured == "shadow" and (not modes or any(mode != "shadow" for mode in modes))))
     if sessions and not uncertain and "UNKNOWN" not in modes and len(set(modes)) == 1:
         print(f"EFFECTIVE mode of registered v0.10 sessions: {modes[0]} ({len(modes)} session(s))")
+        if modes[0] == "off":
+            print("Registered v0.10 sessions: EFFECTIVE_OFF")
         for gate in ("search", "model_tier", "notification", "completion", "retry_escalation", "completion_loop_probe"):
             values = {session["gates"].get(gate) if mode != "off" else False
                       for session, mode in zip(sessions, modes)}
@@ -390,6 +441,9 @@ def status(profile: str) -> int:
             print(f"EFFECTIVE {gate}: {shown}")
     else:
         print("EFFECTIVE mode:", "PENDING_RELOAD" if pending else "UNKNOWN")
+    if configured == "off":
+        print("Profile OFF: CONFIGURED_OFF; PENDING_RELOAD for any unregistered legacy sessions")
+        print("Profile EFFECTIVE_OFF: UNKNOWN until every legacy session has been reloaded or ended")
     print("Hermes reload:", "required" if pending else "older, unregistered plugin sessions remain UNKNOWN")
     last = state.get("last_shadow") if isinstance(state.get("last_shadow"), dict) else {}
     search = last.get("search") if isinstance(last.get("search"), dict) else {}
@@ -502,8 +556,9 @@ def start(profile: str, port: int) -> int:
     with _state_lock(directory):
         old = _read_record(directory)
         if old and _owned(old):
-            print(f"Owned Runtime already running on 127.0.0.1:{old['port']}; healthy: {_ready(old)}")
-            return 0 if _ready(old) else 1
+            healthy = _ready(old, directory)
+            print(f"Owned Runtime already running on 127.0.0.1:{old['port']}; healthy: {healthy}")
+            return 0 if healthy else 1
         if old and (_alive(old.get("pid")) or old.get("pid") is None):
             print("Previous Runtime ownership is unresolved; refusing to replace its record.", file=sys.stderr)
             return 1
@@ -511,15 +566,19 @@ def start(profile: str, port: int) -> int:
             print(f"Port {port} is already in use; the existing listener was left alone.", file=sys.stderr)
             return 1
         owner_token = secrets.token_urlsafe(32)
+        access_token, created_token = _access_token(directory, old.get("auth_sha256") if old else None)
+        access_hash = hashlib.sha256(access_token.encode()).hexdigest()
         log_path = directory / f"runtime-{secrets.token_hex(16)}.log"
         record = {"schema": "local-system-one/runtime-v1", "port": port, "token": owner_token,
-                  "pid": None, "log": log_path.name}
-        _write_record(directory, record)
-        env.update(LOCAL_SYSTEM_ONE_OWNER_TOKEN=owner_token, HF_HUB_OFFLINE="1",
-                   HF_HUB_DISABLE_TELEMETRY="1", PYTHONUNBUFFERED="1")
+                  "auth_sha256": access_hash, "pid": None, "log": log_path.name}
         process = None
         success = False
+        record_written = False
         try:
+            _write_record(directory, record)
+            record_written = True
+            env.update(LOCAL_SYSTEM_ONE_OWNER_TOKEN=owner_token, LOCAL_SYSTEM_ONE_AUTH_TOKEN=access_token,
+                       HF_HUB_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1", PYTHONUNBUFFERED="1")
             log_fd = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
             with os.fdopen(log_fd, "ab") as log:
                 process = subprocess.Popen(
@@ -536,7 +595,7 @@ def start(profile: str, port: int) -> int:
             while time.monotonic() < deadline:
                 if process.poll() is not None:
                     break
-                if _ready(record):
+                if _ready(record, directory):
                     success = True
                     print(f"Runtime READY; process {process.pid}; backend MLX; pinned model verified.")
                     return 0
@@ -544,16 +603,20 @@ def start(profile: str, port: int) -> int:
             print(f"Runtime did not become ready. Inspect the private log at {log_path}.", file=sys.stderr)
             return 1
         finally:
-            if process is None or process.poll() is not None:
+            if record_written and (process is None or process.poll() is not None):
                 (directory / "runtime.json").unlink(missing_ok=True)
             elif not success:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=5)
-                (directory / "runtime.json").unlink(missing_ok=True)
+                if process is not None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
+                if record_written:
+                    (directory / "runtime.json").unlink(missing_ok=True)
+            if not success and created_token:
+                _remove_access_token(directory, access_hash)
 
 
 def stop(profile: str, confirm_clients: bool) -> int:
@@ -570,6 +633,7 @@ def stop(profile: str, confirm_clients: bool) -> int:
             if _alive(record.get("pid")) or record.get("pid") is None:
                 print("Runtime ownership cannot be verified; no process was stopped.", file=sys.stderr)
                 return 1
+            _remove_access_token(directory, record.get("auth_sha256"))
             (directory / "runtime.json").unlink()
             print("Removed a stale Runtime record; no process was stopped.")
             return 0
@@ -590,6 +654,7 @@ def stop(profile: str, confirm_clients: bool) -> int:
         if _alive(record.get("pid")):
             print("Stop is pending; the ownership record was retained.", file=sys.stderr)
             return 1
+        _remove_access_token(directory, record.get("auth_sha256"))
         (directory / "runtime.json").unlink()
         log_path = directory / record["log"] if record.get("log") else None
         if log_path and (log_path.exists() or log_path.is_symlink()):

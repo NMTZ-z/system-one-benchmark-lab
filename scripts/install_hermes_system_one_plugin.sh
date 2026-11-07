@@ -111,10 +111,5 @@ else
 fi
 COMMITTED=true
 
-if ! curl -fsS --max-time 2 http://127.0.0.1:8787/health >/dev/null 2>&1; then
-  echo "Note: Local System One is currently unreachable at http://127.0.0.1:8787." >&2
-  echo "The plugin remains safe: OFF does nothing, and Shadow/Canary fail open." >&2
-fi
-
 echo "Status: $ROOT/scripts/hermes_system_one_status.sh $PROFILE"
 echo "Shadow: $ROOT/scripts/set_hermes_system_one_mode.sh $PROFILE shadow"

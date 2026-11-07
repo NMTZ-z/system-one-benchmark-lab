@@ -1,3 +1,8 @@
+import { constants, closeSync, fstatSync, openSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { normalizeServiceUrl } from './policy.js'
+import { postJsonVerified } from './transport.js'
 import type {
   CompletionDecision,
   CompletionExecutionState,
@@ -195,6 +200,27 @@ export function parseCompletionDecision(value: unknown): CompletionDecision {
   }
 }
 
+function accessToken(): string {
+  const profile = process.env.LOCAL_SYSTEM_ONE_PROFILE || 'default'
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(profile)) throw new Error('invalid Runtime profile')
+  const root = process.env.LOCAL_SYSTEM_ONE_STATE_HOME || join(homedir(), 'Library/Application Support/Local System One')
+  const path = process.env.LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE || join(root, 'profiles', profile, 'access-token')
+  let fd: number | undefined
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const info = fstatSync(fd)
+    if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.()
+        || (info.mode & 0o077) !== 0 || info.size > 128) throw new Error('invalid token file')
+    const token = readFileSync(fd, 'ascii')
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new Error('invalid token file')
+    return token
+  } catch {
+    throw new Error('Local System One access token is unavailable')
+  } finally {
+    if (fd !== undefined) closeSync(fd)
+  }
+}
+
 class GateClient<T> {
   constructor(
     private readonly serviceUrl: string,
@@ -208,12 +234,9 @@ class GateClient<T> {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
 
     try {
-      const response = await fetch(`${this.serviceUrl}${this.path}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      })
+      const serviceUrl = normalizeServiceUrl(this.serviceUrl)
+      const token = accessToken()
+      const response = await postJsonVerified(`${serviceUrl}${this.path}`, token, JSON.stringify(payload), controller.signal)
 
       if (!response.ok) {
         throw new Error(`${this.path} HTTP ${response.status}`)

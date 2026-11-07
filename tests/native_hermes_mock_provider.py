@@ -1,6 +1,7 @@
 """Exercise a real Hermes Agent with a local mock provider and no external egress."""
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import hmac
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,10 @@ PROFILE = HOME.name
 
 
 def mode(value):
-    subprocess.run(["bash", str(SOURCE / "scripts/set_hermes_system_one_mode.sh"), PROFILE, value],
+    prefix = [] if os.environ.get("LOCAL_SYSTEM_ONE_NETWORK_ISOLATED") else [
+        "/usr/bin/sandbox-exec", "-p", "(version 1)(allow default)(deny network-outbound)",
+    ]
+    subprocess.run([*prefix, "bash", str(SOURCE / "scripts/set_hermes_system_one_mode.sh"), PROFILE, value],
                    check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
 
 
@@ -51,14 +55,21 @@ def child(base_url, sidecar_url):
 
 def run():
     from tests.fakes.fake_llm_provider import FakeLLMServer, Text
+    from native_hermes_first_run import ensure_test_token, identity
 
     paths = []
+    token_path, created_token = ensure_test_token()
 
     class Sidecar(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
         def log_message(self, *_args):
             pass
 
         def do_POST(self):
+            if not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + token_path.read_text()):
+                self.send_response(401)
+                self.end_headers()
+                return
             self.rfile.read(int(self.headers["Content-Length"]))
             paths.append(self.path)
             body = json.dumps({"workflow": "search_gate", "decision": "no_search", "decision_source": "rule",
@@ -69,6 +80,8 @@ def run():
             self.wfile.write(body)
 
         def do_GET(self):
+            if identity(self, token_path.read_text()):
+                return
             body = json.dumps({"count": len(paths)}).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
@@ -80,7 +93,8 @@ def run():
     server_thread.start()
     try:
         with FakeLLMServer(default_text="mock response", aux=lambda _request: Text("mock response")) as provider:
-            subprocess.run(["hermes", "config", "set", "plugins.entries.local-system-one-hermes.settings.service_url",
+            subprocess.run(["/usr/bin/sandbox-exec", "-p", "(version 1)(allow default)(deny network-outbound)",
+                            "hermes", "config", "set", "plugins.entries.local-system-one-hermes.settings.service_url",
                             f"http://127.0.0.1:{sidecar.server_address[1]}", "--force"],
                            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
             mode("shadow")
@@ -88,10 +102,11 @@ def run():
                       f'(allow network-outbound (remote ip "localhost:{provider.port}"))'
                       f'(allow network-outbound (remote ip "localhost:{sidecar.server_address[1]}"))')
             allowed = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "TMPDIR", "TZ",
-                       "PYTHONPATH", "HERMES_HOME", "LOCAL_SYSTEM_ONE_HERMES_ROOT", "LOCAL_SYSTEM_ONE_SOURCE_ROOT")
+                       "PYTHONPATH", "HERMES_HOME", "LOCAL_SYSTEM_ONE_HERMES_ROOT", "LOCAL_SYSTEM_ONE_SOURCE_ROOT",
+                       "LOCAL_SYSTEM_ONE_STATE_HOME", "LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE")
             env = {key: os.environ[key] for key in allowed if key in os.environ}
             env.update(PYTHONDONTWRITEBYTECODE="1", HERMES_DISABLE_LAZY_INSTALLS="1", UV_OFFLINE="1",
-                       NO_PROXY="127.0.0.1,localhost")
+                       NO_PROXY="127.0.0.1,localhost", LOCAL_SYSTEM_ONE_NETWORK_ISOLATED="1")
             result = subprocess.run(["/usr/bin/sandbox-exec", "-p", policy, sys.executable, __file__, "child", provider.base_url,
                                      f"http://127.0.0.1:{sidecar.server_address[1]}"],
                                     env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
@@ -106,6 +121,8 @@ def run():
         sidecar.shutdown()
         sidecar.server_close()
         server_thread.join(timeout=5)
+        if created_token:
+            token_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
