@@ -14,7 +14,7 @@
     "phase_8_4b_dependency": "1a380eb0b26c527eae4174cc01720a72dc055ae2",
     "phase_8_4d_trial": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
     "phase_8_4d_version_candidate": "42fc6f07d4d32a5199cd3494f20535640678d27d",
-    "phase_8_4d_experience_candidate": "f620a7dab9865d81ca5451f843aad8862c09da43"
+    "phase_8_4d_experience_candidate": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec"
   },
   "source_exports": {
     "product_allowlist": "release/product-files.txt",
@@ -62,21 +62,21 @@
       "python_rc1_version": "0.2.0rc1",
       "observed_main_version": "0.1.0",
       "candidate_version": "0.2.0",
-      "release_source_commit": "f620a7dab9865d81ca5451f843aad8862c09da43",
+      "release_source_commit": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec",
       "artifacts": [
         {
           "name": "local_system_one-0.2.0-py3-none-any.whl",
           "url": null,
-          "sha256": "83b9655f4efa68200f64a61a85f96966f48bf38c5174a16ef36846c88e05299e",
-          "source_commit": "f620a7dab9865d81ca5451f843aad8862c09da43",
+          "sha256": "0f0df57e92949bbf11b1fad97678afbb6ca99cbe52e8b9238407362ad88b546e",
+          "source_commit": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec",
           "version": "0.2.0",
           "availability": "local_review_only"
         },
         {
           "name": "local_system_one-0.2.0.tar.gz",
           "url": null,
-          "sha256": "0b0b67ff3a8c3845da563310b55a50cbfe6e42b213f952c71432babac2335c1c",
-          "source_commit": "f620a7dab9865d81ca5451f843aad8862c09da43",
+          "sha256": "825e68ece4f51deadbcb26d8a8fae79be11701f12a0357d2cff65c6feb471b86",
+          "source_commit": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec",
           "version": "0.2.0",
           "availability": "local_review_only"
         }
@@ -89,13 +89,13 @@
       "target_version": "0.10.0",
       "observed_main_version": "0.9.0",
       "candidate_version": "0.10.0",
-      "release_source_commit": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
+      "release_source_commit": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec",
       "artifacts": [
         {
           "name": "local-system-one-hermes-0.10.0-8.4d-source.tar.gz",
           "url": null,
-          "sha256": "94ccc4334aca9fdf6b29284212e62a681b9452170fd7f20acc89ed24dbf5c821",
-          "source_commit": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
+          "sha256": "d3ebce852bd0b9be3fd82cb5b2af78e6f7cbe271a052492681f04b9033f38097",
+          "source_commit": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec",
           "version": "0.10.0",
           "availability": "local_review_only"
         }
@@ -196,6 +196,7 @@
   },
   "known_limits": [
     "Legacy Hermes sessions remain PENDING_RELOAD or UNKNOWN until reloaded or ended.",
+    "Hermes 0.23 Gateway plugin reload may reconcile shared MCP connections. The documented refresh is restricted to an isolated evaluation Gateway and connections with verified ownership; effects on shared live connections were not accepted.",
     "The older 8.4B Hermes 0.10.0 candidate lacks local authentication; use the authenticated source pinned in this manifest and reload existing sessions.",
     "DSH mode changes require plugin reload; already-loaded sessions are not attested OFF.",
     "Optional ANE artifact is not frozen for this candidate.",
@@ -204,32 +205,33 @@
     "Sustained local connection flooding can still cause overload responses despite bounded slots and connection lifetime.",
     "Public artifact hosting and formal release remain pending.",
     "One public tool call failed and was followed by another call and later cases; the earlier trial harness recorded the error without setting its stop flag. The cause and initiator remain unknown. A later hands-on harness flags tool failures and has limited mock coverage; this particular failure was not reproduced.",
-    "The owner initially found the exercise unclear and later confirmed understanding the explanation of Search-only Shadow on 2026-11-07. The revised guide and status display have not yet been personally exercised.",
+    "The owner initially found the exercise unclear and later confirmed understanding Search-only Shadow on 2026-11-07. The owner has not yet personally exercised the revised guide and status display.",
     "The installer writes Boolean false for OFF, which this plugin maps to OFF but the plugin schema declares as a string; Hermes may warn.",
     "The latest recommendation in status can belong to an earlier task or another session in the same profile.",
-    "The updated wheel was tested offline; the real-provider examples used the earlier candidate, not this changed wheel.",
+    "The final wheel was tested offline in a disposable native Hermes and local MLX lifecycle; real-provider examples used earlier candidates.",
     "The local MLX backend warns that the checkpoint's choice:11+ temperature is clamped; confidence for that choice bucket should be treated as uncalibrated. Search-only Shadow uses noul."
   ],
-  "candidate_source_commit": "f620a7dab9865d81ca5451f843aad8862c09da43",
+  "candidate_source_commit": "4cbf91eceaddc3d6dd850ec7fd397d3a752d65ec",
   "qualification": {
-    "python_regression": "286 passed for the prior RC2 candidate; 108 focused tests passed for the experience candidate",
+    "python_regression": "286 passed for prior RC2; 108 focused passed for the experience candidate; 97 focused passed after the final documentation fix",
     "dsh_typecheck_build_vitest": "68 passed",
     "mcp": "five gates and health; HTTP parity, failure paths and real local MLX",
-    "hermes": "0.23.0 native loader, legacy migration and local mock provider",
+    "hermes": "0.23.0 native plugin loader and profile-scoped Gateway rewire in isolated fixtures; initial OFF, Search-only Shadow, status timestamps, in-flight OFF, Runtime-down fail-open, stop and uninstall verified",
     "dsh": "both pinned versions: real SDK, local mock provider, offline install and removal",
     "remote_provider": "eight isolated Shadow tasks at 8204485406cb7b00b9f4a94ddb407a14b3d60191; three owner-selected examples at 42fc6f07d4d32a5199cd3494f20535640678d27d; no live provider task on the experience candidate",
     "launchagent": "isolated mocked launchctl lifecycle; not production validated",
     "product_and_research_sanitizer": "experience candidate product export scanned without findings; research export passed in prior RC2 qualification",
-    "artifact_privacy_scan": "139 files across the four local experience-candidate archives scanned; no path, link, home-path or credential-pattern findings",
+    "artifact_privacy_scan": "139 files across the four final-candidate archives scanned; no path, link, home-path or credential-pattern findings",
     "security_scan": "4a7cf9ce-e038-41c2-9b44-c91f6a32801d; one medium connection-availability finding at 7ce1fbf, fixed at a8acf69 and independently reviewed; sustained local flooding can still cause overload",
     "mcp_sdk_tested": "2.3.0",
-    "artifact_rebuild": "experience candidate wheel and sdist built twice offline with identical SHA-256",
+    "artifact_rebuild": "final candidate wheel, sdist and Hermes plugin source archive each built twice offline byte-for-byte; DSH archive retains previously verified hash",
     "security_fix_recheck": "independent read-only follow-up confirmed single-connection deadline, repeated-challenge rejection, and conservative launchd cleanup",
-    "final_candidate": "final wheel installed offline in a clean Python 3.12.14 environment and status/redaction self-check passed; one synthetic offline MLX inference passed on the preceding wheel, whose only differences from the final wheel are distribution METADATA and RECORD; compared with the owner-trial wheel, only first_run.py, distribution METADATA and RECORD differ",
+    "final_candidate": "final candidate wheel installed offline in clean Python 3.12.14; native Hermes 0.23 loader lifecycle and real local MLX Runtime startup, health, stop and removal passed in disposable profile; synthetic sibling profiles unchanged; eight live profile config hashes and Gateway PID unchanged",
     "owner_hands_on": "three owner-selected examples completed on 42fc6f07d4d32a5199cd3494f20535640678d27d; after an initially unclear experience the owner confirmed understanding the observation purpose on 2026-11-07; retention preference and direct use of the revised guide/status remain unassessed",
-    "experience_candidate_tests": "108 focused Python tests passed; status tests cover search, no_search, failed observation, invalid values and redaction; final wheel status self-check passed after clean offline installation"
+    "experience_candidate_tests": "97 focused tests passed after final documentation-only changes; final wheel status and privacy self-check and isolated native plugin lifecycle passed; real-provider examples used earlier candidates",
+    "gateway_mode_refresh": "Actual Hermes 0.23 in-process Gateway rewire verified cached OFF remains pending until targeted reload; documented OFF, disable, Shadow, enable sequence then reports registered Shadow and preserves synthetic siblings. Shared MCP ownership must be assessed before any real refresh."
   },
-  "manifest_note": "Runtime artifacts were built from candidate_source_commit; the manifest-only follow-up must not change their build inputs. The final merged release commit, tag and public URLs remain pending. The RC2 manifest is preserved separately.",
+  "manifest_note": "Runtime and Hermes artifacts were built from candidate_source_commit; the manifest-only follow-up must not change their build inputs. The final merged release commit, tag, rebuilt artifacts and public URLs remain pending.",
   "release_decision": "GO",
-  "release_decision_scope": "Qualified v0.2.0 candidate with default OFF and Search-only Shadow, subject to documented limitations. Production Active/Canary remain unauthorized. Merge and public release require separate owner authorization; final source/artifact binding must be reverified after integration."
+  "release_decision_scope": "Qualified v0.2.0 candidate with default OFF and Search-only Shadow, subject to documented limitations and isolated use. Production Active/Canary remain unauthorized. Merge and public release require separate owner authorization; final source/artifact binding must be reverified after integration."
 }
