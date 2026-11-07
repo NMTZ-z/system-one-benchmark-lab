@@ -13,7 +13,8 @@
     "development_baseline": "81e2792e2bc0be491af4c08a945ec2412aabf2a4",
     "phase_8_4b_dependency": "1a380eb0b26c527eae4174cc01720a72dc055ae2",
     "phase_8_4d_trial": "8204485406cb7b00b9f4a94ddb407a14b3d60191",
-    "phase_8_4d_version_candidate": "42fc6f07d4d32a5199cd3494f20535640678d27d"
+    "phase_8_4d_version_candidate": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+    "phase_8_4d_experience_candidate": "39d21bf641daff7e6330c3ca2586c16b7afabf33"
   },
   "source_exports": {
     "product_allowlist": "release/product-files.txt",
@@ -61,21 +62,21 @@
       "python_rc1_version": "0.2.0rc1",
       "observed_main_version": "0.1.0",
       "candidate_version": "0.2.0",
-      "release_source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+      "release_source_commit": "39d21bf641daff7e6330c3ca2586c16b7afabf33",
       "artifacts": [
         {
           "name": "local_system_one-0.2.0-py3-none-any.whl",
           "url": null,
-          "sha256": "98400fd1f0fd23b9fc9750d464f41222d0647b0562d753c75ec6bed085134df1",
-          "source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+          "sha256": "2e9cb9dde5e48900abf9edb1c984c6064361c9bfec286295045f520569d82f46",
+          "source_commit": "39d21bf641daff7e6330c3ca2586c16b7afabf33",
           "version": "0.2.0",
           "availability": "local_review_only"
         },
         {
           "name": "local_system_one-0.2.0.tar.gz",
           "url": null,
-          "sha256": "1c3d4aed282a179bc3b02e4c13d9985f606995ba329757adf5f345edee1808c3",
-          "source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+          "sha256": "ab85fe1ad72d4d8e483bcc6821c48a02f3a1fd7405326e8bb0659560c9be2412",
+          "source_commit": "39d21bf641daff7e6330c3ca2586c16b7afabf33",
           "version": "0.2.0",
           "availability": "local_review_only"
         }
@@ -202,26 +203,30 @@
     "A cold Hermes package-manager installation can try to provision its toolchain; the observed attempt was blocked by the isolated test network policy.",
     "Sustained local connection flooding can still cause overload responses despite bounded slots and connection lifetime.",
     "Public artifact hosting and formal release remain pending.",
-    "The owner completed three hands-on examples; subjective assessment is pending.",
-    "One public tool call failed and was followed by another call; the retained records do not identify the cause or initiator."
+    "One public tool call failed and was followed by another call; the retained records do not identify the cause or initiator.",
+    "The owner previously reported that the hands-on purpose was unclear. The revised guide and status display have not yet received a new owner acceptance.",
+    "The installer writes Boolean false for OFF, which this plugin maps to OFF but the plugin schema declares as a string; Hermes may warn.",
+    "The latest recommendation in status can belong to an earlier task or another session in the same profile.",
+    "The updated wheel was tested offline; the real-provider examples used the earlier candidate, not this changed wheel."
   ],
-  "candidate_source_commit": "42fc6f07d4d32a5199cd3494f20535640678d27d",
+  "candidate_source_commit": "39d21bf641daff7e6330c3ca2586c16b7afabf33",
   "qualification": {
-    "python_regression": "286 passed",
+    "python_regression": "286 passed for the prior RC2 candidate; 108 focused tests passed for the experience candidate",
     "dsh_typecheck_build_vitest": "68 passed",
     "mcp": "five gates and health; HTTP parity, failure paths and real local MLX",
     "hermes": "0.23.0 native loader, legacy migration and local mock provider",
     "dsh": "both pinned versions: real SDK, local mock provider, offline install and removal",
-    "remote_provider": "eight isolated Shadow tasks completed at 8204485406cb7b00b9f4a94ddb407a14b3d60191; owner hands-on decision pending",
+    "remote_provider": "eight isolated Shadow tasks at 8204485406cb7b00b9f4a94ddb407a14b3d60191; three owner-selected examples at 42fc6f07d4d32a5199cd3494f20535640678d27d; no live provider task on the experience candidate",
     "launchagent": "isolated mocked launchctl lifecycle; not production validated",
-    "product_and_research_sanitizer": "passed",
-    "artifact_privacy_scan": "passed",
+    "product_and_research_sanitizer": "experience candidate product export scanned without findings; research export passed in prior RC2 qualification",
+    "artifact_privacy_scan": "139 files across the four local experience-candidate archives scanned; no path, link, home-path or credential-pattern findings",
     "security_scan": "4a7cf9ce-e038-41c2-9b44-c91f6a32801d; one medium connection-availability finding at 7ce1fbf, fixed at a8acf69 and independently reviewed; sustained local flooding can still cause overload",
     "mcp_sdk_tested": "2.3.0",
-    "artifact_rebuild": "0.2.0 wheel and sdist reproduced identical SHA-256 offline",
+    "artifact_rebuild": "experience candidate wheel and sdist built twice offline with identical SHA-256",
     "security_fix_recheck": "independent read-only follow-up confirmed single-connection deadline, repeated-challenge rejection, and conservative launchd cleanup",
-    "final_candidate": "clean offline installation, local MLX inference and Hermes lifecycle at 42fc6f07d4d32a5199cd3494f20535640678d27d; 41 non-metadata wheel files match trial candidate",
-    "owner_hands_on": "three owner-selected examples completed on 0.2.0 candidate 42fc6f07d4d32a5199cd3494f20535640678d27d; subjective assessment pending"
+    "final_candidate": "wheel installed in a clean Python 3.12.14 environment offline; status output and redaction self-check passed; compared with the owner-trial wheel, only first_run.py, distribution metadata and RECORD differ",
+    "owner_hands_on": "three owner-selected examples completed on 42fc6f07d4d32a5199cd3494f20535640678d27d; owner reported the purpose was unclear; revised explanation awaits owner assessment",
+    "experience_candidate_tests": "108 focused Python tests passed; status tests cover search, no_search, failed observation, invalid values and redaction"
   },
-  "manifest_note": "Artifacts were built from candidate_source_commit. The final release commit and tag remain pending. The RC2 manifest is preserved separately."
+  "manifest_note": "Runtime artifacts were built from candidate_source_commit; the manifest-only follow-up must not change their build inputs. The final merged release commit, tag and public URLs remain pending. The RC2 manifest is preserved separately."
 }
