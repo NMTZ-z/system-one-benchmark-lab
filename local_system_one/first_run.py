@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+from datetime import datetime, timezone
 import fcntl
 import hashlib
 import hmac
@@ -447,6 +448,15 @@ def status(profile: str) -> int:
     print("Hermes reload:", "required" if pending else "older, unregistered plugin sessions remain UNKNOWN")
     last = state.get("last_shadow") if isinstance(state.get("last_shadow"), dict) else {}
     search = last.get("search") if isinstance(last.get("search"), dict) else {}
+    decision = search.get("decision")
+    if search.get("action_status") != "observed" or decision not in ("search", "no_search"):
+        decision = "UNKNOWN"
+    recorded = last.get("ts")
+    if type(recorded) in (int, float) and 0 < recorded < 4102444800 and math.isfinite(recorded):
+        recorded = datetime.fromtimestamp(recorded, timezone.utc).isoformat()
+    else:
+        recorded = "UNKNOWN"
+    print(f"Last Search recommendation (may be from an earlier task): {decision}; recorded UTC: {recorded}")
     source = search.get("decision_source")
     source = source if source in ("rule", "model") else "UNKNOWN"
     latency = last.get("shadow_latency_ms")

@@ -58,6 +58,9 @@ This distinction matters: the project deliberately separates **technical capabil
 
 ## Quick start
 
+For a plain-language explanation, a worked example, and how to interpret the
+latest recorded Search recommendation, see the [Chinese first-use guide](docs/HERMES_FIRST_RUN_ZH.md).
+
 ### Requirements
 
 - macOS on Apple Silicon
