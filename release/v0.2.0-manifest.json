@@ -1,6 +1,6 @@
 {
   "schema": "local-system-one/release-plan-v1",
-  "status": "planning",
+  "status": "rc1-candidate-in-validation",
   "release_version": "0.2.0",
   "release_commit": null,
   "release_tag": null,
@@ -10,7 +10,7 @@
   "integration_sources": {
     "phase_8_3_stack_head": "b0ea294ab74f35b99e780eaf29aab2b36d205168",
     "phase_8_4a_baseline_head": "0439777e0c42046316165558bd675013d3138ac9",
-    "development_baseline": "reviewed_integration_pr_head"
+    "development_baseline": "81e2792e2bc0be491af4c08a945ec2412aabf2a4"
   },
   "source_exports": {
     "product_allowlist": "release/product-files.txt",
@@ -21,9 +21,13 @@
   "platform": {
     "os_architecture": "macOS / Apple Silicon",
     "python_declared": ">=3.11,<3.14",
-    "python_versions_tested_for_release": null,
+    "python_versions_tested_for_release": ["3.12.14"],
+    "python_first_run_lock": "requirements/first-run-macos-arm64-py312.lock",
     "hermes_declared": ">=0.21.4",
-    "hermes_versions_tested_for_release": null,
+    "hermes_versions_tested_for_release": ["0.23.0"],
+    "hermes_tested_source_commit": "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19",
+    "hermes_tested_host_python": "3.14.9",
+    "first_run_tested_macos": "27.0.1",
     "dsh_target_versions": [
       {
         "version": "0.1.7-rc.2",
@@ -42,6 +46,7 @@
       "target_version": "0.2.0",
       "python_rc1_version": "0.2.0rc1",
       "observed_main_version": "0.1.0",
+      "candidate_version": "0.2.0rc1",
       "release_source_commit": null,
       "artifacts": null,
       "default_backend": "mlx",
@@ -50,6 +55,7 @@
     "hermes_plugin": {
       "target_version": "0.10.0",
       "observed_main_version": "0.9.0",
+      "candidate_version": "0.10.0",
       "release_source_commit": null,
       "artifacts": null,
       "catalog_version_at_snapshot": "0.6.0",
@@ -69,8 +75,10 @@
   "model": {
     "id": "convaiinnovations/laya-typed-decisions",
     "revision": "f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
-    "file_sha256": null,
-    "license_verified_for_release": null,
+    "file_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+    "license_verified_for_release": true,
+    "license": "Apache-2.0",
+    "provenance": "https://huggingface.co/convaiinnovations/laya-typed-decisions/tree/f9ab0b228f0fc0f14d873dbc99038f135c2da1b2",
     "optional_ane": {
       "repository": "NMTZ/laya-typed-decisions-421m-coreml-ane",
       "artifact_revision": null,

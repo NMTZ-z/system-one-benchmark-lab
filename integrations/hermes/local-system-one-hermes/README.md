@@ -14,7 +14,7 @@ Typical decisions include:
 
 The plugin talks to a separate Local System One service over loopback HTTP. It is deliberately conservative: first install is **OFF**, Shadow changes nothing, Canary requires explicit acknowledgement, and any Local System One failure leaves the original Hermes request unchanged.
 
-Hermes adapter `0.8.0` implements **Adapter Contract v1**. The Runtime owns abstract
+Hermes adapter `0.10.0` implements **Adapter Contract v1**. The Runtime owns abstract
 decisions such as `Search=no_search` and `ModelTier=fast`; this plugin owns the
 Hermes-specific lifecycle, tool/provider mapping, Canary authority, rollback, and
 fail-open behavior. Platform details such as `reasoning_effort` and exact Hermes
@@ -37,8 +37,11 @@ cd system-one-benchmark-lab
 
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install .
-local-system-one --host 127.0.0.1 --port 8787
+python -m pip install --require-hashes --only-binary=:all: -r requirements/first-run-macos-arm64-py312.lock
+python -m pip install --no-deps .
+hermes profile create lsoeval --no-alias --no-skills
+local-system-one download-model --profile lsoeval
+local-system-one start --profile lsoeval
 ```
 
 Check it before enabling the plugin:
@@ -53,7 +56,7 @@ For the optional Apple Neural Engine backend, see the repository root README.
 
 ### Hermes Plugin Catalog
 
-The [official Hermes Plugin Catalog](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) currently lists `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. This source tree's plugin is `0.9.0`. Install the older catalog version with:
+The [official Hermes Plugin Catalog](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) currently lists `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. This candidate's plugin is `0.10.0`. The older catalog entry has different behavior:
 
 ```bash
 hermes plugins install local-system-one-hermes
@@ -61,30 +64,23 @@ hermes plugins install local-system-one-hermes
 
 Catalog installs are pinned to the exact commit reviewed by Hermes maintainers.
 
-### Direct Git install
+### Candidate install in an isolated profile
 
-Before catalog admission, or when deliberately installing a custom revision:
-
-```bash
-hermes plugins install \
-  NMTZ-z/system-one-benchmark-lab/integrations/hermes/local-system-one-hermes
-```
-
-Hermes treats direct Git installs as custom/unreviewed sources. For reproducibility, pin a full commit SHA with `--ref`.
-
-The repository also contains helper scripts for profile-aware installation and rollback:
+Use the profile created above with the packaged commands. Installation initializes the observation fence in OFF mode:
 
 ```bash
-scripts/install_hermes_system_one_plugin.sh systemoneeval
-scripts/hermes_system_one_status.sh systemoneeval
+local-system-one doctor --profile lsoeval
+local-system-one install --profile lsoeval
+local-system-one status --profile lsoeval
 ```
 
 ## Recommended first run: Shadow
 
-Start with a disposable or evaluation profile. With the current `0.9.0` defaults, the command below turns on Search, Model Tier, Notification and Completion observations; Retry remains off. Search-only first Shadow is planned for Phase 8.4B and is not provided by this command alone. Inspect and explicitly choose the per-Gate settings before use:
+Start with a disposable or evaluation profile. First Shadow enables Search only. Previously explicit per-Gate choices are retained and shown before activation:
 
 ```bash
-scripts/set_hermes_system_one_mode.sh systemoneeval shadow
+local-system-one shadow --profile lsoeval
+local-system-one status --profile lsoeval
 ```
 
 Shadow mode:
@@ -96,7 +92,16 @@ Shadow mode:
 - records privacy-safe operational metadata;
 - **does not rewrite the Hermes provider request or send notifications**.
 
-This is the recommended way to evaluate the plugin before allowing any request mutation.
+Reload or start a Hermes session after the change. Status distinguishes configured settings from registered live sessions. Older plugin versions do not participate in this check and must be reloaded.
+
+Each additional Gate needs an explicit setting. For example:
+
+```bash
+hermes -p lsoeval config set plugins.entries.local-system-one-hermes.settings.model_tier_gate_enabled true --force
+local-system-one shadow --profile lsoeval
+```
+
+The other settings are `notification_gate_enabled`, `completion_gate_enabled`, `retry_escalation_gate_enabled` and `completion_loop_probe_enabled`. Reload the Hermes session after changing settings. The completion loop probe additionally requires Completion to be enabled.
 
 ## Phase 8B optional tool-result Completion probe
 
@@ -132,7 +137,8 @@ See [Phase 8B report](../../../docs/PHASE8B_FINAL_REPORT.md); **Active: NO-GO**.
 No Local System One HTTP calls and no Hermes request changes.
 
 ```bash
-scripts/set_hermes_system_one_mode.sh systemoneeval off
+local-system-one off --profile lsoeval
+local-system-one status --profile lsoeval
 ```
 
 ### Shadow
@@ -140,12 +146,12 @@ scripts/set_hermes_system_one_mode.sh systemoneeval off
 Observe recommendations without changing the provider request.
 
 ```bash
-scripts/set_hermes_system_one_mode.sh systemoneeval shadow
+local-system-one shadow --profile lsoeval
 ```
 
 ### Canary
 
-Canary can mutate a provider request, so entering it requires explicit acknowledgement:
+The retained research Canary can mutate a provider request and is not authorized for production in this candidate. A separate, explicitly authorized experiment would require acknowledgement:
 
 ```bash
 scripts/set_hermes_system_one_mode.sh systemoneeval canary --ack-canary
@@ -250,7 +256,7 @@ Raw task text is not written into plugin state.
 
 Shadow/Canary state stores only operational metadata such as:
 
-- request IDs;
+- opaque request and turn references;
 - decision source / route reason;
 - probabilities or scores;
 - backend and latency;
@@ -258,7 +264,7 @@ Shadow/Canary state stores only operational metadata such as:
 - Notification delivery/reason/score/confidence and event length, never the final response text.
 - Completion decision/reason/confidence and task/result lengths, never the task or final response text.
 
-Search/Model Tier send the current task to the configured Local System One endpoint. Notification sends the final Agent event text plus lifecycle metadata. With the default loopback service this remains local; pointing `service_url` at a remote host sends those inputs to that remote service.
+Search/Model Tier send a bounded current task and context to the configured Local System One endpoint. Notification sends bounded final Agent event text plus lifecycle metadata. The default endpoint is loopback. A non-loopback HTTPS endpoint requires a separate `--allow-remote` choice; redirects are not followed. Unrecognized free-form response metadata is redacted before persistence.
 
 The Local System One service also avoids persisting raw request payloads by default.
 
@@ -267,17 +273,18 @@ The Local System One service also avoids persisting raw request payloads by defa
 Return to Shadow or OFF at any time:
 
 ```bash
-scripts/set_hermes_system_one_mode.sh systemoneeval shadow
-scripts/set_hermes_system_one_mode.sh systemoneeval off
+local-system-one off --profile lsoeval
+local-system-one status --profile lsoeval
+local-system-one stop --profile lsoeval --confirm-clients
 ```
 
 Full removal:
 
 ```bash
-scripts/uninstall_hermes_system_one_plugin.sh systemoneeval
+local-system-one uninstall --profile lsoeval
 ```
 
-Uninstall removes this plugin's configuration and state while leaving Hermes, other plugins, models, sessions and agent files alone.
+Uninstall removes owned plugin files and profile state. The shared Runtime package is removed separately with `python -m pip uninstall local-system-one` after all profiles using it have been removed. Models and Hermes session data remain. Older plugin sessions must be reloaded before their effective state can be established.
 
 ## Verification
 
@@ -308,7 +315,7 @@ It exercises OFF, Shadow, acknowledged Canary, fail-open behavior and restoratio
 
 - **OFF:** safe default and fully inert
 - **Shadow:** recommended evaluation mode
-- **hard no-Web Canary:** narrow, evidence-backed experiment
+- **hard no-Web Canary:** retained research code; production use is not authorized
 - **reasoning downgrade Canary:** experimental and disabled by default
 - **Notification Gate:** Shadow-only; `silent` / `digest` / `notify_now` are observed but never delivered by the plugin
 - **Completion Gate:** Shadow-only; `complete` / `continue` / `verify` are observed but never terminate Hermes

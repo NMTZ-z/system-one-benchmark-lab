@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import hmac
+import hashlib
+import ipaddress
 import json
+import re
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -32,7 +36,15 @@ def create_server(
     host: str = "127.0.0.1",
     port: int = 8787,
     auth_token: str | None = None,
+    owner_token: str | None = None,
 ) -> ThreadingHTTPServer:
+    if owner_token:
+        try:
+            loopback = host == "localhost" or ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            loopback = False
+        if not loopback:
+            raise ValueError("owned Runtime control requires a loopback host")
     completion_gate = CompletionGate(engine)
     retry_escalation_gate = RetryEscalationGate(engine)
     search_gate = SearchGate(engine)
@@ -61,6 +73,12 @@ def create_server(
             expected = f"Bearer {auth_token}"
             return hmac.compare_digest(supplied, expected)
 
+        def _owner_proof(self, action: str) -> str | None:
+            nonce = self.headers.get("X-Local-System-One-Challenge", "")
+            if not owner_token or not re.fullmatch(r"[0-9a-f]{32}", nonce):
+                return None
+            return hmac.new(owner_token.encode(), f"{action}:{nonce}".encode(), hashlib.sha256).hexdigest()
+
         def _read_payload(self) -> dict[str, Any]:
             raw_length = self.headers.get("Content-Length")
             if raw_length is None:
@@ -75,11 +93,21 @@ def create_server(
             return payload
 
         def do_GET(self) -> None:
+            if self.path == "/_local_system_one/owner":
+                proof = self._owner_proof("owner")
+                if not proof:
+                    self._json(403, {"error": "forbidden"})
+                    return
+                self._json(200, {"proof": proof})
+                return
             if not self._authorized():
                 self._json(401, {"error": "unauthorized"})
                 return
             if self.path == "/health":
-                self._json(200, engine.health_snapshot())
+                snapshot = engine.health_snapshot()
+                if hasattr(engine, "runtime_identity"):
+                    snapshot["runtime"] = engine.runtime_identity
+                self._json(200, snapshot)
                 return
             if self.path == "/metrics":
                 self._json(200, engine.metrics_snapshot())
@@ -87,6 +115,15 @@ def create_server(
             self._json(404, {"error": "not_found"})
 
         def do_POST(self) -> None:
+            if self.path == "/_local_system_one/stop":
+                expected = self._owner_proof("stop")
+                supplied = self.headers.get("X-Local-System-One-Authorization", "")
+                if not expected or not re.fullmatch(r"[0-9a-f]{64}", supplied) or not hmac.compare_digest(supplied, expected):
+                    self._json(403, {"error": "forbidden"})
+                    return
+                self._json(200, {"stopping": True})
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
             with error_accounting_scope():
                 self._handle_post()
 

@@ -15,7 +15,7 @@ Local System One is not another chatbot and does not replace your LLM. It sits *
 
 The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes adapter**, and a native **DeepSeek Harness adapter**. The Runtime is the platform-independent decision plane; each Adapter owns how an abstract decision is safely mapped onto its platform.
 
-**Release baseline:** this branch is preparing v0.2.0; its First-Run MVP is not yet released. The current Hermes plugin starts OFF, but switching the current `0.9.0` plugin to Shadow enables Search, Model Tier, Notification and Completion by default. Search-only first Shadow is an 8.4B requirement, not the current default. Canary can mutate requests and production Active is not authorized. See the [v0.2.0 scope](docs/V0_2_PRODUCT_SCOPE.md) and [release baseline](docs/PHASE8_4A_RELEASE_BASELINE.md).
+**Release baseline:** this branch is a v0.2.0 RC candidate, subject to the checks in the release manifest. Hermes installs OFF and first Shadow enables Search only unless the profile already contains explicit Gate choices. Canary can mutate requests; production Active and Canary are not authorized. See the [v0.2.0 scope](docs/V0_2_PRODUCT_SCOPE.md) and [release baseline](docs/PHASE8_4A_RELEASE_BASELINE.md).
 
 The repository also retains Phase 8.3 Benchmark Lab source and evidence. Historical H4 executors are frozen and require separate authorization to run. They are not part of the product source bundle or Python wheel; see the [integration review](docs/PHASE8_4A_INTEGRATION_REVIEW.md).
 
@@ -61,30 +61,42 @@ This distinction matters: the project deliberately separates **technical capabil
 ### Requirements
 
 - macOS on Apple Silicon
-- Python 3.11–3.13
+- Python 3.11–3.13; the hash-locked First-Run dependency set below is for Python 3.12
 - Internet access on first model download
 
-Clone and start the default MLX backend:
+From this reviewed source checkout, install into an isolated Python environment:
 
 ```bash
-git clone https://github.com/NMTZ-z/system-one-benchmark-lab.git
-cd system-one-benchmark-lab
-
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install .
-
-local-system-one --host 127.0.0.1 --port 8787
+python -m pip install --require-hashes --only-binary=:all: -r requirements/first-run-macos-arm64-py312.lock
+python -m pip install --no-deps .
 ```
 
-The default source alias is `laya-typed-decisions`. It resolves the validated checkpoint revision:
+Create a named, isolated Hermes profile, check it, and explicitly download the fixed model when needed:
+
+```bash
+hermes profile create lsoeval --no-alias --no-skills
+local-system-one doctor --profile lsoeval
+local-system-one download-model --profile lsoeval
+local-system-one install --profile lsoeval
+local-system-one start --profile lsoeval
+local-system-one shadow --profile lsoeval
+local-system-one status --profile lsoeval
+```
+
+Reload or start a Hermes session for `lsoeval` after enabling Shadow. The default source alias is `laya-typed-decisions`; it resolves and verifies this checkpoint revision:
 
 ```text
 convaiinnovations/laya-typed-decisions
 f9ab0b228f0fc0f14d873dbc99038f135c2da1b2
 ```
 
-Check the service:
+The plugin is installed under `~/.hermes/profiles/lsoeval/plugins/local-system-one-hermes`. The Python package lives in the selected virtual environment; Runtime ownership records live under `~/Library/Application Support/Local System One/profiles/lsoeval`. The model is kept in the Hugging Face cache. Failed-start diagnostic logs and a small Runtime lock file can remain in that state directory.
+
+The default loopback decision API has no bearer authentication and can be reached by other local accounts or processes. Managed startup refuses an existing `LOCAL_SYSTEM_ONE_AUTH_TOKEN`, because this Hermes plugin cannot yet pass it to the service. Enabling the plugin can request a reload of the selected profile's running Hermes Gateway.
+
+The Runtime remains offline with respect to model acquisition. To inspect its local service:
 
 ```bash
 curl http://127.0.0.1:8787/health
@@ -184,31 +196,27 @@ benchmark evidence, and the Active NO-GO decision.
 
 ## Hermes integration
 
-The repository includes a native Hermes plugin with three modes:
-
-```text
-off -> shadow -> canary
-```
-
-First install is inert by default.
-
-For an evaluation profile, inspect the current per-Gate settings before enabling Shadow. The existing mode command alone enables every Gate whose setting is true, including Model Tier, Notification and Completion by default:
+First install is OFF. The first Shadow command displays the destination, data categories and effective profile Gate choices before enabling them. Existing explicit Gate settings are preserved:
 
 ```bash
-scripts/install_hermes_system_one_plugin.sh systemoneeval
-scripts/set_hermes_system_one_mode.sh systemoneeval shadow
-scripts/hermes_system_one_status.sh systemoneeval
+local-system-one install --profile lsoeval
+local-system-one shadow --profile lsoeval
+local-system-one status --profile lsoeval
 ```
 
-Shadow mode observes decisions without changing the provider request. The configured sidecar receives task text and, for some enabled Gates, bounded response or failure context; its default address is loopback. A remote `service_url` sends those inputs to that remote endpoint. Canary requires explicit acknowledgement and may mutate requests; production Active is not authorized.
+Shadow mode observes decisions without changing the provider request. The configured sidecar receives bounded task text and recent context; other opt-in Gates can send bounded response or failure context. The default address is loopback. Remote HTTPS requires the separate `--allow-remote` choice, and redirects are refused.
 
-The [official Hermes catalog entry](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) currently installs plugin `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`; the main source manifest is `0.9.0`. The catalog re-pin is planned for 8.4D.
+The [official Hermes catalog entry](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) still installs plugin `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. This candidate contains plugin `0.10.0`; a catalog update is planned for 8.4D.
 
 Rollback is built in:
 
 ```bash
-scripts/uninstall_hermes_system_one_plugin.sh systemoneeval
+local-system-one off --profile lsoeval
+local-system-one stop --profile lsoeval --confirm-clients
+local-system-one uninstall --profile lsoeval
 ```
+
+OFF drains registered 0.10 observations before returning. `status` reports those live instances separately; older, unregistered plugin sessions remain UNKNOWN and must be reloaded. Stop requires explicit acknowledgement that all clients sharing that Runtime will be affected. After all profiles have been removed, `python -m pip uninstall local-system-one` removes the shared Python package; model files and Hermes sessions are preserved.
 
 The plugin is designed to **fail open**: if Local System One is unavailable or a recommendation is incomplete, Hermes keeps its original request unchanged.
 

@@ -5,6 +5,7 @@ LICENSE
 pyproject.toml
 pytest.ini
 requirements-mcp.txt
+requirements/first-run-macos-arm64-py312.lock
 release/product-files.txt
 release/v0.2.0-manifest.json
 
@@ -16,6 +17,7 @@ local_system_one/cli.py
 local_system_one/client.py
 local_system_one/engine.py
 local_system_one/evidence_integrity.py
+local_system_one/first_run.py
 local_system_one/health.py
 local_system_one/mcp_server.py
 local_system_one/metrics.py
@@ -33,6 +35,7 @@ integrations/deepseek-harness/local-system-one-dsh/
 scripts/build_public_release.py
 scripts/build_typed421_ane.sh
 scripts/hermes_system_one_common.sh
+scripts/hermes_system_one_ownership.py
 scripts/hermes_system_one_status.sh
 scripts/install_hermes_system_one_plugin.sh
 scripts/install_local_system_one_launchd.sh
@@ -74,6 +77,10 @@ tests/test_adapter_contract.py
 tests/test_completion_gate.py
 tests/test_hermes_system_one_plugin.py
 tests/test_hermes_system_one_scripts.py
+tests/test_first_run.py
+tests/native_hermes_first_run.py
+tests/native_hermes_mock_provider.py
+tests/native_hermes_upgrade_rollback.py
 tests/test_model_tier_gate.py
 tests/test_notification_gate.py
 tests/test_retry_escalation_gate.py
