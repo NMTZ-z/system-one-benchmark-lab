@@ -239,7 +239,7 @@ def test_shadow_missing_runtime_is_reported_without_private_details(monkeypatch)
 
 
 class ProductionFakeContext(FakeContext):
-    profile_name = "sisi"
+    profile_name = "another-profile"
 
 
 def _bounded_transform_recommendation():

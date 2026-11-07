@@ -132,7 +132,7 @@ The plugin was then reinstalled in shadow mode successfully.
 
 ## 9. Existing-profile integrity
 
-Before the test, SHA-256 fingerprints were recorded for the default, lili, sisi, susu, vivi, xixi and yaoyao config.yaml files.
+Before the test, SHA-256 fingerprints were recorded for the default and six other profile configuration files.
 
 After plugin development, fault injection, disable/remove and reinstall:
 

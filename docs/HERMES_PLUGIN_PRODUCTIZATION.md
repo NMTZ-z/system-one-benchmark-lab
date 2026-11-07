@@ -179,7 +179,7 @@ Real `systemoneeval` acceptance results:
 - experimental reasoning downgrade remained disabled by default;
 - final evaluation state was restored to Shadow with acknowledgement false.
 
-Six named production profile configs (`lili`, `sisi`, `susu`, `vivi`, `xixi`, `yaoyao`) remained byte-for-byte unchanged during the acceptance test.
+Six production profile configurations remained byte-for-byte unchanged during the acceptance test.
 
 The default Hermes config changed concurrently because the Hermes Desktop updater completed during the same window. It contains no `local-system-one-hermes` / `systemone` plugin entry, and the productization test did not restart production `hermes serve` / gateway processes.
 
