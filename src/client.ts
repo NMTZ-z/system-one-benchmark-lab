@@ -1,4 +1,18 @@
-import type { ModelTierDecision, NotificationDecision, SearchDecision } from './types.js'
+import { constants, closeSync, fstatSync, openSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { normalizeServiceUrl } from './policy.js'
+import { postJsonVerified } from './transport.js'
+import type {
+  CompletionDecision,
+  CompletionExecutionState,
+  ModelTierDecision,
+  NotificationDecision,
+  SearchDecision,
+  FailureContext,
+  RetryEscalationDecision,
+  RetryDecisionValue,
+} from './types.js'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -147,6 +161,66 @@ export function parseNotificationDecision(value: unknown): NotificationDecision 
   }
 }
 
+export function parseCompletionDecision(value: unknown): CompletionDecision {
+  const contract = 'completion-gate'
+  if (!isRecord(value)) {
+    throw new Error(`invalid ${contract} response`)
+  }
+  const decision = requiredString(value, 'decision', contract)
+  if (!['complete', 'continue', 'verify'].includes(decision)) {
+    throw new Error(`invalid ${contract} response field: decision`)
+  }
+  const decisionSource = requiredString(value, 'decision_source', contract)
+  if (decisionSource !== 'rule' && decisionSource !== 'model') {
+    throw new Error(`invalid ${contract} response field: decision_source`)
+  }
+  const probabilityComplete = requiredNumber(value, 'probability_complete', contract)
+  const probabilityVerify = requiredNumber(value, 'probability_verify', contract)
+  const probabilityContinue = requiredNumber(value, 'probability_continue', contract)
+  const confidence = requiredNumber(value, 'confidence', contract)
+  for (const [key, probability] of [
+    ['probability_complete', probabilityComplete],
+    ['probability_verify', probabilityVerify],
+    ['probability_continue', probabilityContinue],
+    ['confidence', confidence],
+  ] as const) {
+    if (probability < 0 || probability > 1) throw new Error(`${key} must be in [0, 1]`)
+  }
+  return {
+    decision: decision as CompletionDecision['decision'],
+    decision_source: decisionSource,
+    reason: requiredString(value, 'reason', contract),
+    probability_complete: probabilityComplete,
+    probability_verify: probabilityVerify,
+    probability_continue: probabilityContinue,
+    confidence,
+    backend: requiredString(value, 'backend', contract),
+    latency_ms: requiredNumber(value, 'latency_ms', contract),
+    request_id: requestId(value, contract),
+  }
+}
+
+function accessToken(): string {
+  const profile = process.env.LOCAL_SYSTEM_ONE_PROFILE || 'default'
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(profile)) throw new Error('invalid Runtime profile')
+  const root = process.env.LOCAL_SYSTEM_ONE_STATE_HOME || join(homedir(), 'Library/Application Support/Local System One')
+  const path = process.env.LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE || join(root, 'profiles', profile, 'access-token')
+  let fd: number | undefined
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const info = fstatSync(fd)
+    if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.()
+        || (info.mode & 0o077) !== 0 || info.size > 128) throw new Error('invalid token file')
+    const token = readFileSync(fd, 'ascii')
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new Error('invalid token file')
+    return token
+  } catch {
+    throw new Error('Local System One access token is unavailable')
+  } finally {
+    if (fd !== undefined) closeSync(fd)
+  }
+}
+
 class GateClient<T> {
   constructor(
     private readonly serviceUrl: string,
@@ -160,12 +234,9 @@ class GateClient<T> {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
 
     try {
-      const response = await fetch(`${this.serviceUrl}${this.path}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      })
+      const serviceUrl = normalizeServiceUrl(this.serviceUrl)
+      const token = accessToken()
+      const response = await postJsonVerified(`${serviceUrl}${this.path}`, token, JSON.stringify(payload), controller.signal)
 
       if (!response.ok) {
         throw new Error(`${this.path} HTTP ${response.status}`)
@@ -176,7 +247,7 @@ class GateClient<T> {
     }
   }
 
-  async decide(task: string, requestIdValue: string): Promise<T> {
+  protected async decideTask(task: string, requestIdValue: string): Promise<T> {
     return this.post({ task, request_id: requestIdValue })
   }
 }
@@ -185,11 +256,19 @@ export class SearchGateClient extends GateClient<SearchDecision> {
   constructor(serviceUrl: string, timeoutMs: number) {
     super(serviceUrl, timeoutMs, '/v1/workflows/search-gate', parseSearchDecision)
   }
+
+  async decide(task: string, requestIdValue: string): Promise<SearchDecision> {
+    return this.decideTask(task, requestIdValue)
+  }
 }
 
 export class ModelTierGateClient extends GateClient<ModelTierDecision> {
   constructor(serviceUrl: string, timeoutMs: number) {
     super(serviceUrl, timeoutMs, '/v1/workflows/model-tier-gate', parseModelTierDecision)
+  }
+
+  async decide(task: string, requestIdValue: string): Promise<ModelTierDecision> {
+    return this.decideTask(task, requestIdValue)
   }
 }
 
@@ -213,5 +292,91 @@ export class NotificationGateClient extends GateClient<NotificationDecision> {
       routine_update: false,
       request_id: requestIdValue,
     })
+  }
+}
+
+export class CompletionGateClient extends GateClient<CompletionDecision> {
+  constructor(serviceUrl: string, timeoutMs: number) {
+    super(serviceUrl, timeoutMs, '/v1/workflows/completion-gate', parseCompletionDecision)
+  }
+
+  async decide(
+    task: string,
+    currentResult: string,
+    executionState: CompletionExecutionState,
+    requestIdValue: string,
+  ): Promise<CompletionDecision> {
+    return this.post({
+      task,
+      current_result: currentResult,
+      execution_state: executionState,
+      request_id: requestIdValue,
+    })
+  }
+}
+
+const RETRY_DECISIONS = new Set<RetryDecisionValue>([
+  'retry_same', 'try_alternative', 'escalate_model',
+  'verify_state', 'ask_user', 'abort',
+])
+
+export function parseRetryEscalationDecision(value: unknown): RetryEscalationDecision {
+  const contract = 'retry-escalation-gate'
+  if (!isRecord(value) || value.workflow !== 'retry_escalation_gate'
+      || value.advisory_only !== true) {
+    throw new Error('invalid retry-escalation-gate response')
+  }
+  const decision = requiredString(value, 'decision', contract) as RetryDecisionValue
+  if (!RETRY_DECISIONS.has(decision) || value.guarded_decision !== decision) {
+    throw new Error('invalid retry decision or guarded decision')
+  }
+  const raw = value.raw_model_decision
+  if (raw !== null && (typeof raw !== 'string' || !RETRY_DECISIONS.has(raw as RetryDecisionValue))) {
+    throw new Error('invalid raw_model_decision')
+  }
+  if (value.safety_override_reason !== null &&
+      (typeof value.safety_override_reason !== 'string' || !value.safety_override_reason)) {
+    throw new Error('invalid safety_override_reason')
+  }
+  if (value.decision_source !== 'rule' && value.decision_source !== 'model') {
+    throw new Error('invalid retry decision_source')
+  }
+  const reason = requiredString(value, 'reason', contract)
+  if (!/^[a-z][a-z0-9_]{0,79}$/.test(reason)) {
+    throw new Error('invalid retry telemetry reason')
+  }
+  if (value.safety_override_reason !== null &&
+      !/^[a-z][a-z0-9_]{0,79}$/.test(value.safety_override_reason as string)) {
+    throw new Error('invalid retry safety override')
+  }
+  const latency = requiredNumber(value, 'latency_ms', contract)
+  const confidence = requiredNumber(value, 'confidence', contract)
+  if (latency < 0 || confidence < 0 || confidence > 1) {
+    throw new Error('invalid retry latency/confidence')
+  }
+  return {
+    workflow: 'retry_escalation_gate',
+    decision, guarded_decision: decision,
+    raw_model_decision: raw as RetryDecisionValue | null,
+    safety_override_reason: value.safety_override_reason as string | null,
+    decision_source: value.decision_source,
+    reason,
+    backend: requiredString(value, 'backend', contract),
+    latency_ms: latency, confidence,
+    request_id: requestId(value, contract), advisory_only: true,
+  }
+}
+
+export class RetryEscalationGateClient extends GateClient<RetryEscalationDecision> {
+  constructor(serviceUrl: string, timeoutMs: number) {
+    super(serviceUrl, timeoutMs, '/v1/workflows/retry-escalation-gate', parseRetryEscalationDecision)
+  }
+
+  async decide(context: FailureContext, requestIdValue: string): Promise<RetryEscalationDecision> {
+    const result = await this.post({ ...context, request_id: requestIdValue })
+    if (result.request_id !== requestIdValue) {
+      throw new Error('retry gate request_id mismatch')
+    }
+    return result
   }
 }

@@ -31,10 +31,11 @@ export const VERIFIED_PUBLIC_WEB_TOOLS = new Set([
   'mcp__tavily__tavily_search',
 ])
 
-function normalizeServiceUrl(value: string): string {
+export function normalizeServiceUrl(value: string): string {
   const url = new URL(value)
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('service_url must use http or https')
+  if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+      || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('service_url must be a loopback HTTP origin')
   }
   return url.toString().replace(/\/$/, '')
 }
@@ -60,8 +61,11 @@ export function resolveConfig(input: AdapterConfig = {}): ResolvedAdapterConfig 
     serviceUrl: normalizeServiceUrl(input.service_url ?? DEFAULT_SERVICE_URL),
     timeoutMs,
     searchGateEnabled: input.search_gate_enabled ?? true,
-    modelTierGateEnabled: input.model_tier_gate_enabled ?? true,
-    notificationGateEnabled: input.notification_gate_enabled ?? true,
+    modelTierGateEnabled: input.model_tier_gate_enabled ?? false,
+    notificationGateEnabled: input.notification_gate_enabled ?? false,
+    completionGateEnabled: input.completion_gate_enabled ?? false,
+    completionLoopProbeEnabled: input.completion_loop_probe_enabled ?? false,
+    retryEscalationGateEnabled: input.retry_escalation_gate_enabled ?? false,
     canaryAcknowledged,
     canaryWebFilterEnabled: input.canary_web_filter_enabled ?? true,
     canaryReasoningDowngradeEnabled: input.canary_reasoning_downgrade_enabled ?? false,

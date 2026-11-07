@@ -1,4 +1,12 @@
 import type { StoredModelTierDecision, StoredSearchDecision } from './types.js';
+/** Injective, session-scoped prefix for untrusted opaque session IDs.
+ *
+ * Length-prefixing prevents a session ID such as "job" from matching
+ * "job:child" during prefix-based map cleanup. Keep this shared between
+ * Retry, Completion, Notification, Search and Model Tier state.
+ */
+export declare function sessionKeyPrefix(sessionId: string): string;
+export declare function turnKey(sessionId: string, turn: number): string;
 export declare class TurnDecisionState {
     private readonly activeTurns;
     private readonly searchDecisions;

@@ -7,6 +7,9 @@ export interface AdapterConfig {
   search_gate_enabled?: boolean
   model_tier_gate_enabled?: boolean
   notification_gate_enabled?: boolean
+  completion_gate_enabled?: boolean
+  completion_loop_probe_enabled?: boolean
+  retry_escalation_gate_enabled?: boolean
   canary_acknowledged?: boolean
   canary_web_filter_enabled?: boolean
   canary_reasoning_downgrade_enabled?: boolean
@@ -20,6 +23,9 @@ export interface ResolvedAdapterConfig {
   searchGateEnabled: boolean
   modelTierGateEnabled: boolean
   notificationGateEnabled: boolean
+  completionGateEnabled: boolean
+  completionLoopProbeEnabled: boolean
+  retryEscalationGateEnabled: boolean
   canaryAcknowledged: boolean
   canaryWebFilterEnabled: boolean
   canaryReasoningDowngradeEnabled: boolean
@@ -57,6 +63,34 @@ export interface NotificationDecision {
   backend: string
   latency_ms: number
   request_id: string | null
+}
+
+export interface CompletionDecision {
+  decision: 'complete' | 'continue' | 'verify'
+  decision_source: 'rule' | 'model'
+  reason: string
+  probability_complete: number
+  probability_verify: number
+  probability_continue: number
+  confidence: number
+  backend: string
+  latency_ms: number
+  request_id: string | null
+}
+
+export interface CompletionExecutionState {
+  tools_used?: number
+  tool_failures?: number
+  tests_run?: number
+  tests_passed?: number
+  artifacts_created?: number
+  required_checks_completed?: boolean
+  required_artifact_missing?: boolean
+  required_step_missing?: boolean
+  blocking_failure?: boolean
+  conflicting_evidence?: boolean
+  verification_required?: boolean
+  final_state_verified?: boolean
 }
 
 export interface StoredSearchDecision extends SearchDecision {
@@ -135,4 +169,57 @@ export interface LoggerLike {
 export interface DshContextLike {
   logger?: LoggerLike
   on: (event: string, handler: (...args: any[]) => unknown) => unknown
+}
+
+/** Structured trusted fields only. No raw tool arguments or errors. */
+export interface FailureContext {
+  failure: {
+    category: 'timeout' | 'network' | 'rate_limit' | 'server_error' | 'auth' |
+      'validation' | 'tool_error' | 'test_failure' | 'logic_failure' |
+      'partial_success' | 'unknown'
+    transience: 'transient' | 'permanent' | 'unknown'
+    outcome_known: boolean
+    http_status?: number
+    retry_after_ms?: number
+  }
+  operation: {
+    type: 'read' | 'write' | 'remote_api' | 'local_file' |
+      'git_push' | 'pr_create' | 'test' | 'compute' | 'unknown'
+    side_effect: 'none' | 'write' | 'external' | 'unknown'
+    idempotency: 'verified' | 'non_idempotent' | 'unknown'
+    side_effect_status: 'none' | 'applied' | 'not_applied' | 'partial' | 'unknown'
+    verified_idempotency_key: boolean
+    reversibility: 'yes' | 'no' | 'unknown'
+    metadata_source: 'adapter_policy' | 'unknown'
+  }
+  history: {
+    attempts: number
+    max_attempts: number | null
+    repeated_failures: number
+    remaining_time_ms: number | null
+    retry_budget_available: boolean
+  }
+  constraints: {
+    requires_approval: boolean
+    escalation_allowed: boolean
+    escalation_budget_available: boolean
+    alternative_available: boolean
+  }
+}
+export type RetryDecisionValue =
+  | 'retry_same' | 'try_alternative' | 'escalate_model'
+  | 'verify_state' | 'ask_user' | 'abort'
+export interface RetryEscalationDecision {
+  workflow: 'retry_escalation_gate'
+  decision: RetryDecisionValue
+  guarded_decision: RetryDecisionValue
+  raw_model_decision: RetryDecisionValue | null
+  safety_override_reason: string | null
+  decision_source: 'rule' | 'model'
+  reason: string
+  backend: string
+  latency_ms: number
+  confidence: number
+  request_id: string | null
+  advisory_only: true
 }
