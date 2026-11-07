@@ -88,7 +88,13 @@ local-system-one shadow --profile lsoeval
 local-system-one status --profile lsoeval
 ```
 
-Reload or start a Hermes session for `lsoeval` after enabling Shadow. The default source alias is `laya-typed-decisions`; it resolves and verifies this checkpoint revision:
+Verify that the selected profile's registered sessions report effective Shadow before
+using the observation. On Hermes 0.23, chat turns run in a Gateway: opening a new
+chat does not necessarily reload a plugin the Gateway already loaded in OFF. A
+profile-scoped plugin refresh can also reconcile shared MCP connections; use the
+[isolated first-use procedure](docs/HERMES_FIRST_RUN_ZH.md) only after confirming
+the test Gateway and its connections are not shared with other profiles. The
+default source alias is `laya-typed-decisions`; it resolves and verifies this checkpoint revision:
 
 ```text
 convaiinnovations/laya-typed-decisions

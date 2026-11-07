@@ -50,9 +50,30 @@ local-system-one status --profile lsoeval
 显示服务地址、数据类别和选定的观察项。已存在的显式 Gate 设置会保留；全新默认配置的
 首次观察只启用 Search。
 
-开启后，新建或重载 `lsoeval` 的 Hermes 会话，例如使用 `hermes -p lsoeval chat`，让它
-完成一项你允许的任务。旧会话可能仍使用旧设置，需要单独结束或重载。一个 Profile 中
-的多个会话可能同时写入记录。
+Hermes 0.23 的聊天由 Gateway 承载。如果它已经以 OFF 加载插件，单独新建聊天或运行
+`hermes -p lsoeval chat` 不保证插件重新加载。先确认 `status` 显示已登记会话的实际模式
+为 `shadow`；只有 `CONFIGURED mode: shadow` 时还不能认定观察已经生效。
+
+如果已经确认 **测试 Gateway 及其工具连接由 `lsoeval` 独占**，且插件管理不会变更
+其他 Profile 的共用依赖，可以按以下顺序关闭旧观察、刷新目标插件并重新开启：
+如果测试 Gateway 尚未运行，先打开空的测试会话，暂不输入任务；之后在另一个终端执行：
+
+```bash
+local-system-one off --profile lsoeval
+hermes -p lsoeval plugins disable local-system-one-hermes
+local-system-one shadow --profile lsoeval
+hermes -p lsoeval plugins enable local-system-one-hermes --no-allow-tool-override
+local-system-one status --profile lsoeval
+```
+
+如果刷新后状态仍为 `UNKNOWN` 或 `PENDING_RELOAD`，请停止并核实目标 Gateway 是否
+已重新加载插件。只有确认实际模式为 `shadow`，才能把后续判断当作有效观察。
+插件刷新会让 Hermes 核对工具连接；
+如果 Gateway 或工具连接可能与其他 Profile 共用，或者无法确认归属，请先停止并核实，
+不要重启共享 Gateway。旧会话仍可能使用旧设置，需要单独结束或重载；同一 Profile 的
+多个会话也可能同时写入记录。
+
+确认生效后，可以使用 `hermes -p lsoeval chat`，让它完成一项你允许的任务。
 
 ## 看懂结果
 
