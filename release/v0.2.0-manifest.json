@@ -203,7 +203,7 @@
     "A cold Hermes package-manager installation can try to provision its toolchain; the observed attempt was blocked by the isolated test network policy.",
     "Sustained local connection flooding can still cause overload responses despite bounded slots and connection lifetime.",
     "Public artifact hosting and formal release remain pending.",
-    "One public tool call failed and was followed by another call; the retained records do not identify the cause or initiator.",
+    "One public tool call failed and was followed by another call and later cases; the earlier trial harness recorded the error without setting its stop flag. The cause and initiator remain unknown. A later hands-on harness flags tool failures and has limited mock coverage; this particular failure was not reproduced.",
     "The owner previously reported that the hands-on purpose was unclear. The revised guide and status display have not yet received a new owner acceptance.",
     "The installer writes Boolean false for OFF, which this plugin maps to OFF but the plugin schema declares as a string; Hermes may warn.",
     "The latest recommendation in status can belong to an earlier task or another session in the same profile.",
