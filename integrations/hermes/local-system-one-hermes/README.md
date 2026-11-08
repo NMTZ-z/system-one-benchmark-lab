@@ -34,16 +34,18 @@ The Local System One runtime lives in the same public repository:
 ```bash
 git clone https://github.com/NMTZ-z/system-one-benchmark-lab.git
 cd system-one-benchmark-lab
-# Use the reviewed release tag once it has been published. During candidate
-# evaluation, substitute the full source commit recorded in its manifest.
+# Pin to the published, reviewed v0.2.0 release tag.
 git checkout --detach v0.2.0
 
 python3.12 -m venv .venv
 . .venv/bin/activate
 python -m pip install --require-hashes --only-binary=:all: -r requirements/first-run-macos-arm64-py312.lock
 python -m pip install --no-deps .
-hermes profile create lsoeval --no-alias --no-skills
-local-system-one download-model --profile lsoeval
+# For a new test profile only; skip when you already have a Hermes profile:
+# hermes profile create lsoeval --no-alias --no-skills
+# Download only if the pinned model is missing and you approve network access:
+# local-system-one download-model --profile lsoeval
+local-system-one doctor --profile lsoeval
 local-system-one start --profile lsoeval
 ```
 
@@ -59,7 +61,7 @@ For the optional Apple Neural Engine backend, see the repository root README.
 
 ### Hermes Plugin Catalog
 
-The [official Hermes Plugin Catalog](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) currently lists `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. This candidate's plugin is `0.10.0`. The older catalog entry has different behavior:
+At the time of this documentation update, the [official Hermes Plugin Catalog](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) still lists `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. **The published v0.2.0 Release contains plugin `0.10.0`**, with separate authentication and safer first-run defaults. [Catalog update PR #150745](https://github.com/NousResearch/hermes-agent/pull/150745) is tracked separately. Check which commit the Catalog currently points to before installing:
 
 ```bash
 hermes plugins install local-system-one-hermes
@@ -67,9 +69,9 @@ hermes plugins install local-system-one-hermes
 
 Catalog installs are pinned to the exact commit reviewed by Hermes maintainers.
 
-### Candidate install in an isolated profile
+### Install in your chosen profile
 
-Use the profile created above with the packaged commands. Installation initializes the observation fence in OFF mode:
+Use your existing Hermes Profile, or optionally create a new test Profile. Replace `lsoeval` in the examples with its actual name. **If the matching 0.10.0 adapter is already installed, skip `install`**; do not overwrite it needlessly. First installation initializes the observation fence in OFF mode:
 
 ```bash
 local-system-one doctor --profile lsoeval
@@ -79,7 +81,7 @@ local-system-one status --profile lsoeval
 
 ## Recommended first run: Shadow
 
-Start with a disposable or evaluation profile. First Shadow enables Search only. Previously explicit per-Gate choices are retained and shown before activation:
+Start with a profile you control (an existing profile is supported; a new test profile is optional). First Shadow enables Search only. Previously explicit per-Gate choices are retained and shown before activation:
 
 ```bash
 local-system-one shadow --profile lsoeval
@@ -95,7 +97,7 @@ Shadow mode:
 - records privacy-safe operational metadata;
 - **does not rewrite the Hermes provider request or send notifications**.
 
-Verify that registered sessions report effective Shadow before treating observations as active. In Hermes 0.23, chat turns run in a Gateway: a new chat does not necessarily reload a plugin that the running Gateway already loaded in OFF. The target profile's plugin needs a scoped refresh after the mode change. A refresh also reconciles MCP connections and can affect another profile sharing them, so stop if ownership is unknown. The following sequence is only for a dedicated evaluation Gateway and connections that no other profile uses, after confirming plugin management will not change shared dependencies:
+**Configured Shadow is not proof of effective Shadow.** Verify that `local-system-one status` reports `EFFECTIVE mode of registered v0.10 sessions: shadow` and `EFFECTIVE search: true` before treating observations as active. In Hermes 0.23, chat turns run in a Gateway: a new chat does not necessarily reload a plugin that the running Gateway already loaded in OFF. The target profile's plugin needs a scoped refresh after the mode change. A refresh also reconciles MCP connections and can affect another profile sharing them, so stop if ownership is unknown. The following sequence is only for a dedicated evaluation Gateway and connections that no other profile uses, after confirming plugin management will not change shared dependencies:
 
 If the evaluation Gateway is not running, start an empty isolated test session without submitting a task. Then run the following in another terminal:
 
@@ -168,7 +170,7 @@ local-system-one shadow --profile lsoeval
 
 ### Canary
 
-The retained research Canary can mutate a provider request and is not authorized for production in this candidate. A separate, explicitly authorized experiment would require acknowledgement:
+The retained research Canary can mutate a provider request and is not authorized for production in v0.2.0. A separate, explicitly authorized experiment would require acknowledgement:
 
 ```bash
 scripts/set_hermes_system_one_mode.sh systemoneeval canary --ack-canary
@@ -207,7 +209,7 @@ This remains experimental. A 32-pair Hermes benchmark preserved measured task qu
 
 ## Notification Gate (Shadow only)
 
-Version `0.8.0` retains Notification Gate observation through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
+The current adapter retains the Notification Gate observation implemented in v0.8.0 through Hermes' real `post_llm_call` and `on_session_end` hooks. The final assistant response is held only in bounded process-local memory until the turn ends, sent to the configured Local System One endpoint for classification, then discarded.
 
 The persisted plugin state contains only metadata such as `delivery`, `notify_now`, reason, score, confidence, backend, latency and the event character count. The response text itself is not persisted.
 
@@ -217,7 +219,7 @@ A live `systemoneeval` Hermes smoke on this release produced all three gate deci
 
 ## Completion Gate (Shadow only)
 
-Version `0.8.0` adds Completion observation without granting stop authority. The
+The current adapter retains the Completion observation introduced in v0.8.0 without granting stop authority. The
 plugin captures a bounded task at `pre_llm_call`, bounded final result at
 `post_llm_call`, tool/failure counts through `post_tool_call`, and evaluates once
 at the real `on_session_end` boundary.
@@ -242,10 +244,12 @@ Shadow evidence, not evidence for Active stopping. See
 |---|---|
 | `mode` | `off` |
 | `search_gate_enabled` | `true` |
-| `model_tier_gate_enabled` | `true` |
-| `notification_gate_enabled` | `true` |
-| `completion_gate_enabled` | `true` |
+| `model_tier_gate_enabled` | `false` |
+| `notification_gate_enabled` | `false` |
+| `completion_gate_enabled` | `false` |
 | `retry_escalation_gate_enabled` | `false` |
+| `completion_loop_probe_enabled` | `false` |
+| `allow_remote_sidecar` | `false` |
 | `canary_acknowledged` | `false` |
 | `canary_web_filter_enabled` | `true` |
 | `canary_reasoning_downgrade_enabled` | `false` |

@@ -1,62 +1,96 @@
-# Local System One：第一次使用说明
+# Local System One v0.2.0：从安装到第一次 Shadow
 
-本说明对应 v0.2.0 的本地发行候选。正式发行之前，请以候选的验收结论和发行清单为准。
+> **适用版本：** [GitHub 正式版 v0.2.0](https://github.com/NMTZ-z/system-one-benchmark-lab/releases/tag/v0.2.0)，Hermes 插件 0.10.0。本文同时适用于**已有 Hermes Profile** 和新建测试 Profile，无须强制新建 Profile。
 
-## 它会做什么
+## 先弄清楚三个问题
 
-System One 在电脑上运行一个小模型，给 Agent 的部分工作判断提供建议。第一次体验只观察
-“当前任务是否需要公开网络搜索”。你原来的 Agent 和主模型继续负责回答和使用工具。
+**安装插件后会自动工作吗？** 不会。Hermes 插件安装后默认 **OFF**，本地 Runtime 也需要单独安装和启动。可以把 Runtime 理解为决策服务，把 Hermes 插件理解为接线器：只有两边准备好、你主动开启 Shadow，才会开始观察。
 
-例如，你请 Agent 根据已经提供的材料想 5 个选题。System One 可能建议 `no_search`，
-意思是“它判断这项任务不需要搜索公开网页”。换一个需要最新公开资料的问题，它可能
-建议 `search`。这两种结果都有可能出错，需要结合任务判断。
+| 模式 | System One 的行为 | Hermes 会受到什么影响 |
+|---|---|---|
+| **OFF（默认）** | 不调用本地决策服务 | Hermes 按原样工作 |
+| **Shadow（建议先用）** | 用本地 Laya 判断、记录 Search 建议 | **不改写**主模型请求和工具 |
+| **Canary** | 允许少量经过审计的规则更改请求 | 可能改变行为；**不属于本版的生产使用授权** |
 
-第一次体验使用 Shadow（观察模式）：System One 记录建议，Agent 仍按自己的流程工作。
-它不会因为接入就提高创意质量，也不能据此判断是否节省时间、Token 或费用。
+全新配置首次进入 Shadow 时，只启用 **Search Gate**。Model Tier、Notification、Completion、Retry 和 Completion Loop Probe 均默认关闭。以后可以逐项选择；已有 Profile 的明确设置会保留。
 
-## 开始之前
+**Shadow 看什么？** 例如你让 Agent 翻译已有文字，本地模型可能建议 `no_search`；询问最新政策，它可能建议 `search`。Hermes 仍自行决定是否搜索。Shadow 不会直接节省主模型 Token，运行本地模型也会占用少量电脑资源。
 
-- 准备 Apple Silicon Mac、Hermes、Python 3.12 和独立的测试 Profile。测试过的版本
-  及其他要求见 [README 的 Quick start](../README.md#quick-start)。
-- 本地模型第一次下载和安装依赖可能需要联网；先确认下载内容和来源。已有经过校验的
-  模型缓存可以复用。主模型是否联网取决于你原有的 Provider 设置。
-- 确认测试 Profile、原有任务和服务的情况。多个 Profile 可能共用 Hermes 服务、工具
-  连接或电脑资源；开启、关闭或卸载前都要检查影响范围。
-- 默认本地服务接收有长度限制的当前任务与近期上下文。首次观察作用于选定 Profile，
-  同时进行的其他会话也可能被观察。请先确认内容范围与时段。Hermes 本身如何保存对话，
-  取决于 Hermes 的设置。
+## 第一步：准备 Runtime（首次安装一次）
 
-## 安装和开启
+需要 Apple Silicon Mac、Hermes、Python 3.12（这是已验证的安装路径）及可用磁盘空间。已验证过的模型缓存可复用；**只有缺少模型时才手动下载**。普通 Hermes 任务使用的主模型和费用由你原有 Provider 决定。
 
-以下命令使用新建的 `lsoeval` 测试 Profile。先在已审阅的源码目录按照
-[Quick start](../README.md#quick-start) 创建 Python 环境并安装依赖，然后执行：
+从固定发行 Tag 获取源码和锁定依赖，安装到独立 Python 环境，避免覆盖 Hermes 自己的 Python：
+
+```bash
+git clone --branch v0.2.0 --depth 1 https://github.com/NMTZ-z/system-one-benchmark-lab.git
+cd system-one-benchmark-lab
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install --require-hashes --only-binary=:all: -r requirements/first-run-macos-arm64-py312.lock
+python -m pip install --no-deps .
+```
+
+以后使用 `local-system-one` 命令时，先进入这个环境并运行 `. .venv/bin/activate`。如果系统提示 `command not found`，先检查这一步。
+
+## 第二步：选定 Hermes Profile
+
+**已有 Hermes 用户：** 用自己现有的 Profile 名称替换下面的 `lsoeval`。无需创建新 Profile。如果该 Profile 已安装正式插件 0.10.0，也无需重复安装。
+
+**想新建测试 Profile：** 可选择执行下面这条命令（已有 Profile 跳过）：
 
 ```bash
 hermes profile create lsoeval --no-alias --no-skills
+```
+
+以下用 `lsoeval` 举例，后续所有命令都要使用**同一个 Profile 名称**。
+
+先检查环境：
+
+```bash
 local-system-one doctor --profile lsoeval
 ```
 
-如果 `doctor` 提示缺少模型，确认后使用 `local-system-one download-model --profile lsoeval`
-下载固定模型。模型已经就绪后，继续：
+`NEEDS_SETUP` 说明还缺模型、插件或依赖；按提示补齐即可。`BLOCKED` 说明有必须解决的环境问题，例如端口冲突。预检本身不会下载模型或开启服务。
+
+**仅在模型缺失且你同意联网下载时**运行：
+
+```bash
+local-system-one download-model --profile lsoeval
+```
+
+**仅在该 Profile 尚未安装正式插件时**运行：
 
 ```bash
 local-system-one install --profile lsoeval
+```
+
+注意：Hermes 官方 Catalog 的条目在本文更新时仍指向旧版 `0.6.0`。如果你想使用 `0.10.0`，先核对 [上游更新 PR](https://github.com/NousResearch/hermes-agent/pull/150745) 是否已合并，或直接采用 v0.2.0 的固定发行源码。安装完成后应核对 `status` 中的插件版本。
+
+## 第三步：启动 Runtime，再主动开启 Shadow
+
+```bash
 local-system-one start --profile lsoeval
 local-system-one shadow --profile lsoeval
 local-system-one status --profile lsoeval
 ```
 
-安装后的默认模式是 OFF；`shadow` 才会开启观察。开启命令会先
-显示服务地址、数据类别和选定的观察项。已存在的显式 Gate 设置会保留；全新默认配置的
-首次观察只启用 Search。
+`start` 会启动只监听 `127.0.0.1:8787` 的本地 Runtime，并验证真正的 Laya／MLX 推理。首次 Shadow 会显示请求目的地址、可能传递的数据类别和已启用的 Gate。默认服务需使用专用本地凭据；任务正文不会被默认写入决策记录。
 
-Hermes 0.23 的聊天由 Gateway 承载。如果它已经以 OFF 加载插件，单独新建聊天或运行
-`hermes -p lsoeval chat` 不保证插件重新加载。先确认 `status` 显示已登记会话的实际模式
-为 `shadow`；只有 `CONFIGURED mode: shadow` 时还不能认定观察已经生效。
+**成功要看两层状态：**
 
-如果已经确认 **测试 Gateway 及其工具连接由 `lsoeval` 独占**，且插件管理不会变更
-其他 Profile 的共用依赖，可以按以下顺序关闭旧观察、刷新目标插件并重新开启：
-如果测试 Gateway 尚未运行，先打开空的测试会话，暂不输入任务；之后在另一个终端执行：
+- `CONFIGURED mode: shadow`：配置已经要求开启。
+- `EFFECTIVE mode of registered v0.10 sessions: shadow` 与 `EFFECTIVE search: true`：当前已登记的插件会话确实在观察。
+
+如果只显示 `PENDING_RELOAD` 或 `UNKNOWN`，目前还不能确认真实观察已经生效。请看下一节。
+
+## Shadow 已配置但没生效怎么办
+
+Hermes 0.23 的聊天可能由**常驻 Gateway** 承载。只打开新聊天，未必会重新加载旧的 OFF 插件。你需要让目标 Profile 的插件重新加载，再查看 `status`。
+
+**如果 Gateway 或 MCP 连接被多个 Profile 共用：** 不要为了一个插件直接重启整个 Gateway，也不要随意对它执行禁用、启用。应由管理者先确认连接归属，再进行目标 Profile 的定向热刷新。刷新后检查所有其他 Profile 仍正常。这里的刷新可能重新协调 MCP 连接。
+
+**仅当确认测试 Gateway 和它的工具连接都由该 Profile 独占时**，可以按已验证的插件管理流程：
 
 ```bash
 local-system-one off --profile lsoeval
@@ -66,59 +100,61 @@ hermes -p lsoeval plugins enable local-system-one-hermes --no-allow-tool-overrid
 local-system-one status --profile lsoeval
 ```
 
-如果刷新后状态仍为 `UNKNOWN` 或 `PENDING_RELOAD`，请停止并核实目标 Gateway 是否
-已重新加载插件。只有确认实际模式为 `shadow`，才能把后续判断当作有效观察。
-插件刷新会让 Hermes 核对工具连接；
-如果 Gateway 或工具连接可能与其他 Profile 共用，或者无法确认归属，请先停止并核实，
-不要重启共享 Gateway。旧会话仍可能使用旧设置，需要单独结束或重载；同一 Profile 的
-多个会话也可能同时写入记录。
+如果仍然显示 `PENDING_RELOAD` 或 `UNKNOWN`，停止刷新操作，确认实际插件加载状态；**不要因为配置变成 Shadow 就声称启用成功**。旧版未登记会话也可能保持 `UNKNOWN`，需要结束或重载后单独核对。
 
-确认生效后，可以使用 `hermes -p lsoeval chat`，让它完成一项你允许的任务。
+## 第四步：做一次正常任务，看看判断
 
-## 看懂结果
+在选定 Profile 中运行自己的常规 Hermes 任务，例如：
 
-在同一个 Python 环境运行：
+> 请用一句话解释压缩空气储能膨胀机的作用。
+
+然后查看：
 
 ```bash
 local-system-one status --profile lsoeval
 ```
 
-输出中的几个关键项目：
-
-| 项目 | 含义 |
+| 看到的字段 | 人话解释 |
 |---|---|
-| `CONFIGURED mode` | 配置中请求的模式，例如 `off` 或 `shadow`。 |
-| `EFFECTIVE mode of registered v0.10 sessions` | 已登记会话实际报告的模式；`UNKNOWN` 或 `PENDING_RELOAD` 表示还不能确认。 |
-| `Last Search recommendation` | 最近一次保存的搜索建议：`search` 表示建议搜索，`no_search` 表示建议不搜索，`UNKNOWN` 表示没有可确认的建议。 |
-| `recorded UTC` | 上述记录的世界标准时间；`UNKNOWN` 表示没有可用时间。北京时间为 UTC 时间加 8 小时，跨日时日期也要调整。 |
-| `Last Search decision source` | `model` 表示模型给出的判断，`rule` 表示固定规则。 |
-| `latency ms` / `failure` | 观察耗时（毫秒）及可安全显示的失败类别。 |
+| `Last Search recommendation: no_search` | System One 建议当前任务无须公开搜索 |
+| `Last Search recommendation: search` | System One 建议需要公开搜索 |
+| `Last Search decision source: rule / model` | 建议来自固定规则或本地 Laya 模型 |
+| `latency ms` | 这次观察的耗时 |
+| `recorded UTC` | 记录时间（北京时间为 UTC+8） |
+| `failure` | 最近一次观察是否失败及安全失败类别 |
 
-“最近一次”可能来自之前的任务，甚至来自同一 Profile 的其他会话。请结合记录时间和
-自己的操作判断；这条状态不能证明记录一定对应当前对话。状态展示来源和结果，不提供
-模型的完整推理过程。Shadow 下该建议不会改写主模型请求；看到建议不代表 Agent 已经
-按建议搜索或停止搜索。
+这些字段只展示**最近一次记录**，可能来自前一个任务，或同一 Profile 的其他会话；要结合时间判断。`no_search` 是建议，Shadow 并不会阻止 Hermes 搜索。
 
-## 关闭、停止和卸载
+## 关闭、停止、卸载
 
-结束体验后，先关闭观察并查看状态：
+**只想暂停观察：**
 
 ```bash
 local-system-one off --profile lsoeval
 local-system-one status --profile lsoeval
 ```
 
-`CONFIGURED mode: off` 说明配置已请求关闭。已登记会话显示 `EFFECTIVE_OFF` 才说明这些
-会话已确认关闭；旧的未登记会话可能仍为 `UNKNOWN`，需结束或重载后单独核实。
+`CONFIGURED mode: off` 只表示配置已写入；对于已登记的 0.10 会话，还应看到 `EFFECTIVE_OFF`。旧版未登记会话要通过重载或结束进一步核实。
 
-确认本次启动的 Runtime 没有其他使用者后，停止服务；如需移除插件，再执行卸载：
+**想同时停止本地 Runtime：** 先确认没有其他客户端在使用，再执行：
 
 ```bash
 local-system-one stop --profile lsoeval --confirm-clients
+```
+
+**需要移除插件：**
+
+```bash
 local-system-one uninstall --profile lsoeval
 ```
 
-`--confirm-clients` 表示你确认停止会影响所有共用该 Runtime 的客户端。卸载会通过 Hermes
-处理插件配置和依赖；确认不会影响其他成员后再执行。共享 Python 包需要在所有 Profile
-移除后另行卸载；模型缓存和 Hermes 会话数据会保留。遇到状态不明、其他成员异常或
-服务归属不清时，停止操作并保留现场。
+卸载保留模型缓存、原有 Hermes 会话和无关 Profile；共享 Python 环境需要另行管理。遇到归属不明的服务、共享 Gateway 或异常状态，应停止操作并核实，避免影响其他 Agent。
+
+## 常见疑问
+
+- **只安装了 Hermes 插件却没有记录？** 查看 Runtime 是否已安装并 `HEALTHY`、当前模式是否为 `EFFECTIVE shadow`。
+- **出现 401／认证错误？** 核对 Runtime 与插件是否都是正式版，旧插件可能不支持新认证，需要升级并重新加载。不要关闭认证来绕过问题。
+- **服务不通会卡住 Hermes 吗？** 插件按 fail-open 设计，遇到不可用、超时或错误时让 Hermes 继续原生任务。
+- **可以一开始打开所有 Gate 吗？** 首次建议只观察 Search。Completion、Retry 的建议仍然不会自动终止或重试任务；Canary 不属于本版的生产使用授权。
+
+完整能力和工程限制见 [项目 README](../README.md)；正式安装工件见 [GitHub Release v0.2.0](https://github.com/NMTZ-z/system-one-benchmark-lab/releases/tag/v0.2.0)。

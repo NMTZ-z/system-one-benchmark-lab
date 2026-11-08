@@ -4,13 +4,13 @@
 
 Native DeepSeek Harness adapter for Local System One **Search, Model Tier, Notification, Completion and Retry / Escalation**.
 
-Candidate version `0.7.0` implements **Adapter Contract v1** with installation OFF by default. Completion and Retry / Escalation are Shadow-only and never stop, restart or retry the DSH loop. The `dsh-plugin` install branch is still `0.3.0` at `217cf89b3c9d17eb5f3178ec0de31b530f834a96`; install the candidate bundle instead.
+Published version **`0.7.0`**, included in the [Local System One v0.2.0 GitHub Release](https://github.com/NMTZ-z/system-one-benchmark-lab/releases/tag/v0.2.0), implements Adapter Contract v1 and installs **OFF** by default. The `dsh-plugin` distribution branch is also at `0.7.0`. Completion and Retry / Escalation remain advisory Shadow observations; they never stop, restart or retry the DSH loop.
 
-The current candidate is for OFF and Shadow evaluation. Production Active and Canary use are not authorized.
+Recommended mode for users is **Shadow** after installing and starting the authenticated local Runtime. Production Active and Canary use are not authorized.
 
 ## Compatibility
 
-Phase 8.4C installed and exercised this candidate through both exact DSH versions with local mock providers and loopback mock decisions. Both covered OFF, Shadow hooks for all five Gates, Runtime-down fallback, and removal. No remote provider was called in this phase. Earlier Phase 7A results are historical:
+Phase 8.4C installed and exercised the 0.7.0 bundle through both exact DSH versions with local mock providers and loopback mock decisions. Both covered OFF, Shadow hooks for all five Gates, Runtime-down fallback, and removal. No remote provider was called in this phase. Earlier Phase 7A results are historical:
 
 | DSH | Commit | Validation |
 |---|---|---|
@@ -118,7 +118,7 @@ observation uses generic progress wording, not raw tool output. It does not
 mutate DSH control flow and is **off by default**. Turn and session state
 is scoped and cleared on lifecycle boundaries; failures are fail-open.
 
-The Phase 8B evaluation covered pinned upstream lifecycle events, simulated replay and HTTP integration. Phase 8.4C additionally used the native DSH SDK with a local mock LLM. Real remote-provider acceptance for this candidate and a production-quality task dataset remain outstanding. [Phase 8B
+The Phase 8B evaluation covered pinned upstream lifecycle events, simulated replay and HTTP integration. Phase 8.4C additionally used the native DSH SDK with a local mock LLM. Real remote-provider acceptance for v0.7.0 and a production-quality task dataset remain outstanding. [Phase 8B
 report](../../../docs/PHASE8B_FINAL_REPORT.md): **Active NO-GO**.
 
 ## Search Gate
@@ -236,15 +236,15 @@ Each gate is independent. A timeout, HTTP error, malformed response, or dead Loc
 
 Canary mutations also fail open: if authority cannot be proven or a mutation throws, the original tool/provider behavior is preserved. Known but unverified provider/model mappings are recorded as `unsupported`; actual integration failures are recorded as `failed_open`.
 
-## Candidate bundle install
+## Install the released bundle and enable Shadow
 
-Install into a supported `headless` profile:
+Download `local-system-one-dsh-0.7.0.tgz` from the [v0.2.0 Release](https://github.com/NMTZ-z/system-one-benchmark-lab/releases/tag/v0.2.0), verify it against `SHA256SUMS`, and install into a supported `headless` profile. Start the matching Local System One v0.2.0 Runtime separately: DSH does not start the Python model service for you.
 
 ```bash
 dsh plugin --profile headless add file:/absolute/path/local-system-one-dsh-0.7.0.tgz
 ```
 
-The bundle installs in `off` mode. Enabling Shadow requires an explicit profile override.
+The bundle installs in **OFF** mode. Enabling **Shadow** requires an explicit profile configuration override followed by a **DSH host/plugin reload**; a running session may keep its previous mode until reloaded. Never infer effective Shadow from the YAML file alone.
 
 Example Shadow override:
 
@@ -282,7 +282,7 @@ npm run build
 npm audit
 ```
 
-The candidate package is not published to npm. The historical `dsh-plugin` branch carries the older `0.3.0` package.
+The `0.7.0` bundle is published as a GitHub Release asset, and the `dsh-plugin` install branch has been updated to `0.7.0`. The package is not published to npm. Pin the tested DSH version and the bundle checksum when deploying.
 
 ## Local development load
 

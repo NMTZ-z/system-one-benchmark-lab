@@ -15,7 +15,7 @@ Local System One is not another chatbot and does not replace your LLM. It sits *
 
 The project packages a validated **Laya Typed Decisions 421M** runtime, an optional **Apple Neural Engine (ANE)** backend, HTTP/MCP interfaces, a reversible **Hermes adapter**, and a native **DeepSeek Harness adapter**. The Runtime is the platform-independent decision plane; each Adapter owns how an abstract decision is safely mapped onto its platform.
 
-**Release baseline:** this branch is a v0.2.0 RC candidate, subject to the checks in the release manifest. Hermes installs OFF and first Shadow enables Search only unless the profile already contains explicit Gate choices. Canary can mutate requests; production Active and Canary are not authorized. See the [v0.2.0 scope](docs/V0_2_PRODUCT_SCOPE.md) and [release baseline](docs/PHASE8_4A_RELEASE_BASELINE.md).
+**Published release:** [v0.2.0](https://github.com/NMTZ-z/system-one-benchmark-lab/releases/tag/v0.2.0) (Runtime 0.2.0, Hermes adapter 0.10.0, DSH adapter 0.7.0). Installation starts **OFF**. You must start the separate local Runtime and explicitly select **Shadow** to observe Search decisions; Shadow does **not** change the Agent's behavior. Production Canary/Active remains unauthorized. See the [v0.2.0 scope](docs/V0_2_PRODUCT_SCOPE.md) and [Chinese first-use guide](docs/HERMES_FIRST_RUN_ZH.md).
 
 The repository also retains Phase 8.3 Benchmark Lab source and evidence. Historical H4 executors are frozen and require separate authorization to run. They are not part of the product source bundle or Python wheel; see the [integration review](docs/PHASE8_4A_INTEGRATION_REVIEW.md).
 
@@ -58,8 +58,9 @@ This distinction matters: the project deliberately separates **technical capabil
 
 ## Quick start
 
-For a plain-language explanation, a worked example, and how to interpret the
-latest recorded Search recommendation, see the [Chinese first-use guide](docs/HERMES_FIRST_RUN_ZH.md).
+For a step-by-step explanation, including **existing Hermes profiles**, mode switching, and how to tell whether Shadow actually loaded in a running Gateway, see the [Chinese first-use guide](docs/HERMES_FIRST_RUN_ZH.md).
+
+**Two things to install:** (1) the local Python Runtime; (2) the Hermes adapter in the chosen profile. Installing the adapter leaves it **OFF**. `start` launches the Runtime; `shadow` requests Search-only observation; `status` must confirm an **effective** Shadow mode before you rely on the observation. No paid main-model calls are required for the local Runtime, but normal Hermes tasks may still use your configured provider.
 
 ### Requirements
 
@@ -76,24 +77,22 @@ python -m pip install --require-hashes --only-binary=:all: -r requirements/first
 python -m pip install --no-deps .
 ```
 
-Create a named, isolated Hermes profile, check it, and explicitly download the fixed model when needed:
+Choose an **existing** Hermes profile, or optionally create a new test profile with `hermes profile create lsoeval --no-alias --no-skills`. In this example, replace `lsoeval` with the profile you intend to use; **skip `install` when the matching 0.10.0 plugin is already installed**:
 
 ```bash
-hermes profile create lsoeval --no-alias --no-skills
 local-system-one doctor --profile lsoeval
+# Only when the pinned model is missing, deliberately download it:
 local-system-one download-model --profile lsoeval
+# Only when the 0.10.0 adapter is not yet installed in this profile:
 local-system-one install --profile lsoeval
 local-system-one start --profile lsoeval
 local-system-one shadow --profile lsoeval
 local-system-one status --profile lsoeval
 ```
 
-Verify that the selected profile's registered sessions report effective Shadow before
-using the observation. On Hermes 0.23, chat turns run in a Gateway: opening a new
-chat does not necessarily reload a plugin the Gateway already loaded in OFF. A
-profile-scoped plugin refresh can also reconcile shared MCP connections; use the
-[isolated first-use procedure](docs/HERMES_FIRST_RUN_ZH.md) only after confirming
-the test Gateway and its connections are not shared with other profiles. The
+The `download-model` and `install` lines are **conditional**, not mandatory on every run. If the `local-system-one` command is missing, first activate the Python environment above. When done, `status` should show the healthy Runtime, `CONFIGURED mode: shadow`, and `EFFECTIVE mode of registered v0.10 sessions: shadow` with Search enabled.
+
+**Hermes Gateway caveat:** `CONFIGURED` alone is insufficient. On Hermes 0.23, opening another chat may leave a plugin already loaded as OFF. A profile-scoped refresh may also reconcile shared MCP connections. Follow the [first-use guide](docs/HERMES_FIRST_RUN_ZH.md#shadow-已配置但没生效怎么办) and do not restart a shared Gateway blindly. The
 default source alias is `laya-typed-decisions`; it resolves and verifies this checkpoint revision:
 
 ```text
@@ -217,7 +216,7 @@ local-system-one status --profile lsoeval
 
 Shadow mode observes decisions without changing the provider request. The configured sidecar receives bounded task text and recent context; other opt-in Gates can send bounded response or failure context. The default address is loopback. Remote HTTPS requires the separate `--allow-remote` choice, and redirects are refused.
 
-The [official Hermes catalog entry](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) still installs plugin `0.6.0` at reviewed commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6`. This candidate contains plugin `0.10.0`; a catalog update is planned for 8.4D.
+The [official Hermes catalog entry](https://hermes-agent.nousresearch.com/docs/plugins/local-system-one-hermes) was still pinned to `0.6.0` at commit `1095495019b2dff2b4231ed70ec23a3ea716e2f6` when this guide was updated. The published `0.10.0` adapter is available in [v0.2.0 Release](https://github.com/NMTZ-z/system-one-benchmark-lab/releases/tag/v0.2.0); [the upstream catalog update](https://github.com/NousResearch/hermes-agent/pull/150745) is reviewed separately. Check which version the catalog currently points to before installing.
 
 Rollback is built in:
 
@@ -257,13 +256,13 @@ The StepFun route completed native high/low requests and an automatic Local Syst
 
 The installation bundle remains inert in `off` mode. Connection errors, timeouts, malformed gate responses, unsupported provider/model routes, and any missing Canary authority fail open to native DSH behavior. Turn-scoped Search and Model Tier state is cleared at turn end.
 
-Install the candidate bundle from its local artifact path:
+Install the published 0.7.0 bundle from its downloaded Release artifact path:
 
 ```bash
 dsh plugin --profile headless add file:/absolute/path/local-system-one-dsh-0.7.0.tgz
 ```
 
-The older `dsh-plugin` branch still contains version `0.3.0`. Production Active and Canary use remain unauthorized for this candidate.
+The `dsh-plugin` distribution branch has been updated to `0.7.0`. Production Active and Canary use remain unauthorized.
 
 See [DeepSeek Harness adapter documentation](integrations/deepseek-harness/local-system-one-dsh/README.md), the [Phase 0 / Phase 1 probe report](integrations/deepseek-harness/local-system-one-dsh/PHASE0_PROBE.md), and the [Phase 7A Model Tier parity report](integrations/deepseek-harness/local-system-one-dsh/PHASE7A_MODEL_TIER_PARITY.md).
 
