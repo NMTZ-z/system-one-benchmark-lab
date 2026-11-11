@@ -940,15 +940,11 @@ def register(ctx):
         return handle
 
     instance = _control_call(control_path, registration_epoch, record_registration)
-    home_binding = next(((key, value) for key, value in contextvars.copy_context().items()
-                         if key.name == "_HERMES_HOME_OVERRIDE"), None)
 
     def guarded(function):
         def run(*args, **kwargs):
             _ = instance  # Keep the kernel-held liveness lock while hooks are registered.
             current = contextvars.copy_context()
-            if home_binding:
-                current.run(home_binding[0].set, home_binding[1])
             current.run(_AUTH_PATH.set, token_path)
             return current.run(_control_call, control_path, control_epoch, function, *args, **kwargs)
         return run

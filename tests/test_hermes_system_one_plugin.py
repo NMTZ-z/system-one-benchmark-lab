@@ -1569,46 +1569,106 @@ def test_sidecar_redirect_does_not_forward_task(tmp_path):
             thread.join(timeout=2)
 
 
-def test_background_observation_keeps_its_registration_profile(tmp_path, monkeypatch):
+def test_hook_and_background_observation_keep_calling_context(tmp_path, monkeypatch):
     import contextvars
 
     profile_context = contextvars.ContextVar("_HERMES_HOME_OVERRIDE")
-    profile_context.set("profile-a")
+    same_name_context = contextvars.ContextVar("_HERMES_HOME_OVERRIDE")
+    first = profile_context.set("registered-profile")
+    second = same_name_context.set("registered-other-context")
     plugin = load_plugin()
-    ctx = FakeContext("shadow", search_gate_enabled=False, model_tier_gate_enabled=False,
+    ctx = FakeContext("shadow", search_gate_enabled=True, model_tier_gate_enabled=False,
                       notification_gate_enabled=False, completion_gate_enabled=True,
                       completion_loop_probe_enabled=True)
-    profile_home = tmp_path / "profile-a"
-    (profile_home / "plugin-data").mkdir(parents=True)
-    plugin._set_control(profile_home, True)
+    token_path = str(tmp_path / "access-token")
+    monkeypatch.setenv("LOCAL_SYSTEM_ONE_AUTH_TOKEN_FILE", token_path)
+    seen = {}
+    started = threading.Event()
+    release = threading.Event()
 
-    class ProfileState:
-        data_dir = profile_home / "plugin-data/agent-plugin-test"
+    def observe_context():
+        return profile_context.get(), same_name_context.get(), plugin._AUTH_PATH.get()
 
-        def __init__(self):
-            self.by_profile = {}
+    def fake_search(*_args, **_kwargs):
+        seen["hook"] = observe_context()
+        return {"ok": False, "search": None, "model_tier": None,
+                "error": "URLError", "shadow_latency_ms": 1}
 
-        def get(self, key, default=None):
-            return self.by_profile.get(profile_context.get(), {}).get(key, default)
+    def fake_completion(*_args):
+        seen["worker"] = observe_context()
+        started.set()
+        release.wait(timeout=2)
+        return {"ok": False, "completion": None, "error": "URLError", "shadow_latency_ms": 1}
 
-        def set(self, key, value):
-            self.by_profile.setdefault(profile_context.get(), {})[key] = value
+    monkeypatch.setattr(plugin, "_safe_recommendations", fake_search)
+    monkeypatch.setattr(plugin, "_safe_completion", fake_completion)
+    try:
+        plugin.register(ctx)
+        profile_context.set("calling-profile")
+        same_name_context.set("calling-other-context")
+        common = {"turn_id": "turn", "session_id": "session"}
+        ctx.hooks["pre_llm_call"](**common, user_message="test")
+        ctx.hooks["post_tool_call"](**common, status="success", result={"success": True})
+        assert started.wait(timeout=2)
+        profile_context.set("later-profile")
+        same_name_context.set("later-other-context")
+        release.set()
+        deadline = time.monotonic() + 2
+        while "last_completion_loop_probe" not in ctx.state.values and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert "last_completion_loop_probe" in ctx.state.values
+        expected = ("calling-profile", "calling-other-context", token_path)
+        assert seen == {"hook": expected, "worker": expected}
+        assert profile_context.get() == "later-profile"
+        assert same_name_context.get() == "later-other-context"
+        assert plugin._AUTH_PATH.get() is None
+    finally:
+        release.set()
+        profile_context.reset(first)
+        same_name_context.reset(second)
 
-    ctx.state = ProfileState()
-    monkeypatch.setattr(plugin, "_safe_completion", lambda *_args: {
-        "ok": False, "completion": None, "error": "URLError", "shadow_latency_ms": 1,
-    })
-    plugin.register(ctx)
-    profile_context.set("profile-b")
-    common = {"turn_id": "turn", "session_id": "session"}
-    ctx.hooks["pre_llm_call"](**common, user_message="test")
-    ctx.hooks["post_tool_call"](**common, status="success", result={"success": True})
-    for _ in range(100):
-        if "last_completion_loop_probe" in ctx.state.by_profile.get("profile-a", {}):
-            break
-        time.sleep(0.01)
-    assert "last_completion_loop_probe" in ctx.state.by_profile["profile-a"]
-    assert "profile-b" not in ctx.state.by_profile
+
+def test_simultaneous_hooks_keep_independent_calling_profiles(monkeypatch):
+    import contextvars
+
+    profile_context = contextvars.ContextVar("_HERMES_HOME_OVERRIDE")
+    registration = profile_context.set("registered-profile")
+    plugin = load_plugin()
+    ctx = FakeContext("shadow", model_tier_gate_enabled=False, notification_gate_enabled=False)
+    barrier = threading.Barrier(2)
+    seen = []
+    failures = []
+
+    def fake_search(_url, task, *_args, **_kwargs):
+        barrier.wait(timeout=2)
+        seen.append((task, profile_context.get()))
+        return {"ok": False, "search": None, "model_tier": None,
+                "error": "URLError", "shadow_latency_ms": 1}
+
+    def invoke(profile):
+        token = profile_context.set(profile)
+        try:
+            ctx.hooks["pre_llm_call"](user_message=profile, turn_id=profile)
+            assert profile_context.get() == profile
+        except Exception as exc:
+            failures.append(exc)
+        finally:
+            profile_context.reset(token)
+
+    monkeypatch.setattr(plugin, "_safe_recommendations", fake_search)
+    try:
+        plugin.register(ctx)
+        threads = [threading.Thread(target=invoke, args=(p,)) for p in ("profile-b", "profile-c")]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=3)
+        assert all(not thread.is_alive() for thread in threads)
+        assert not failures
+        assert sorted(seen) == [("profile-b", "profile-b"), ("profile-c", "profile-c")]
+        assert profile_context.get() == "registered-profile"
+    finally:
+        profile_context.reset(registration)
 
 
 def test_impostor_sidecar_never_receives_token_or_task(tmp_path):
