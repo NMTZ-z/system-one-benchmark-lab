@@ -69,9 +69,19 @@ hermes plugins install local-system-one-hermes
 
 Catalog installs are pinned to the exact commit reviewed by Hermes maintainers.
 
+**Profile-context fix:** This source includes the caller-profile isolation fix.
+The published v0.2.0 Runtime bundles an earlier plugin that also reports version
+`0.10.0`; the version string alone cannot distinguish the two. Verify the installed
+plugin source against the reviewed Catalog commit. Running `local-system-one install`
+from the published v0.2.0 Runtime reinstalls the earlier bundled plugin.
+
 ### Install in your chosen profile
 
-Use your existing Hermes Profile, or optionally create a new test Profile. Replace `lsoeval` in the examples with its actual name. **If the matching 0.10.0 adapter is already installed, skip `install`**; do not overwrite it needlessly. First installation initializes the observation fence in OFF mode:
+Use your existing Hermes Profile, or optionally create a new test Profile. Replace
+`lsoeval` with its actual name. If the reviewed fixed plugin is already installed,
+skip `install`. The install command below requires a Runtime distribution that
+bundles this fixed source. First installation initializes the observation fence
+in OFF mode:
 
 ```bash
 local-system-one doctor --profile lsoeval
